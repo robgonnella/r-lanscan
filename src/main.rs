@@ -2,10 +2,7 @@ use clap::Parser;
 use pcap::Capture;
 use pcap::Device;
 
-use crate::scanner::Scanner;
-
-#[path = "scanner/scanner.rs"]
-mod scanner;
+use scanner::*;
 
 fn get_default_device() -> String {
     let device = Device::lookup()
@@ -72,23 +69,23 @@ fn main() {
 
     let arp_targets = args.targets.clone();
 
-    let arp_scanner = scanner::ARPScanner::new(cap1, arp_targets);
+    let arp_scanner = ARPScanner::new(cap1, arp_targets);
 
     arp_scanner.scan();
 
-    let syn_targets: Vec<scanner::ArpScanResult> = vec![scanner::ArpScanResult {
+    let syn_targets: Vec<ArpScanResult> = vec![ArpScanResult {
         ip: String::from("192.168.68.56"),
         mac: String::from("00:00:00:00:00:00"),
         vendor: String::from("macOS"),
     }];
 
-    let syn_scanner = scanner::SYNScanner::new(cap2, syn_targets);
+    let syn_scanner = SYNScanner::new(cap2, syn_targets);
 
     syn_scanner.scan();
 
     let full_targets = args.targets.clone();
 
-    let full_scanner = scanner::FullScanner::new(cap3, full_targets);
+    let full_scanner = FullScanner::new(cap3, full_targets);
 
     full_scanner.scan();
 }
