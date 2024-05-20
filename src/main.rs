@@ -30,6 +30,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     arp_only: bool,
 
+    /// Perform vendor lookups
+    #[arg(long, default_value_t = false)]
+    vendor: bool,
+
+    /// Perform hostname lookups
+    #[arg(long, default_value_t = false)]
+    host: bool,
+
     /// Choose a specific network interface for the scan
     #[arg(short, long, default_value_t = get_default_device())]
     interface: String,
@@ -43,6 +51,8 @@ fn main() {
     println!("  ports: {:?}", args.ports);
     println!("  json: {}", args.json);
     println!("  arpOnly: {}", args.arp_only);
+    println!("  vendor: {}", args.vendor);
+    println!("  host: {}", args.host);
     println!("  interface: {}", args.interface);
 
     let interface = args.interface.as_str();
@@ -57,8 +67,8 @@ fn main() {
     let arp_targets = args.targets.clone();
 
     let arp_options: Option<ARPScannerOptions> = Some(ARPScannerOptions {
-        include_hostnames: true,
-        include_vendor: true,
+        include_hostnames: args.host,
+        include_vendor: args.vendor,
     });
 
     let arp_scanner = ARPScanner::new(&cap, arp_targets, arp_options);
