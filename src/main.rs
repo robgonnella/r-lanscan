@@ -66,12 +66,12 @@ fn main() {
 
     let arp_targets = args.targets.clone();
 
-    let arp_options: Option<ARPScannerOptions> = Some(ARPScannerOptions {
+    let scanner_options: Option<ScannerOptions> = Some(ScannerOptions {
         include_hostnames: args.host,
         include_vendor: args.vendor,
     });
 
-    let arp_scanner = ARPScanner::new(&cap, arp_targets, arp_options);
+    let arp_scanner = ARPScanner::new(&cap, arp_targets, &scanner_options);
 
     arp_scanner.scan();
 
@@ -86,7 +86,7 @@ fn main() {
 
     let full_targets = args.targets.clone();
 
-    let full_scanner = FullScanner::new(&cap, full_targets);
+    let full_scanner = FullScanner::new(&cap, full_targets, &scanner_options);
 
     full_scanner.scan();
 }

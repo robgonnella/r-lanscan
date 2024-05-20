@@ -1,18 +1,12 @@
 use pcap::{Active, Capture};
 
-use crate::Scanner;
+use crate::{Scanner, ScannerOptions};
 
 pub struct ARPScanner<'a> {
     cap: &'a Capture<Active>,
     targets: Vec<String>,
     include_vendor: bool,
     include_hostnames: bool,
-}
-
-#[derive(Debug)]
-pub struct ARPScannerOptions {
-    pub include_vendor: bool,
-    pub include_hostnames: bool,
 }
 
 #[derive(Debug)]
@@ -27,8 +21,8 @@ impl<'a> ARPScanner<'a> {
     pub fn new(
         cap: &'a Capture<Active>,
         targets: Vec<String>,
-        options: Option<ARPScannerOptions>,
-    ) -> ARPScanner {
+        options: &Option<ScannerOptions>,
+    ) -> ARPScanner<'a> {
         match options {
             Some(opts) => ARPScanner {
                 cap,
