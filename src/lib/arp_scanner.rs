@@ -1,20 +1,52 @@
-use pcap::Active;
-use pcap::Capture;
+use pcap::{Active, Capture};
 
-use crate::s_trait::Scanner;
+use crate::Scanner;
 
-pub struct ARPScanner {
+pub struct ARPScanner<'a> {
+    cap: &'a Capture<Active>,
     targets: Vec<String>,
-    cap: Capture<Active>,
+    include_vendor: bool,
+    include_hostnames: bool,
 }
 
-impl ARPScanner {
-    pub fn new(cap: Capture<Active>, targets: Vec<String>) -> ARPScanner {
-        ARPScanner { cap, targets }
+#[derive(Debug)]
+pub struct ARPScannerOptions {
+    pub include_vendor: bool,
+    pub include_hostnames: bool,
+}
+
+#[derive(Debug)]
+pub struct ArpScanResult {
+    pub ip: String,
+    pub mac: String,
+    pub hostname: String,
+    pub vendor: String,
+}
+
+impl<'a> ARPScanner<'a> {
+    pub fn new(
+        cap: &'a Capture<Active>,
+        targets: Vec<String>,
+        options: Option<ARPScannerOptions>,
+    ) -> ARPScanner {
+        match options {
+            Some(opts) => ARPScanner {
+                cap,
+                targets,
+                include_vendor: opts.include_vendor,
+                include_hostnames: opts.include_hostnames,
+            },
+            None => ARPScanner {
+                cap,
+                targets,
+                include_vendor: false,
+                include_hostnames: false,
+            },
+        }
     }
 }
 
-impl Scanner for ARPScanner {
+impl<'a> Scanner for ARPScanner<'a> {
     fn scan(&self) {
         println!("performing ARP scan on targets: {:?}", self.targets);
 
