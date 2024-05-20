@@ -1,20 +1,19 @@
-use pcap::Active;
-use pcap::Capture;
+use pcap::{Active, Capture};
 
-use crate::s_trait::Scanner;
+use crate::Scanner;
 
-pub struct FullScanner {
+pub struct FullScanner<'a> {
+    cap: &'a Capture<Active>,
     targets: Vec<String>,
-    cap: Capture<Active>,
 }
 
-impl FullScanner {
-    pub fn new(cap: Capture<Active>, targets: Vec<String>) -> FullScanner {
+impl<'a> FullScanner<'a> {
+    pub fn new(cap: &'a Capture<Active>, targets: Vec<String>) -> FullScanner<'a> {
         FullScanner { cap, targets }
     }
 }
 
-impl Scanner for FullScanner {
+impl<'a> Scanner for FullScanner<'a> {
     fn scan(&self) {
         println!("performing full scan on targets: {:?}", self.targets);
 

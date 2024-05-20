@@ -1,8 +1,7 @@
 use clap::Parser;
-use pcap::Capture;
-use pcap::Device;
+use pcap::{Capture, Device};
 
-use scanner::*;
+use r_lanscan::*;
 
 fn get_default_device() -> String {
     let device = Device::lookup()
@@ -46,21 +45,9 @@ fn main() {
     println!("  arpOnly: {}", args.arp_only);
     println!("  interface: {}", args.interface);
 
-    let cap1 = Capture::from_device(args.interface.as_str())
-        .expect("failed to create capture device")
-        .promisc(true)
-        .snaplen(65536)
-        .open()
-        .expect("failed to activate capture device");
+    let interface = args.interface.as_str();
 
-    let cap2 = Capture::from_device(args.interface.as_str())
-        .expect("failed to create capture device")
-        .promisc(true)
-        .snaplen(65536)
-        .open()
-        .expect("failed to activate capture device");
-
-    let cap3 = Capture::from_device(args.interface.as_str())
+    let cap = Capture::from_device(interface)
         .expect("failed to create capture device")
         .promisc(true)
         .snaplen(65536)
@@ -69,23 +56,27 @@ fn main() {
 
     let arp_targets = args.targets.clone();
 
-    let arp_scanner = ARPScanner::new(cap1, arp_targets);
+    let arp_options: Option<ARPScannerOptions> = Some(ARPScannerOptions {
+        include_hostnames: true,
+        include_vendor: true,
+    });
+
+    let arp_scanner = ARPScanner::new(&cap, arp_targets, arp_options);
 
     arp_scanner.scan();
 
-    let syn_targets: Vec<ArpScanResult> = vec![ArpScanResult {
+    let syn_targets: Vec<SYNTarget> = vec![SYNTarget {
         ip: String::from("192.168.68.56"),
         mac: String::from("00:00:00:00:00:00"),
-        vendor: String::from("macOS"),
     }];
 
-    let syn_scanner = SYNScanner::new(cap2, syn_targets);
+    let syn_scanner = SYNScanner::new(&cap, syn_targets);
 
     syn_scanner.scan();
 
     let full_targets = args.targets.clone();
 
-    let full_scanner = FullScanner::new(cap3, full_targets);
+    let full_scanner = FullScanner::new(&cap, full_targets);
 
     full_scanner.scan();
 }
