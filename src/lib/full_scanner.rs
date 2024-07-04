@@ -1,44 +1,43 @@
 use pcap::{Active, Capture};
 
-use crate::{Scanner, ScannerOptions};
+use crate::{ARPScanner, SYNScanner, SYNTarget, Scanner, ScannerOptions};
 
 pub struct FullScanner<'a> {
     cap: &'a Capture<Active>,
     targets: Vec<String>,
-    include_vendor: bool,
-    include_hostnames: bool,
+    ports: Vec<String>,
+    options: &'a ScannerOptions,
 }
 
 impl<'a> FullScanner<'a> {
     pub fn new(
         cap: &'a Capture<Active>,
         targets: Vec<String>,
-        options: &Option<ScannerOptions>,
+        ports: Vec<String>,
+        options: &'a ScannerOptions,
     ) -> FullScanner<'a> {
-        match options {
-            Some(opts) => FullScanner {
-                cap,
-                targets,
-                include_vendor: opts.include_vendor,
-                include_hostnames: opts.include_hostnames,
-            },
-            None => FullScanner {
-                cap,
-                targets,
-                include_vendor: false,
-                include_hostnames: false,
-            },
+        FullScanner {
+            cap,
+            targets,
+            ports,
+            options,
         }
     }
 }
 
 impl<'a> Scanner for FullScanner<'a> {
-    fn scan(&self) {
-        println!("performing full scan on targets: {:?}", self.targets);
+    fn scan(self) {
+        let arp_scanner = ARPScanner::new(&self.cap, self.targets, self.options);
 
-        for target in self.targets.iter() {
-            println!("scanning target: {}", target);
-            // self.cap.sendpacket(buf)
-        }
+        arp_scanner.scan();
+
+        let syn_targets: Vec<SYNTarget> = vec![SYNTarget {
+            ip: String::from("192.168.68.56"),
+            mac: String::from("00:00:00:00:00:00"),
+        }];
+
+        let syn_scanner = SYNScanner::new(&self.cap, syn_targets, self.ports, self.options);
+
+        syn_scanner.scan();
     }
 }

@@ -1,13 +1,44 @@
+use std::{net::Ipv4Addr, str::FromStr};
+
 use clap::Parser;
+use ipnet::Ipv4Net;
 use pcap::{Capture, Device};
 
 use r_lanscan::*;
 
-fn get_default_device() -> String {
+fn get_default_device_name() -> String {
     let device = Device::lookup()
         .expect("device lookup failed")
         .expect("no device available");
     device.name
+}
+
+fn netmask_to_bit(netmask: &str) -> u32 {
+    let bits: u32 = netmask
+        .split(".")
+        .map(|x| x.parse::<u8>().unwrap().count_ones())
+        .sum();
+    bits
+}
+
+fn get_default_network_cidr() -> Vec<String> {
+    let device = Device::lookup()
+        .expect("device lookup failed")
+        .expect("no device available");
+
+    let mut cidr: String = String::from("");
+
+    for a in device.addresses.iter() {
+        if a.addr.is_ipv4() && !a.addr.is_loopback() {
+            let prefix = netmask_to_bit(&a.netmask.unwrap().to_string());
+            let ipv4 = Ipv4Addr::from_str(a.addr.to_string().as_str()).unwrap();
+            let net = Ipv4Net::new(ipv4, u8::try_from(prefix).ok().unwrap()).unwrap();
+            cidr = net.trunc().to_string();
+            break;
+        }
+    }
+
+    vec![cidr]
 }
 
 /// Local Area Network ARP and SYN scanning
@@ -15,7 +46,7 @@ fn get_default_device() -> String {
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Comma separated list of IPs, IP ranges, and CIDR blocks to scan
-    #[arg(short, long, default_value = "", use_value_delimiter = true)]
+    #[arg(short, long, default_values_t = get_default_network_cidr(), use_value_delimiter = true)]
     targets: Vec<String>,
 
     /// Comma separated list of ports and port ranges to scan
@@ -39,7 +70,7 @@ struct Args {
     host: bool,
 
     /// Choose a specific network interface for the scan
-    #[arg(short, long, default_value_t = get_default_device())]
+    #[arg(short, long, default_value_t = get_default_device_name())]
     interface: String,
 }
 
@@ -64,29 +95,12 @@ fn main() {
         .open()
         .expect("failed to activate capture device");
 
-    let arp_targets = args.targets.clone();
-
-    let scanner_options: Option<ScannerOptions> = Some(ScannerOptions {
+    let scanner_options = &ScannerOptions {
         include_hostnames: args.host,
         include_vendor: args.vendor,
-    });
+    };
 
-    let arp_scanner = ARPScanner::new(&cap, arp_targets, &scanner_options);
-
-    arp_scanner.scan();
-
-    let syn_targets: Vec<SYNTarget> = vec![SYNTarget {
-        ip: String::from("192.168.68.56"),
-        mac: String::from("00:00:00:00:00:00"),
-    }];
-
-    let syn_scanner = SYNScanner::new(&cap, syn_targets);
-
-    syn_scanner.scan();
-
-    let full_targets = args.targets.clone();
-
-    let full_scanner = FullScanner::new(&cap, full_targets, &scanner_options);
+    let full_scanner = FullScanner::new(&cap, args.targets, args.ports, scanner_options);
 
     full_scanner.scan();
 }
