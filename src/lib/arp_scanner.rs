@@ -1,6 +1,9 @@
 use pcap::{Active, Capture};
 
-use crate::{Scanner, ScannerOptions};
+use crate::{
+    targets::{IPTargets, LazyLooper},
+    Scanner, ScannerOptions,
+};
 
 pub struct ARPScanner<'a> {
     cap: &'a Capture<Active>,
@@ -21,32 +24,27 @@ impl<'a> ARPScanner<'a> {
     pub fn new(
         cap: &'a Capture<Active>,
         targets: Vec<String>,
-        options: &Option<ScannerOptions>,
+        options: &ScannerOptions,
     ) -> ARPScanner<'a> {
-        match options {
-            Some(opts) => ARPScanner {
-                cap,
-                targets,
-                include_vendor: opts.include_vendor,
-                include_hostnames: opts.include_hostnames,
-            },
-            None => ARPScanner {
-                cap,
-                targets,
-                include_vendor: false,
-                include_hostnames: false,
-            },
+        ARPScanner {
+            cap,
+            targets,
+            include_vendor: options.include_vendor,
+            include_hostnames: options.include_hostnames,
         }
     }
 }
 
 impl<'a> Scanner for ARPScanner<'a> {
-    fn scan(&self) {
+    fn scan(self) {
         println!("performing ARP scan on targets: {:?}", self.targets);
 
-        for target in self.targets.iter() {
-            println!("sending ARP packet to {}", target);
-            // self.cap.sendpacket(buf)
-        }
+        let target_list = IPTargets::new(&self.targets);
+
+        let process_target = |t: String| {
+            println!("processing target: {}", t);
+        };
+
+        target_list.lazy_loop(process_target);
     }
 }

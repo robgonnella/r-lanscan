@@ -1,5 +1,5 @@
 pub trait Scanner {
-    fn scan(&self);
+    fn scan(self);
 }
 
 #[derive(Debug)]
@@ -11,6 +11,7 @@ pub struct ScannerOptions {
 mod arp_scanner;
 mod full_scanner;
 mod syn_scanner;
+mod targets;
 
 pub use arp_scanner::*;
 pub use full_scanner::*;
