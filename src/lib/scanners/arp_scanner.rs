@@ -1,9 +1,8 @@
 use pcap::{Active, Capture};
 
-use crate::{
-    targets::{IPTargets, LazyLooper},
-    Scanner, ScannerOptions,
-};
+use crate::targets::{self, LazyLooper};
+
+use super::{Scanner, ScannerOptions};
 
 pub struct ARPScanner<'a> {
     cap: &'a Capture<Active>,
@@ -39,7 +38,7 @@ impl<'a> Scanner<ARPScanResult> for ARPScanner<'a> {
 
         let results: Vec<ARPScanResult> = Vec::new();
 
-        let target_list = IPTargets::new(&self.targets);
+        let target_list = targets::ips::new(&self.targets);
 
         let process_target = |t: String| {
             println!("processing target: {}", t);

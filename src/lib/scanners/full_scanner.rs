@@ -1,10 +1,8 @@
 use pcap::{Active, Capture};
 
-use crate::{
-    arp_scanner,
-    syn_scanner::{self, SYNScanResult},
-    Scanner, ScannerOptions,
-};
+use crate::{scanners::arp_scanner, scanners::syn_scanner};
+
+use super::{Scanner, ScannerOptions};
 
 pub struct FullScanner<'a> {
     cap: &'a Capture<Active>,
@@ -28,7 +26,7 @@ pub fn new<'a>(
 }
 
 impl<'a> Scanner<syn_scanner::SYNScanResult> for FullScanner<'a> {
-    fn scan(self) -> Vec<SYNScanResult> {
+    fn scan(self) -> Vec<syn_scanner::SYNScanResult> {
         let arp = arp_scanner::new(&self.cap, self.targets, self.options);
 
         arp.scan();

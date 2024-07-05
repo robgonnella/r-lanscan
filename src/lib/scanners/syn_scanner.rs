@@ -1,9 +1,8 @@
 use pcap::{Active, Capture};
 
-use crate::{
-    targets::{LazyLooper, PortTargets},
-    Scanner, ScannerOptions,
-};
+use crate::targets::{self, LazyLooper};
+
+use super::{Scanner, ScannerOptions};
 
 pub struct SYNScanner<'a> {
     cap: &'a Capture<Active>,
@@ -49,7 +48,7 @@ impl<'a> Scanner<SYNScanResult> for SYNScanner<'a> {
         let results: Vec<SYNScanResult> = Vec::new();
 
         for target in self.targets.iter() {
-            let port_list = PortTargets::new(&self.ports);
+            let port_list = targets::ports::new(&self.ports);
 
             let process_port = |port: u32| {
                 println!("processing target: {}:{}", target.ip, port);

@@ -4,7 +4,7 @@ use clap::Parser;
 use ipnet::Ipv4Net;
 use pcap::{Capture, Device};
 
-use r_lanscan::*;
+use r_lanscan::scanners::{full_scanner, Scanner, ScannerOptions};
 
 fn get_default_device_name() -> String {
     let device = Device::lookup()
