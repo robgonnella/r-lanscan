@@ -96,11 +96,11 @@ fn main() {
         .expect("failed to activate capture device");
 
     let scanner_options = &ScannerOptions {
-        include_hostnames: args.host,
+        include_host_names: args.host,
         include_vendor: args.vendor,
     };
 
-    let full_scanner = FullScanner::new(&cap, args.targets, args.ports, scanner_options);
+    let scanner = full_scanner::new(&cap, args.targets, args.ports, scanner_options);
 
-    full_scanner.scan();
+    scanner.scan();
 }

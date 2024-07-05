@@ -1,6 +1,10 @@
 use pcap::{Active, Capture};
 
-use crate::{ARPScanner, SYNScanner, SYNTarget, Scanner, ScannerOptions};
+use crate::{
+    arp_scanner,
+    syn_scanner::{self, SYNScanResult},
+    Scanner, ScannerOptions,
+};
 
 pub struct FullScanner<'a> {
     cap: &'a Capture<Active>,
@@ -9,35 +13,33 @@ pub struct FullScanner<'a> {
     options: &'a ScannerOptions,
 }
 
-impl<'a> FullScanner<'a> {
-    pub fn new(
-        cap: &'a Capture<Active>,
-        targets: Vec<String>,
-        ports: Vec<String>,
-        options: &'a ScannerOptions,
-    ) -> FullScanner<'a> {
-        FullScanner {
-            cap,
-            targets,
-            ports,
-            options,
-        }
+pub fn new<'a>(
+    cap: &'a Capture<Active>,
+    targets: Vec<String>,
+    ports: Vec<String>,
+    options: &'a ScannerOptions,
+) -> FullScanner<'a> {
+    FullScanner {
+        cap,
+        targets,
+        ports,
+        options,
     }
 }
 
-impl<'a> Scanner for FullScanner<'a> {
-    fn scan(self) {
-        let arp_scanner = ARPScanner::new(&self.cap, self.targets, self.options);
+impl<'a> Scanner<syn_scanner::SYNScanResult> for FullScanner<'a> {
+    fn scan(self) -> Vec<SYNScanResult> {
+        let arp = arp_scanner::new(&self.cap, self.targets, self.options);
 
-        arp_scanner.scan();
+        arp.scan();
 
-        let syn_targets: Vec<SYNTarget> = vec![SYNTarget {
+        let syn_targets = vec![syn_scanner::SYNTarget {
             ip: String::from("192.168.68.56"),
             mac: String::from("00:00:00:00:00:00"),
         }];
 
-        let syn_scanner = SYNScanner::new(&self.cap, syn_targets, self.ports, self.options);
+        let syn = syn_scanner::new(&self.cap, syn_targets, self.ports, self.options);
 
-        syn_scanner.scan();
+        syn.scan()
     }
 }

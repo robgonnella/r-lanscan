@@ -1,18 +1,14 @@
-pub trait Scanner {
-    fn scan(self);
+pub trait Scanner<T> {
+    fn scan(self) -> Vec<T>;
 }
 
 #[derive(Debug)]
 pub struct ScannerOptions {
     pub include_vendor: bool,
-    pub include_hostnames: bool,
+    pub include_host_names: bool,
 }
 
-mod arp_scanner;
-mod full_scanner;
-mod syn_scanner;
+pub mod arp_scanner;
+pub mod full_scanner;
+pub mod syn_scanner;
 mod targets;
-
-pub use arp_scanner::*;
-pub use full_scanner::*;
-pub use syn_scanner::*;
