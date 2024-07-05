@@ -1,52 +1,17 @@
-use std::{net::Ipv4Addr, str::FromStr};
-
 use clap::Parser;
-use ipnet::Ipv4Net;
-use pcap::{Capture, Device};
+use pcap::Capture;
 
-use r_lanscan::scanners::{full_scanner, Scanner, ScannerOptions};
-
-fn get_default_device_name() -> String {
-    let device = Device::lookup()
-        .expect("device lookup failed")
-        .expect("no device available");
-    device.name
-}
-
-fn netmask_to_bit(netmask: &str) -> u32 {
-    let bits: u32 = netmask
-        .split(".")
-        .map(|x| x.parse::<u8>().unwrap().count_ones())
-        .sum();
-    bits
-}
-
-fn get_default_network_cidr() -> Vec<String> {
-    let device = Device::lookup()
-        .expect("device lookup failed")
-        .expect("no device available");
-
-    let mut cidr: String = String::from("");
-
-    for a in device.addresses.iter() {
-        if a.addr.is_ipv4() && !a.addr.is_loopback() {
-            let prefix = netmask_to_bit(&a.netmask.unwrap().to_string());
-            let ipv4 = Ipv4Addr::from_str(a.addr.to_string().as_str()).unwrap();
-            let net = Ipv4Net::new(ipv4, u8::try_from(prefix).ok().unwrap()).unwrap();
-            cidr = net.trunc().to_string();
-            break;
-        }
-    }
-
-    vec![cidr]
-}
+use r_lanscan::{
+    network,
+    scanners::{full_scanner, Scanner, ScannerOptions},
+};
 
 /// Local Area Network ARP and SYN scanning
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Comma separated list of IPs, IP ranges, and CIDR blocks to scan
-    #[arg(short, long, default_values_t = get_default_network_cidr(), use_value_delimiter = true)]
+    #[arg(short, long, default_values_t = vec![network::get_default_network_cidr()], use_value_delimiter = true)]
     targets: Vec<String>,
 
     /// Comma separated list of ports and port ranges to scan
@@ -70,7 +35,7 @@ struct Args {
     host: bool,
 
     /// Choose a specific network interface for the scan
-    #[arg(short, long, default_value_t = get_default_device_name())]
+    #[arg(short, long, default_value_t = network::get_default_device_name())]
     interface: String,
 }
 
