@@ -1,9 +1,8 @@
 use clap::Parser;
-use pcap::Capture;
 
 use r_lanscan::{
-    network,
-    scanners::{full_scanner, Scanner, ScannerOptions},
+    capture, network,
+    scanners::{full_scanner, Scanner},
 };
 
 /// Local Area Network ARP and SYN scanning
@@ -53,19 +52,9 @@ fn main() {
 
     let interface = args.interface.as_str();
 
-    let cap = Capture::from_device(interface)
-        .expect("failed to create capture device")
-        .promisc(true)
-        .snaplen(65536)
-        .open()
-        .expect("failed to activate capture device");
+    let reader = capture::new_pcap_reader(interface);
 
-    let scanner_options = &ScannerOptions {
-        include_host_names: args.host,
-        include_vendor: args.vendor,
-    };
-
-    let scanner = full_scanner::new(&cap, args.targets, args.ports, scanner_options);
+    let scanner = full_scanner::new(reader, args.targets, args.ports, args.vendor, args.host);
 
     scanner.scan();
 }

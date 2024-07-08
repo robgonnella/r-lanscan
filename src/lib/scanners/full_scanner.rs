@@ -1,43 +1,59 @@
-use pcap::{Active, Capture};
+use std::{
+    cell::RefCell,
+    sync::{Arc, Mutex},
+};
 
-use crate::{scanners::arp_scanner, scanners::syn_scanner};
+use crate::{
+    capture,
+    scanners::{arp_scanner, syn_scanner},
+};
 
-use super::{Scanner, ScannerOptions};
+use super::{syn_scanner::SYNTarget, Scanner};
 
-pub struct FullScanner<'a> {
-    cap: &'a Capture<Active>,
-    targets: Vec<String>,
-    ports: Vec<String>,
-    options: &'a ScannerOptions,
+// Data structure representing a Full scanner (ARP + SYN)
+pub struct FullScanner {
+    arp: arp_scanner::ARPScanner,
+    syn: RefCell<syn_scanner::SYNScanner>,
 }
 
-pub fn new<'a>(
-    cap: &'a Capture<Active>,
+// Returns a new instance of ARPScanner
+pub fn new(
+    reader: Arc<Mutex<Box<dyn capture::PacketReader + Send + Sync>>>,
     targets: Vec<String>,
     ports: Vec<String>,
-    options: &'a ScannerOptions,
-) -> FullScanner<'a> {
+    vendor: bool,
+    host: bool,
+) -> FullScanner {
     FullScanner {
-        cap,
-        targets,
-        ports,
-        options,
+        // make sure to clone the reader as we want both arp and syn scanners
+        // to have access
+        arp: arp_scanner::new(Arc::clone(&reader), targets, vendor, host),
+        // Here we need the internals of syn_scanner to be mutable in order to
+        // call "set_targets" but our outer data structure should still be
+        // immutable. To Achieve this we use "RefCell", which is not thread-safe
+        // but doesn't need to be for our purpose. If we needed it to be
+        // thread-safe we would use Mutex.
+        syn: RefCell::new(syn_scanner::new(Arc::clone(&reader), vec![], ports)),
     }
 }
 
-impl<'a> Scanner<syn_scanner::SYNScanResult> for FullScanner<'a> {
-    fn scan(self) -> Vec<syn_scanner::SYNScanResult> {
-        let arp = arp_scanner::new(&self.cap, self.targets, self.options);
+// Implements the Scanner trait for FullScanner
+impl Scanner<syn_scanner::SYNScanResult> for FullScanner {
+    fn scan(&self) -> Vec<syn_scanner::SYNScanResult> {
+        let results = self.arp.scan();
 
-        arp.scan();
+        let syn_targets = {
+            let mut v: Vec<SYNTarget> = Vec::new();
+            for r in results {
+                v.push(SYNTarget {
+                    ip: r.ip,
+                    mac: r.mac,
+                });
+            }
+            v
+        };
 
-        let syn_targets = vec![syn_scanner::SYNTarget {
-            ip: String::from("192.168.68.56"),
-            mac: String::from("00:00:00:00:00:00"),
-        }];
-
-        let syn = syn_scanner::new(&self.cap, syn_targets, self.ports, self.options);
-
-        syn.scan()
+        self.syn.borrow_mut().set_targets(syn_targets);
+        self.syn.borrow().scan()
     }
 }

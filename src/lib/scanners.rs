@@ -1,11 +1,5 @@
 pub trait Scanner<T> {
-    fn scan(self) -> Vec<T>;
-}
-
-#[derive(Debug)]
-pub struct ScannerOptions {
-    pub include_vendor: bool,
-    pub include_host_names: bool,
+    fn scan(&self) -> Vec<T>;
 }
 
 pub mod arp_scanner;

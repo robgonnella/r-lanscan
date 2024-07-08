@@ -1,23 +1,30 @@
-use pcap::{Active, Capture};
+use std::{
+    sync::{Arc, Mutex},
+    thread::spawn,
+};
 
-use crate::targets::{self, LazyLooper};
+use crate::{
+    capture,
+    targets::{self, LazyLooper},
+};
 
-use super::{Scanner, ScannerOptions};
+use super::Scanner;
 
-pub struct SYNScanner<'a> {
-    cap: &'a Capture<Active>,
+// Data structure representing an ARP scanner
+pub struct SYNScanner {
+    reader: Arc<Mutex<Box<dyn capture::PacketReader + Send + Sync>>>,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
-    include_host_names: bool,
-    include_vendor: bool,
 }
 
+// SYN Target represents the required fields to send a SYN packet to a device
 #[derive(Debug)]
 pub struct SYNTarget {
     pub ip: String,
     pub mac: String,
 }
 
+// SYN Result from a single device
 #[derive(Debug)]
 pub struct SYNScanResult {
     pub ip: String,
@@ -26,24 +33,45 @@ pub struct SYNScanResult {
     pub port: String,
 }
 
-pub fn new<'a>(
-    cap: &'a Capture<Active>,
+// Returns a new instance of SYNScanner
+pub fn new(
+    reader: Arc<Mutex<Box<dyn capture::PacketReader + Send + Sync>>>,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
-    options: &ScannerOptions,
-) -> SYNScanner<'a> {
+) -> SYNScanner {
     SYNScanner {
-        cap,
+        reader,
         targets,
         ports,
-        include_host_names: options.include_host_names,
-        include_vendor: options.include_vendor,
     }
 }
 
-impl<'a> Scanner<SYNScanResult> for SYNScanner<'a> {
-    fn scan(self) -> Vec<SYNScanResult> {
+impl SYNScanner {
+    // Allow mutable setting of syn targets
+    pub fn set_targets(&mut self, targets: Vec<SYNTarget>) {
+        self.targets = targets;
+    }
+
+    // Implements packet reading in a separate thread so we can send and
+    // receive packets simultaneously
+    fn read_packets(&self) {
+        let clone = Arc::clone(&self.reader);
+        spawn(move || {
+            let mut reader = clone.lock().unwrap();
+            while let Ok(packet) = reader.next_packet() {
+                println!("received ARP packet! {:?}", packet);
+            }
+        });
+    }
+}
+
+// Implements the Scanner trait for SYNScanner
+impl Scanner<SYNScanResult> for SYNScanner {
+    fn scan(&self) -> Vec<SYNScanResult> {
         println!("performing SYN scan on targets: {:?}", self.targets);
+
+        println!("starting syn packet reader");
+        self.read_packets();
 
         let results: Vec<SYNScanResult> = Vec::new();
 
@@ -51,7 +79,7 @@ impl<'a> Scanner<SYNScanResult> for SYNScanner<'a> {
             let port_list = targets::ports::new(&self.ports);
 
             let process_port = |port: u32| {
-                println!("processing target: {}:{}", target.ip, port);
+                println!("processing SYN target: {}:{}", target.ip, port);
             };
 
             port_list.lazy_loop(process_port);
