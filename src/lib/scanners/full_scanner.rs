@@ -1,14 +1,14 @@
 use std::{
     cell::RefCell,
-    sync::{Arc, Mutex},
+    sync::{mpsc, Arc, Mutex},
 };
 
 use crate::{
-    capture,
+    packet,
     scanners::{arp_scanner, syn_scanner},
 };
 
-use super::{syn_scanner::SYNTarget, Scanner};
+use super::{syn_scanner::SYNTarget, SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing a Full scanner (ARP + SYN)
 pub struct FullScanner {
@@ -18,7 +18,7 @@ pub struct FullScanner {
 
 // Returns a new instance of ARPScanner
 pub fn new(
-    reader: Arc<Mutex<Box<dyn capture::PacketReader + Send + Sync>>>,
+    reader: Arc<Mutex<Box<dyn packet::Reader + Send + Sync>>>,
     targets: Vec<String>,
     ports: Vec<String>,
     vendor: bool,
@@ -38,20 +38,24 @@ pub fn new(
 }
 
 // Implements the Scanner trait for FullScanner
-impl Scanner<syn_scanner::SYNScanResult> for FullScanner {
-    fn scan(&self) -> Vec<syn_scanner::SYNScanResult> {
-        let results = self.arp.scan();
+impl Scanner<SYNScanResult> for FullScanner {
+    fn scan(&self) -> mpsc::Receiver<ScanMessage> {
+        let mut syn_targets: Vec<SYNTarget> = Vec::new();
 
-        let syn_targets = {
-            let mut v: Vec<SYNTarget> = Vec::new();
-            for r in results {
-                v.push(SYNTarget {
-                    ip: r.ip,
-                    mac: r.mac,
-                });
-            }
-            v
-        };
+        let arp_rx = self.arp.scan();
+
+        let mut arp_done = false;
+
+        // let syn_targets = {
+        //     let mut v: Vec<SYNTarget> = Vec::new();
+        //     for r in results {
+        //         v.push(SYNTarget {
+        //             ip: r.ip,
+        //             mac: r.mac,
+        //         });
+        //     }
+        //     v
+        // };
 
         self.syn.borrow_mut().set_targets(syn_targets);
         self.syn.borrow().scan()

@@ -1,7 +1,7 @@
 use clap::Parser;
 
 use r_lanscan::{
-    capture, network,
+    network, packet,
     scanners::{full_scanner, Scanner},
 };
 
@@ -52,7 +52,7 @@ fn main() {
 
     let interface = args.interface.as_str();
 
-    let reader = capture::new_pcap_reader(interface);
+    let reader = packet::pcap_reader::new(interface);
 
     let scanner = full_scanner::new(reader, args.targets, args.ports, args.vendor, args.host);
 

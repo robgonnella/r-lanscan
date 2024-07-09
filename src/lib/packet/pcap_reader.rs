@@ -1,17 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use pcap;
-
-/**
- * Although we're creating a generic trait for capturing packets
- * we still use the pcap::Packet and pcap::Error as these are probably
- * generic enough while still allowing for custom implementations
- *
- * TODO: look into returning custom types for Packet and Error
- */
-pub trait PacketReader {
-    fn next_packet(&mut self) -> Result<pcap::Packet, pcap::Error>;
-}
+use super::Reader;
 
 /**
  * A PCAP implementation of PacketReader
@@ -26,7 +15,7 @@ unsafe impl Send for PCAPReader {}
 unsafe impl Sync for PCAPReader {}
 
 // Implements the PacketReader trait for our PCAP implementation
-impl PacketReader for PCAPReader {
+impl Reader for PCAPReader {
     fn next_packet(&mut self) -> Result<pcap::Packet, pcap::Error> {
         self.cap.next_packet()
     }
@@ -54,13 +43,13 @@ impl PacketReader for PCAPReader {
  * + Send + Syn -> Indicates that PacketReader is thread safe and can be safely
  *                 moved to and synchronized across threads.
  */
-pub fn new_pcap_reader(interface: &str) -> Arc<Mutex<Box<dyn PacketReader + Send + Sync>>> {
+pub fn new(interface: &str) -> Arc<Mutex<Box<dyn Reader + Send + Sync>>> {
     let cap = pcap::Capture::from_device(interface)
         .expect("failed to create capture device")
         .promisc(true)
         .snaplen(65536)
         .open()
         .expect("failed to activate capture device");
-    let boxed: Box<dyn PacketReader + Send + Sync> = Box::new(PCAPReader { cap });
+    let boxed: Box<dyn Reader + Send + Sync> = Box::new(PCAPReader { cap });
     Arc::new(Mutex::new(boxed))
 }

@@ -1,18 +1,18 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{mpsc, Arc, Mutex},
     thread::spawn,
 };
 
 use crate::{
-    capture,
+    packet,
     targets::{self, LazyLooper},
 };
 
-use super::Scanner;
+use super::{SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing an ARP scanner
 pub struct SYNScanner {
-    reader: Arc<Mutex<Box<dyn capture::PacketReader + Send + Sync>>>,
+    reader: Arc<Mutex<Box<dyn packet::Reader + Send + Sync>>>,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
 }
@@ -24,18 +24,9 @@ pub struct SYNTarget {
     pub mac: String,
 }
 
-// SYN Result from a single device
-#[derive(Debug)]
-pub struct SYNScanResult {
-    pub ip: String,
-    pub mac: String,
-    pub status: String,
-    pub port: String,
-}
-
 // Returns a new instance of SYNScanner
 pub fn new(
-    reader: Arc<Mutex<Box<dyn capture::PacketReader + Send + Sync>>>,
+    reader: Arc<Mutex<Box<dyn packet::Reader + Send + Sync>>>,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
 ) -> SYNScanner {
@@ -54,24 +45,29 @@ impl SYNScanner {
 
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self) {
+    fn read_packets(&self) -> mpsc::Receiver<ScanMessage> {
         let clone = Arc::clone(&self.reader);
+        let (_, rx) = mpsc::channel::<ScanMessage>();
+
         spawn(move || {
             let mut reader = clone.lock().unwrap();
             while let Ok(packet) = reader.next_packet() {
                 println!("received ARP packet! {:?}", packet);
             }
         });
+
+        rx
     }
 }
 
 // Implements the Scanner trait for SYNScanner
 impl Scanner<SYNScanResult> for SYNScanner {
-    fn scan(&self) -> Vec<SYNScanResult> {
+    fn scan(&self) -> mpsc::Receiver<ScanMessage> {
         println!("performing SYN scan on targets: {:?}", self.targets);
 
         println!("starting syn packet reader");
-        self.read_packets();
+
+        let rx = self.read_packets();
 
         let results: Vec<SYNScanResult> = Vec::new();
 
@@ -85,6 +81,6 @@ impl Scanner<SYNScanResult> for SYNScanner {
             port_list.lazy_loop(process_port);
         }
 
-        results
+        rx
     }
 }
