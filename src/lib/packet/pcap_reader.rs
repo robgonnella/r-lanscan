@@ -41,7 +41,7 @@ impl Reader for PCAPReader {
  *          we allocate space on the Heap using Box and pass around the
  *          reference which DOES have a known size at compile time.
  * + Send + Syn -> Indicates that PacketReader is thread safe and can be safely
- *                 moved to and synchronized across threads.
+ *                 synchronized across threads.
  */
 pub fn new(interface: &str) -> Arc<Mutex<Box<dyn Reader + Send + Sync>>> {
     let cap = pcap::Capture::from_device(interface)
