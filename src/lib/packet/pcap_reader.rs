@@ -29,7 +29,7 @@ impl Reader for PCAPReader {
  *          as opposed to Rc which shares data with multiple owners in a non-
  *          thread safe way
  * - Mutex -> Allow the internal data to be accessed in a mutable way while
- *            the container remains mutable in a thread safe way, as opposed
+ *            the container remains immutable in a thread safe way, as opposed
  *            to the non-thread-safe alternative "RefCell". Essentially the
  *            internal structure, Capture<Active> for pcap, needs to be mutable
  *            to read packets, but our encapsulation PacketReader should still
