@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     packet,
-    scanners::{arp_scanner, syn_scanner},
+    scanners::{arp_scanner, syn_scanner, ScanMessageType},
 };
 
 use super::{syn_scanner::SYNTarget, SYNScanResult, ScanMessage, Scanner};
@@ -45,6 +45,14 @@ impl Scanner<SYNScanResult> for FullScanner {
         let arp_rx = self.arp.scan();
 
         let mut arp_done = false;
+
+        while !arp_done {
+            let message = arp_rx.recv().unwrap();
+            println!("received arp message: {:?}", message);
+            if message.message_type == ScanMessageType::ARPDone {
+                arp_done = true;
+            }
+        }
 
         // let syn_targets = {
         //     let mut v: Vec<SYNTarget> = Vec::new();

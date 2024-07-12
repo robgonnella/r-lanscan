@@ -43,21 +43,40 @@ impl ARPScanner {
 
         spawn(move || {
             let mut reader = clone.lock().unwrap();
+            let mut sent_first_packet = false;
             while let Ok(packet) = reader.next_packet() {
                 println!("received ARP packet! {:?}", packet);
 
-                tx.send(ScanMessage {
-                    message_type: ScanMessageType::ARPResult,
-                    payload: ScanMessagePayload::ARPScanResult(ARPScanResult {
-                        hostname: String::from("hostname"),
-                        ip: String::from("ip"),
-                        mac: String::from("mac"),
-                        vendor: String::from("vendor"),
-                        status: DeviceStatus::Online,
-                    }),
-                })
-                .unwrap()
+                if !sent_first_packet {
+                    tx.send(ScanMessage {
+                        message_type: ScanMessageType::ARPResult,
+                        payload: ScanMessagePayload::ARPScanResult(ARPScanResult {
+                            hostname: String::from("hostname"),
+                            ip: String::from("ip"),
+                            mac: String::from("mac"),
+                            vendor: String::from("vendor"),
+                            status: DeviceStatus::Online,
+                        }),
+                    })
+                    .unwrap();
+                    sent_first_packet = true
+                } else {
+                    tx.send(ScanMessage {
+                        message_type: ScanMessageType::ARPDone,
+                        payload: ScanMessagePayload::ARPScanResult(ARPScanResult {
+                            hostname: String::from(""),
+                            ip: String::from(""),
+                            mac: String::from(""),
+                            vendor: String::from(""),
+                            status: DeviceStatus::Online,
+                        }),
+                    })
+                    .unwrap();
+                    break;
+                }
             }
+
+            drop(tx);
         });
 
         rx
@@ -74,8 +93,6 @@ impl Scanner<ARPScanResult> for ARPScanner {
         println!("starting arp packet reader");
 
         let rx = self.read_packets();
-
-        let results: Vec<ARPScanResult> = Vec::new();
 
         let target_list = targets::ips::new(&self.targets);
 

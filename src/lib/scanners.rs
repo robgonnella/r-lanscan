@@ -31,7 +31,7 @@ pub struct SYNScanResult {
     pub port_service: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ScanMessageType {
     ARPResult,
     ARPDone,
@@ -39,11 +39,13 @@ pub enum ScanMessageType {
     SYNDone,
 }
 
+#[derive(Debug)]
 pub enum ScanMessagePayload {
     ARPScanResult(ARPScanResult),
     SYNScanResult(SYNScanResult),
 }
 
+#[derive(Debug)]
 pub struct ScanMessage {
     pub message_type: ScanMessageType,
     pub payload: ScanMessagePayload,
