@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     packet,
-    scanners::{ARPScanResult, DeviceStatus, ScanMessagePayload, ScanMessageType},
+    scanners::{ARPScanResult, DeviceStatus},
     targets::{self, LazyLooper},
 };
 
@@ -48,29 +48,23 @@ impl ARPScanner {
                 println!("received ARP packet! {:?}", packet);
 
                 if !sent_first_packet {
-                    tx.send(ScanMessage {
-                        message_type: ScanMessageType::ARPResult,
-                        payload: ScanMessagePayload::ARPScanResult(ARPScanResult {
-                            hostname: String::from("hostname"),
-                            ip: String::from("ip"),
-                            mac: String::from("mac"),
-                            vendor: String::from("vendor"),
-                            status: DeviceStatus::Online,
-                        }),
-                    })
+                    tx.send(ScanMessage::ARPScanResult(ARPScanResult {
+                        hostname: String::from("hostname"),
+                        ip: String::from("ip"),
+                        mac: String::from("mac"),
+                        vendor: String::from("vendor"),
+                        status: DeviceStatus::Online,
+                    }))
                     .unwrap();
                     sent_first_packet = true
                 } else {
-                    tx.send(ScanMessage {
-                        message_type: ScanMessageType::ARPDone,
-                        payload: ScanMessagePayload::ARPScanResult(ARPScanResult {
-                            hostname: String::from(""),
-                            ip: String::from(""),
-                            mac: String::from(""),
-                            vendor: String::from(""),
-                            status: DeviceStatus::Online,
-                        }),
-                    })
+                    tx.send(ScanMessage::ARPScanResult(ARPScanResult {
+                        hostname: String::from(""),
+                        ip: String::from(""),
+                        mac: String::from(""),
+                        vendor: String::from(""),
+                        status: DeviceStatus::Online,
+                    }))
                     .unwrap();
                     break;
                 }

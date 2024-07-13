@@ -1,19 +1,19 @@
 use std::sync::mpsc;
 
 // we only discover "online" devices so there is no "offline" status
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum DeviceStatus {
     Online,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PortStatus {
     Open,
     Closed,
 }
 
 // ARP Result from a single device
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ARPScanResult {
     pub ip: String,
     pub mac: String,
@@ -23,7 +23,7 @@ pub struct ARPScanResult {
 }
 
 // SYN Result from a single device
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SYNScanResult {
     pub device: ARPScanResult,
     pub port: String,
@@ -32,23 +32,10 @@ pub struct SYNScanResult {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum ScanMessageType {
-    ARPResult,
-    ARPDone,
-    SYNResult,
-    SYNDone,
-}
-
-#[derive(Debug)]
-pub enum ScanMessagePayload {
+pub enum ScanMessage {
+    Done(()),
     ARPScanResult(ARPScanResult),
     SYNScanResult(SYNScanResult),
-}
-
-#[derive(Debug)]
-pub struct ScanMessage {
-    pub message_type: ScanMessageType,
-    pub payload: ScanMessagePayload,
 }
 
 pub trait Scanner<T> {

@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     packet,
-    scanners::{arp_scanner, syn_scanner, ScanMessageType},
+    scanners::{arp_scanner, syn_scanner},
 };
 
 use super::{syn_scanner::SYNTarget, SYNScanResult, ScanMessage, Scanner};
@@ -49,7 +49,7 @@ impl Scanner<SYNScanResult> for FullScanner {
         while !arp_done {
             let message = arp_rx.recv().unwrap();
             println!("received arp message: {:?}", message);
-            if message.message_type == ScanMessageType::ARPDone {
+            if message == ScanMessage::Done(()) {
                 arp_done = true;
             }
         }
