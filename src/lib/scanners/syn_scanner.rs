@@ -1,10 +1,14 @@
+use log::*;
+
 use std::{
     sync::{mpsc, Arc, Mutex},
-    thread::spawn,
+    thread,
+    time::Duration,
 };
 
 use crate::{
     packet,
+    scanners::{ARPScanResult, DeviceStatus, PortStatus},
     targets::{self, LazyLooper},
 };
 
@@ -15,6 +19,7 @@ pub struct SYNScanner {
     reader: Arc<Mutex<Box<dyn packet::Reader + Send + Sync>>>,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
+    sender: mpsc::Sender<ScanMessage>,
 }
 
 // SYN Target represents the required fields to send a SYN packet to a device
@@ -29,11 +34,13 @@ pub fn new(
     reader: Arc<Mutex<Box<dyn packet::Reader + Send + Sync>>>,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
+    sender: mpsc::Sender<ScanMessage>,
 ) -> SYNScanner {
     SYNScanner {
         reader,
         targets,
         ports,
+        sender,
     }
 }
 
@@ -45,42 +52,54 @@ impl SYNScanner {
 
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self) -> mpsc::Receiver<ScanMessage> {
+    fn read_packets(&self) {
         let clone = Arc::clone(&self.reader);
-        let (_, rx) = mpsc::channel::<ScanMessage>();
+        let sender_clone = self.sender.clone();
 
-        spawn(move || {
+        thread::spawn(move || {
             let mut reader = clone.lock().unwrap();
-            while let Ok(packet) = reader.next_packet() {
-                println!("received ARP packet! {:?}", packet);
+            while let Ok(_packet) = reader.next_packet() {
+                info!("sending syn result");
+                sender_clone
+                    .send(ScanMessage::SYNScanResult(SYNScanResult {
+                        device: ARPScanResult {
+                            hostname: String::from("hostname"),
+                            ip: String::from("ip"),
+                            mac: String::from("mac"),
+                            status: DeviceStatus::Online,
+                            vendor: String::from("vendor"),
+                        },
+                        port: String::from("22"),
+                        port_service: String::from("ssh"),
+                        port_status: PortStatus::Open,
+                    }))
+                    .unwrap();
             }
         });
-
-        rx
     }
 }
 
 // Implements the Scanner trait for SYNScanner
 impl Scanner<SYNScanResult> for SYNScanner {
-    fn scan(&self) -> mpsc::Receiver<ScanMessage> {
-        println!("performing SYN scan on targets: {:?}", self.targets);
+    fn scan(&self) {
+        info!("performing SYN scan on targets: {:?}", self.targets);
 
-        println!("starting syn packet reader");
+        info!("starting syn packet reader");
 
-        let rx = self.read_packets();
-
-        let results: Vec<SYNScanResult> = Vec::new();
+        self.read_packets();
 
         for target in self.targets.iter() {
             let port_list = targets::ports::new(&self.ports);
 
             let process_port = |port: u32| {
-                println!("processing SYN target: {}:{}", target.ip, port);
+                info!("processing SYN target: {}:{}", target.ip, port);
             };
 
             port_list.lazy_loop(process_port);
         }
 
-        rx
+        // TODO make idleTimeout configurable
+        thread::sleep(Duration::from_secs(5));
+        self.sender.send(ScanMessage::Done(())).unwrap();
     }
 }

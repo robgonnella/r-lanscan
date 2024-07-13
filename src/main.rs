@@ -1,9 +1,14 @@
+use log::*;
+
+use std::sync::mpsc;
+
 use clap::Parser;
 
 use r_lanscan::{
     network, packet,
-    scanners::{full_scanner, Scanner},
+    scanners::{full_scanner, ScanMessage, Scanner},
 };
+use simplelog;
 
 /// Local Area Network ARP and SYN scanning
 #[derive(Parser, Debug)]
@@ -38,23 +43,52 @@ struct Args {
     interface: String,
 }
 
+fn initialize_logger() {
+    simplelog::TermLogger::init(
+        simplelog::LevelFilter::max(),
+        simplelog::Config::default(),
+        simplelog::TerminalMode::Mixed,
+        simplelog::ColorChoice::Auto,
+    )
+    .unwrap();
+}
+
 fn main() {
+    initialize_logger();
+
     let args = Args::parse();
 
-    println!("configuration:");
-    println!("  targets: {:?}", args.targets);
-    println!("  ports: {:?}", args.ports);
-    println!("  json: {}", args.json);
-    println!("  arpOnly: {}", args.arp_only);
-    println!("  vendor: {}", args.vendor);
-    println!("  host: {}", args.host);
-    println!("  interface: {}", args.interface);
+    info!("configuration:");
+    info!("  targets: {:?}", args.targets);
+    info!("  ports: {:?}", args.ports);
+    info!("  json: {}", args.json);
+    info!("  arpOnly: {}", args.arp_only);
+    info!("  vendor: {}", args.vendor);
+    info!("  host: {}", args.host);
+    info!("  interface: {}", args.interface);
 
     let interface = args.interface.as_str();
 
     let reader = packet::pcap_reader::new(interface);
 
-    let scanner = full_scanner::new(reader, args.targets, args.ports, args.vendor, args.host);
+    let (tx, rx) = mpsc::channel::<ScanMessage>();
+
+    let scanner = full_scanner::new(
+        reader,
+        args.targets,
+        args.ports,
+        args.vendor,
+        args.host,
+        tx.clone(),
+    );
 
     scanner.scan();
+
+    while let Ok(msg) = rx.recv() {
+        if msg.is_done() {
+            info!("scanning complete");
+            break;
+        }
+        info!("received scanning message: {:?}", msg);
+    }
 }

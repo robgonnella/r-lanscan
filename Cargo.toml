@@ -13,3 +13,6 @@ path = "src/lib/lib.rs"
 clap = { version = "4.4.16", features = ["derive"] }
 pcap = "1.1.0"
 ipnet = "2.9.0"
+log = "0.4"
+paris = { version = "1.5", features = ["timestamps"] }
+simplelog = { version = "0.12", features = ["paris"] }
