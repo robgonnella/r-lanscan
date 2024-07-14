@@ -1,6 +1,9 @@
+use log::*;
+
 use std::{
     sync::{mpsc, Arc, Mutex},
-    thread::spawn,
+    thread,
+    time::Duration,
 };
 
 use crate::{
@@ -17,6 +20,7 @@ pub struct ARPScanner {
     targets: Vec<String>,
     include_vendor: bool,
     include_host_names: bool,
+    sender: mpsc::Sender<ScanMessage>,
 }
 
 // Returns a new instance of ARPScanner
@@ -25,30 +29,31 @@ pub fn new(
     targets: Vec<String>,
     vendor: bool,
     host: bool,
+    sender: mpsc::Sender<ScanMessage>,
 ) -> ARPScanner {
     ARPScanner {
         reader,
         targets,
         include_vendor: vendor,
         include_host_names: host,
+        sender,
     }
 }
 
 impl ARPScanner {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self) -> mpsc::Receiver<ScanMessage> {
-        let clone = Arc::clone(&self.reader);
-        let (tx, rx) = mpsc::channel::<ScanMessage>();
+    fn read_packets(&self) {
+        let reader_clone = Arc::clone(&self.reader);
+        let sender_clone = self.sender.clone();
 
-        spawn(move || {
-            let mut reader = clone.lock().unwrap();
-            let mut sent_first_packet = false;
-            while let Ok(packet) = reader.next_packet() {
-                println!("received ARP packet! {:?}", packet);
+        thread::spawn(move || {
+            let mut reader = reader_clone.lock().unwrap();
 
-                if !sent_first_packet {
-                    tx.send(ScanMessage::ARPScanResult(ARPScanResult {
+            while let Ok(_packet) = reader.next_packet() {
+                info!("sending arp result");
+                sender_clone
+                    .send(ScanMessage::ARPScanResult(ARPScanResult {
                         hostname: String::from("hostname"),
                         ip: String::from("ip"),
                         mac: String::from("mac"),
@@ -56,46 +61,31 @@ impl ARPScanner {
                         status: DeviceStatus::Online,
                     }))
                     .unwrap();
-                    sent_first_packet = true
-                } else {
-                    tx.send(ScanMessage::ARPScanResult(ARPScanResult {
-                        hostname: String::from(""),
-                        ip: String::from(""),
-                        mac: String::from(""),
-                        vendor: String::from(""),
-                        status: DeviceStatus::Online,
-                    }))
-                    .unwrap();
-                    break;
-                }
             }
-
-            drop(tx);
         });
-
-        rx
     }
 }
 
 // Implements the Scanner trait for ARPScanner
 impl Scanner<ARPScanResult> for ARPScanner {
-    fn scan(&self) -> mpsc::Receiver<ScanMessage> {
-        println!("performing ARP scan on targets: {:?}", self.targets);
-        println!("include_vendor: {}", self.include_vendor);
-        println!("include_host_names: {}", self.include_host_names);
+    fn scan(&self) {
+        info!("performing ARP scan on targets: {:?}", self.targets);
+        info!("include_vendor: {}", self.include_vendor);
+        info!("include_host_names: {}", self.include_host_names);
+        info!("starting arp packet reader");
 
-        println!("starting arp packet reader");
-
-        let rx = self.read_packets();
+        self.read_packets();
 
         let target_list = targets::ips::new(&self.targets);
 
         let process_target = |t: String| {
-            println!("processing ARP target: {}", t);
+            info!("processing ARP target: {}", t);
         };
 
         target_list.lazy_loop(process_target);
 
-        rx
+        // TODO make idleTimeout configurable
+        thread::sleep(Duration::from_secs(5));
+        self.sender.send(ScanMessage::Done(())).unwrap();
     }
 }
