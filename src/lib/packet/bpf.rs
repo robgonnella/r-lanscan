@@ -48,28 +48,6 @@ impl Sender for BPFSender {
     }
 }
 
-/**
- * The important bit here is Arc<Mutex<Box<dyn PacketReader + Send + Sync>>>
- * There's a lot going on in this type
- *
- * - Arc -> Allow this data to be shared by multiple owners in a thread safe way
- *          as opposed to Rc which shares data with multiple owners in a non-
- *          thread safe way
- * - Mutex -> Allow the internal data to be accessed in a mutable way while
- *            the container remains immutable in a thread safe way, as opposed
- *            to the non-thread-safe alternative "RefCell". Essentially the
- *            internal structure, Capture<Active> for pcap, needs to be mutable
- *            to read packets, but our encapsulation PacketReader should still
- *            be immutable. Mutex allows this to be possible in a thread safe
- *            way.
- * - Box -> Because we allow the user to implement their own packet capturer
- *          if they choose, we use a trait (PacketReader), but this means the
- *          compiler can't know the size at compile time. To deal with this
- *          we allocate space on the Heap using Box and pass around the
- *          reference which DOES have a known size at compile time.
- * + Send + Syn -> Indicates that PacketReader is thread safe and can be safely
- *                 synchronized across threads.
- */
 pub fn new_reader(interface: Arc<NetworkInterface>) -> Box<dyn Reader> {
     let cfg = pnet::datalink::bpf::Config::default();
 

@@ -1,10 +1,7 @@
 use log::*;
 use pnet::datalink::{self, NetworkInterface};
 
-use std::{
-    sync::{mpsc, Arc},
-    thread,
-};
+use std::sync::{mpsc, Arc};
 
 use crate::{
     packet::{PacketReaderFactory, PacketSenderFactory},

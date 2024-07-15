@@ -1,3 +1,7 @@
+use core::time;
+
+const IDLE_TIMEOUT: time::Duration = time::Duration::from_secs(5);
+
 // we only discover "online" devices so there is no "offline" status
 #[derive(Debug)]
 pub enum DeviceStatus {

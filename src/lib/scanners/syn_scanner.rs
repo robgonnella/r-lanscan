@@ -4,12 +4,11 @@ use pnet::datalink;
 use std::{
     sync::{mpsc, Arc},
     thread,
-    time::Duration,
 };
 
 use crate::{
     packet::{PacketReaderFactory, PacketSenderFactory},
-    scanners::{ARPScanResult, DeviceStatus, PortStatus},
+    scanners::{ARPScanResult, DeviceStatus, PortStatus, IDLE_TIMEOUT},
     targets::{self, LazyLooper},
 };
 
@@ -112,7 +111,7 @@ impl Scanner<SYNScanResult> for SYNScanner {
         }
 
         thread::spawn(move || {
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(IDLE_TIMEOUT);
             // run your function here
             done_tx.send(()).unwrap();
             msg_sender.send(ScanMessage::Done(())).unwrap();

@@ -14,12 +14,11 @@ use std::{
     str::FromStr,
     sync::{mpsc, Arc},
     thread,
-    time::Duration,
 };
 
 use crate::{
     packet::{PacketReaderFactory, PacketSenderFactory},
-    scanners::ARPScanResult,
+    scanners::{ARPScanResult, IDLE_TIMEOUT},
     targets::{self, LazyLooper},
 };
 
@@ -171,7 +170,7 @@ impl Scanner<ARPScanResult> for ARPScanner {
 
         // TODO make idleTimeout configurable
         thread::spawn(move || {
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(IDLE_TIMEOUT);
             // run your function here
             done_tx.send(()).unwrap();
             msg_sender.send(ScanMessage::Done(())).unwrap();
