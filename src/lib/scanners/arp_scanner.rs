@@ -4,8 +4,6 @@ use pnet::{
     packet::{
         arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket},
         ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket},
-        icmpv6::ndp::{NdpOptionPacket, NeighborAdvertPacket, NeighborSolicitPacket},
-        ipv6::Ipv6Packet,
         Packet,
     },
     util::MacAddr,
@@ -14,13 +12,13 @@ use pnet::{
 use std::{
     net::{IpAddr, Ipv4Addr},
     str::FromStr,
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc},
     thread,
     time::Duration,
 };
 
 use crate::{
-    packet,
+    packet::{PacketReaderFactory, PacketSenderFactory},
     scanners::ARPScanResult,
     targets::{self, LazyLooper},
 };
@@ -30,24 +28,13 @@ use super::{DeviceStatus, ScanMessage, Scanner};
 // Constants used to help locate our nested packets
 const PKT_ETH_SIZE: usize = EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = ArpPacket::minimum_packet_size();
-const PKT_IP6_SIZE: usize = Ipv6Packet::minimum_packet_size();
-const PKT_NDP_SOL_SIZE: usize = NeighborSolicitPacket::minimum_packet_size();
-const PKT_NDP_ADV_SIZE: usize = NeighborAdvertPacket::minimum_packet_size();
-const PKT_OPT_SIZE: usize = NdpOptionPacket::minimum_packet_size();
-const PKT_MAC_SIZE: usize = 6;
-
 const PKT_ARP_OFFSET: usize = PKT_ETH_SIZE;
-const PKT_IP6_OFFSET: usize = PKT_ETH_SIZE;
-const PKT_NDP_OFFSET: usize = PKT_IP6_OFFSET + PKT_IP6_SIZE;
-
-const PKT_MIN_ARP_RESP_SIZE: usize = PKT_ETH_SIZE + PKT_ARP_SIZE;
-const PKT_MIN_NDP_RESP_SIZE: usize = PKT_ETH_SIZE + PKT_IP6_SIZE + PKT_NDP_ADV_SIZE;
 
 // Data structure representing an ARP scanner
 pub struct ARPScanner {
     interface: Arc<NetworkInterface>,
-    packet_reader: Arc<Mutex<Box<dyn packet::Reader>>>,
-    packet_sender: Arc<Mutex<Box<dyn packet::Sender>>>,
+    packet_reader_factory: PacketReaderFactory,
+    packet_sender_factory: PacketSenderFactory,
     targets: Vec<String>,
     include_vendor: bool,
     include_host_names: bool,
@@ -57,8 +44,8 @@ pub struct ARPScanner {
 // Returns a new instance of ARPScanner
 pub fn new(
     interface: Arc<NetworkInterface>,
-    packet_reader: Arc<Mutex<Box<dyn packet::Reader>>>,
-    packet_sender: Arc<Mutex<Box<dyn packet::Sender>>>,
+    packet_reader_factory: PacketReaderFactory,
+    packet_sender_factory: PacketSenderFactory,
     targets: Vec<String>,
     vendor: bool,
     host: bool,
@@ -66,8 +53,8 @@ pub fn new(
 ) -> ARPScanner {
     ARPScanner {
         interface,
-        packet_reader,
-        packet_sender,
+        packet_reader_factory,
+        packet_sender_factory,
         targets,
         include_vendor: vendor,
         include_host_names: host,
@@ -78,36 +65,30 @@ pub fn new(
 impl ARPScanner {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self) {
+    fn read_packets(&self, done: mpsc::Receiver<()>) {
         let interface = Arc::clone(&self.interface);
-        let reader = Arc::clone(&self.packet_reader);
-        let sender_clone = self.sender.clone();
+        let mut packet_reader = (self.packet_reader_factory)(Arc::clone(&self.interface));
+        let sender = self.sender.clone();
 
         thread::spawn(move || {
-            let mut reader = reader.lock().unwrap();
-            while let Ok(packet) = reader.next_packet() {
+            info!("waiting for packet");
+            while let Ok(packet) = packet_reader.next_packet() {
+                if let Ok(_) = done.try_recv() {
+                    info!("exiting arp packet reader");
+                    break;
+                }
+
                 let ethernet = &EthernetPacket::new(packet);
-                // info!("ethernet: {:?}", ethernet);
 
                 if let Some(ethernet) = ethernet {
                     let header = ArpPacket::new(ethernet.payload());
-
-                    // info!("arp header: {:?}", header);
 
                     if let Some(header) = header {
                         let op = header.get_operation();
                         let this_mac = interface.mac.unwrap();
 
                         if op == ArpOperations::Reply && ethernet.get_source() != this_mac {
-                            println!(
-                                "ARP packet: {}({}) > {}({}); operation: {:?}",
-                                ethernet.get_source(),
-                                header.get_sender_proto_addr(),
-                                ethernet.get_destination(),
-                                header.get_target_proto_addr(),
-                                header.get_operation()
-                            );
-                            sender_clone
+                            sender
                                 .send(ScanMessage::ARPScanResult(ARPScanResult {
                                     hostname: String::from(""),
                                     ip: header.get_sender_proto_addr().to_string(),
@@ -131,8 +112,11 @@ impl Scanner<ARPScanResult> for ARPScanner {
         info!("include_vendor: {}", self.include_vendor);
         info!("include_host_names: {}", self.include_host_names);
         info!("starting arp packet reader");
+        let (done_tx, done_rx) = mpsc::channel::<()>();
+        let mut packet_sender = (self.packet_sender_factory)(Arc::clone(&self.interface));
+        let msg_sender = self.sender.clone();
 
-        self.read_packets();
+        self.read_packets(done_rx);
 
         let target_list = targets::ips::new(&self.targets);
 
@@ -177,7 +161,7 @@ impl Scanner<ARPScanResult> for ARPScanner {
             }
 
             // Send to the broadcast address
-            self.packet_sender.lock().unwrap().send(&pkt_buf).unwrap();
+            packet_sender.send(&pkt_buf).unwrap();
 
             // Zero buffer for sanity check
             pkt_buf.fill(0);
@@ -186,7 +170,11 @@ impl Scanner<ARPScanResult> for ARPScanner {
         target_list.lazy_loop(process_target);
 
         // TODO make idleTimeout configurable
-        thread::sleep(Duration::from_secs(5));
-        self.sender.send(ScanMessage::Done(())).unwrap();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_secs(5));
+            // run your function here
+            done_tx.send(()).unwrap();
+            msg_sender.send(ScanMessage::Done(())).unwrap();
+        });
     }
 }

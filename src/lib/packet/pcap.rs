@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use pnet::datalink::NetworkInterface;
 
@@ -80,7 +80,7 @@ impl Sender for PCapSender {
  * + Send + Syn -> Indicates that Reader is thread safe and can be safely
  *                 synchronized across threads.
  */
-pub fn new_reader(interface: Arc<NetworkInterface>) -> Arc<Mutex<Box<dyn Reader>>> {
+pub fn new_reader(interface: Arc<NetworkInterface>) -> Box<dyn Reader> {
     let cap = pcap::Capture::from_device(interface.name.as_ref())
         .expect("failed to create capture device")
         .promisc(true)
@@ -88,11 +88,10 @@ pub fn new_reader(interface: Arc<NetworkInterface>) -> Arc<Mutex<Box<dyn Reader>
         .open()
         .expect("failed to activate capture device");
 
-    let boxed: Box<dyn Reader> = Box::new(PCapReader { cap });
-    Arc::new(Mutex::new(boxed))
+    Box::new(PCapReader { cap })
 }
 
-pub fn new_sender(interface: Arc<NetworkInterface>) -> Arc<Mutex<Box<dyn Sender>>> {
+pub fn new_sender(interface: Arc<NetworkInterface>) -> Box<dyn Sender> {
     let cap = pcap::Capture::from_device(interface.name.as_ref())
         .expect("failed to create capture device")
         .promisc(true)
@@ -100,6 +99,5 @@ pub fn new_sender(interface: Arc<NetworkInterface>) -> Arc<Mutex<Box<dyn Sender>
         .open()
         .expect("failed to activate capture device");
 
-    let boxed: Box<dyn Sender> = Box::new(PCapSender { cap });
-    Arc::new(Mutex::new(boxed))
+    Box::new(PCapSender { cap })
 }

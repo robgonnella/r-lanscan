@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use pnet::datalink::{self, DataLinkReceiver, DataLinkSender, NetworkInterface};
 
@@ -39,7 +39,7 @@ impl Sender for BPFSender {
     fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error> {
         let opt = self.sender.send_to(packet, None);
         match opt {
-            Some(res) => Ok(()),
+            Some(_res) => Ok(()),
             None => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "failed to send packet",
@@ -70,7 +70,7 @@ impl Sender for BPFSender {
  * + Send + Syn -> Indicates that PacketReader is thread safe and can be safely
  *                 synchronized across threads.
  */
-pub fn new_reader(interface: Arc<NetworkInterface>) -> Arc<Mutex<Box<dyn Reader>>> {
+pub fn new_reader(interface: Arc<NetworkInterface>) -> Box<dyn Reader> {
     let cfg = pnet::datalink::bpf::Config::default();
 
     let channel: (Box<dyn DataLinkSender>, Box<dyn DataLinkReceiver>) =
@@ -80,13 +80,12 @@ pub fn new_reader(interface: Arc<NetworkInterface>) -> Arc<Mutex<Box<dyn Reader>
             Err(e) => panic!("Channel error: {e}"),
         };
 
-    let boxed: Box<dyn Reader> = Box::new(BPFReader {
+    Box::new(BPFReader {
         receiver: channel.1,
-    });
-    Arc::new(Mutex::new(boxed))
+    })
 }
 
-pub fn new_sender(interface: Arc<NetworkInterface>) -> Arc<Mutex<Box<dyn Sender>>> {
+pub fn new_sender(interface: Arc<NetworkInterface>) -> Box<dyn Sender> {
     let cfg = pnet::datalink::bpf::Config::default();
 
     let channel: (Box<dyn DataLinkSender>, Box<dyn DataLinkReceiver>) =
@@ -96,6 +95,5 @@ pub fn new_sender(interface: Arc<NetworkInterface>) -> Arc<Mutex<Box<dyn Sender>
             Err(e) => panic!("Channel error: {e}"),
         };
 
-    let boxed: Box<dyn Sender> = Box::new(BPFSender { sender: channel.0 });
-    Arc::new(Mutex::new(boxed))
+    Box::new(BPFSender { sender: channel.0 })
 }

@@ -1,13 +1,14 @@
 use log::*;
+use pnet::datalink;
 
 use std::{
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc},
     thread,
     time::Duration,
 };
 
 use crate::{
-    packet,
+    packet::{PacketReaderFactory, PacketSenderFactory},
     scanners::{ARPScanResult, DeviceStatus, PortStatus},
     targets::{self, LazyLooper},
 };
@@ -16,8 +17,9 @@ use super::{SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing an ARP scanner
 pub struct SYNScanner {
-    packet_reader: Arc<Mutex<Box<dyn packet::Reader>>>,
-    packet_sender: Arc<Mutex<Box<dyn packet::Sender>>>,
+    interface: Arc<datalink::NetworkInterface>,
+    packet_reader_factory: PacketReaderFactory,
+    packet_sender_factory: PacketSenderFactory,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
     sender: mpsc::Sender<ScanMessage>,
@@ -32,15 +34,17 @@ pub struct SYNTarget {
 
 // Returns a new instance of SYNScanner
 pub fn new(
-    packet_reader: Arc<Mutex<Box<dyn packet::Reader>>>,
-    packet_sender: Arc<Mutex<Box<dyn packet::Sender>>>,
+    interface: Arc<datalink::NetworkInterface>,
+    packet_reader_factory: PacketReaderFactory,
+    packet_sender_factory: PacketSenderFactory,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
     sender: mpsc::Sender<ScanMessage>,
 ) -> SYNScanner {
     SYNScanner {
-        packet_reader,
-        packet_sender,
+        interface,
+        packet_reader_factory,
+        packet_sender_factory,
         targets,
         ports,
         sender,
@@ -55,15 +59,18 @@ impl SYNScanner {
 
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self) {
-        let reader = Arc::clone(&self.packet_reader);
-        let sender_clone = self.sender.clone();
+    fn read_packets(&self, done_rx: mpsc::Receiver<()>) {
+        let mut packet_reader = (self.packet_reader_factory)(Arc::clone(&self.interface));
+        let sender = self.sender.clone();
 
         thread::spawn(move || {
-            let mut reader = reader.lock().unwrap();
-            while let Ok(_packet) = reader.next_packet() {
-                info!("sending syn result");
-                sender_clone
+            while let Ok(_packet) = packet_reader.next_packet() {
+                if let Ok(_) = done_rx.try_recv() {
+                    info!("exiting syn packet reader");
+                    break;
+                }
+
+                sender
                     .send(ScanMessage::SYNScanResult(SYNScanResult {
                         device: ARPScanResult {
                             hostname: String::from("hostname"),
@@ -89,20 +96,26 @@ impl Scanner<SYNScanResult> for SYNScanner {
 
         info!("starting syn packet reader");
 
-        self.read_packets();
+        let (done_tx, done_rx) = mpsc::channel::<()>();
+        let msg_sender = self.sender.clone();
+
+        self.read_packets(done_rx);
 
         for target in self.targets.iter() {
             let port_list = targets::ports::new(&self.ports);
 
             let process_port = |port: u32| {
-                info!("processing SYN target: {}:{}", target.ip, port);
+                info!("scanning SYN target: {}:{}", target.ip, port);
             };
 
             port_list.lazy_loop(process_port);
         }
 
-        // TODO make idleTimeout configurable
-        thread::sleep(Duration::from_secs(5));
-        self.sender.send(ScanMessage::Done(())).unwrap();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_secs(5));
+            // run your function here
+            done_tx.send(()).unwrap();
+            msg_sender.send(ScanMessage::Done(())).unwrap();
+        });
     }
 }

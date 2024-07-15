@@ -69,15 +69,12 @@ fn main() {
 
     let interface = network::get_interface(&args.interface);
 
-    let reader = packet::bpf::new_reader(Arc::clone(&interface));
-    let sender = packet::bpf::new_sender(Arc::clone(&interface));
-
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
     let scanner = full_scanner::new(
         Arc::clone(&interface),
-        reader,
-        sender,
+        packet::bpf::new_reader,
+        packet::bpf::new_sender,
         args.targets,
         args.ports,
         args.vendor,

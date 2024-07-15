@@ -1,13 +1,13 @@
 use log::*;
-use pnet::datalink::NetworkInterface;
+use pnet::datalink::{self, NetworkInterface};
 
 use std::{
-    cell::RefCell,
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc},
+    thread,
 };
 
 use crate::{
-    packet,
+    packet::{PacketReaderFactory, PacketSenderFactory},
     scanners::{arp_scanner, syn_scanner},
 };
 
@@ -15,77 +15,91 @@ use super::{syn_scanner::SYNTarget, SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing a Full scanner (ARP + SYN)
 pub struct FullScanner {
-    arp_receiver: mpsc::Receiver<ScanMessage>,
-    arp: arp_scanner::ARPScanner,
-    syn: RefCell<syn_scanner::SYNScanner>,
+    interface: Arc<datalink::NetworkInterface>,
+    packet_reader_factory: PacketReaderFactory,
+    packet_sender_factory: PacketSenderFactory,
+    targets: Vec<String>,
+    ports: Vec<String>,
+    vendor: bool,
+    host: bool,
+    sender: mpsc::Sender<ScanMessage>,
 }
 
 // Returns a new instance of ARPScanner
 pub fn new(
     interface: Arc<NetworkInterface>,
-    packet_reader: Arc<Mutex<Box<dyn packet::Reader>>>,
-    packet_sender: Arc<Mutex<Box<dyn packet::Sender>>>,
+    packet_reader_factory: PacketReaderFactory,
+    packet_sender_factory: PacketSenderFactory,
     targets: Vec<String>,
     ports: Vec<String>,
     vendor: bool,
     host: bool,
     sender: mpsc::Sender<ScanMessage>,
 ) -> FullScanner {
-    let (tx, rx) = mpsc::channel::<ScanMessage>();
-
     FullScanner {
-        arp_receiver: rx,
-        // make sure to clone the reader as we want both arp and syn scanners
-        // to have access
-        arp: arp_scanner::new(
-            interface,
-            Arc::clone(&packet_reader),
-            Arc::clone(&packet_sender),
-            targets,
-            vendor,
-            host,
+        interface,
+        packet_reader_factory,
+        packet_sender_factory,
+        targets,
+        ports,
+        vendor,
+        host,
+        sender,
+    }
+}
+
+impl FullScanner {
+    fn get_syn_targets_from_arp_scan(&self) -> Vec<SYNTarget> {
+        let (tx, rx) = mpsc::channel::<ScanMessage>();
+
+        let mut syn_targets: Vec<SYNTarget> = Vec::new();
+
+        let arp = arp_scanner::new(
+            Arc::clone(&self.interface),
+            self.packet_reader_factory,
+            self.packet_sender_factory,
+            self.targets.to_owned(),
+            self.vendor,
+            self.host,
             tx.clone(),
-        ),
-        // Here we need the internals of syn_scanner to be mutable in order to
-        // call "set_targets" but our outer data structure should still be
-        // immutable. To Achieve this we use "RefCell", which is not thread-safe
-        // but doesn't need to be for our purpose. If we needed it to be
-        // thread-safe we would use Mutex.
-        syn: RefCell::new(syn_scanner::new(
-            Arc::clone(&packet_reader),
-            Arc::clone(&packet_sender),
-            vec![],
-            ports,
-            sender.clone(),
-        )),
+        );
+
+        arp.scan();
+
+        loop {
+            if let Ok(msg) = rx.recv() {
+                if let Some(_msg) = msg.is_done() {
+                    info!("arp sending complete");
+                    break;
+                }
+
+                if let Some(arp) = msg.is_arp_message() {
+                    info!("received arp message: {:?}", msg);
+                    syn_targets.push(SYNTarget {
+                        ip: arp.ip.clone(),
+                        mac: arp.mac.clone(),
+                    });
+                }
+            }
+        }
+
+        syn_targets
     }
 }
 
 // Implements the Scanner trait for FullScanner
 impl Scanner<SYNScanResult> for FullScanner {
     fn scan(&self) {
-        let mut syn_targets: Vec<SYNTarget> = Vec::new();
+        let syn_targets = self.get_syn_targets_from_arp_scan();
+        let syn = syn_scanner::new(
+            Arc::clone(&self.interface),
+            self.packet_reader_factory,
+            self.packet_sender_factory,
+            syn_targets,
+            self.ports.to_owned(),
+            self.sender.clone(),
+        );
 
-        self.arp.scan();
-
-        loop {
-            let msg = self.arp_receiver.recv().unwrap();
-
-            if let Some(_msg) = msg.is_done() {
-                info!("arp sending complete");
-                break;
-            }
-
-            if let Some(arp) = msg.is_arp_message() {
-                info!("received arp message: {:?}", msg);
-                syn_targets.push(SYNTarget {
-                    ip: arp.ip.clone(),
-                    mac: arp.mac.clone(),
-                });
-            }
-        }
-
-        self.syn.borrow_mut().set_targets(syn_targets);
-        self.syn.borrow().scan()
+        syn.scan()
     }
 }

@@ -1,5 +1,3 @@
-use std::mem;
-
 // we only discover "online" devices so there is no "offline" status
 #[derive(Debug)]
 pub enum DeviceStatus {
