@@ -1,7 +1,14 @@
 use log::*;
-use pnet::datalink;
+use pnet::{
+    datalink,
+    packet::{
+        ethernet::EthernetPacket, ip::IpNextHeaderProtocols, ipv4::Ipv4Packet, tcp::TcpPacket,
+        Packet,
+    },
+};
 
 use std::{
+    net::IpAddr,
     sync::{mpsc, Arc},
     thread,
 };
@@ -59,30 +66,46 @@ impl SYNScanner {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(&self, done_rx: mpsc::Receiver<()>) {
+        let interface = Arc::clone(&self.interface);
         let mut packet_reader = (self.packet_reader_factory)(Arc::clone(&self.interface));
         let sender = self.sender.clone();
 
         thread::spawn(move || {
-            while let Ok(_packet) = packet_reader.next_packet() {
+            while let Ok(packet) = packet_reader.next_packet() {
                 if let Ok(_) = done_rx.try_recv() {
                     info!("exiting syn packet reader");
                     break;
                 }
 
-                sender
-                    .send(ScanMessage::SYNScanResult(SYNScanResult {
-                        device: ARPScanResult {
-                            hostname: String::from("hostname"),
-                            ip: String::from("ip"),
-                            mac: String::from("mac"),
-                            status: DeviceStatus::Online,
-                            vendor: String::from("vendor"),
-                        },
-                        port: String::from("22"),
-                        port_service: String::from("ssh"),
-                        port_status: PortStatus::Open,
-                    }))
-                    .unwrap();
+                let ethernet = &EthernetPacket::new(packet);
+
+                if let Some(ethernet) = ethernet {
+                    let header = Ipv4Packet::new(ethernet.payload());
+                    if let Some(header) = header {
+                        let source = IpAddr::V4(header.get_source());
+                        let destination = IpAddr::V4(header.get_destination());
+                        let protocol = header.get_next_level_protocol();
+                        let payload = header.payload();
+
+                        match protocol {
+                            IpNextHeaderProtocols::Tcp => {
+                                let tcp = TcpPacket::new(payload);
+                                if let Some(tcp) = tcp {
+                                    info!(
+                                        "[{}]: TCP Packet: {}:{} > {}:{}; length: {}",
+                                        interface.name,
+                                        source,
+                                        tcp.get_source(),
+                                        destination,
+                                        tcp.get_destination(),
+                                        packet.len()
+                                    );
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
             }
         });
     }
