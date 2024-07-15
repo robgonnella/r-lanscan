@@ -16,7 +16,8 @@ use super::{SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing an ARP scanner
 pub struct SYNScanner {
-    reader: Arc<Mutex<Box<dyn packet::Reader + Send + Sync>>>,
+    packet_reader: Arc<Mutex<Box<dyn packet::Reader>>>,
+    packet_sender: Arc<Mutex<Box<dyn packet::Sender>>>,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
     sender: mpsc::Sender<ScanMessage>,
@@ -31,13 +32,15 @@ pub struct SYNTarget {
 
 // Returns a new instance of SYNScanner
 pub fn new(
-    reader: Arc<Mutex<Box<dyn packet::Reader + Send + Sync>>>,
+    packet_reader: Arc<Mutex<Box<dyn packet::Reader>>>,
+    packet_sender: Arc<Mutex<Box<dyn packet::Sender>>>,
     targets: Vec<SYNTarget>,
     ports: Vec<String>,
     sender: mpsc::Sender<ScanMessage>,
 ) -> SYNScanner {
     SYNScanner {
-        reader,
+        packet_reader,
+        packet_sender,
         targets,
         ports,
         sender,
@@ -53,11 +56,11 @@ impl SYNScanner {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(&self) {
-        let clone = Arc::clone(&self.reader);
+        let reader = Arc::clone(&self.packet_reader);
         let sender_clone = self.sender.clone();
 
         thread::spawn(move || {
-            let mut reader = clone.lock().unwrap();
+            let mut reader = reader.lock().unwrap();
             while let Ok(_packet) = reader.next_packet() {
                 info!("sending syn result");
                 sender_clone

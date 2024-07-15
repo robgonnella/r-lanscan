@@ -1,6 +1,6 @@
 use log::*;
 
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 
 use clap::Parser;
 
@@ -15,7 +15,7 @@ use simplelog;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Comma separated list of IPs, IP ranges, and CIDR blocks to scan
-    #[arg(short, long, default_values_t = vec![network::get_default_network_cidr()], use_value_delimiter = true)]
+    #[arg(short, long, default_values_t = vec![network::get_interface_cidr(network::get_default_interface())], use_value_delimiter = true)]
     targets: Vec<String>,
 
     /// Comma separated list of ports and port ranges to scan
@@ -39,7 +39,7 @@ struct Args {
     host: bool,
 
     /// Choose a specific network interface for the scan
-    #[arg(short, long, default_value_t = network::get_default_device_name())]
+    #[arg(short, long, default_value_t = network::get_default_interface().name.to_string())]
     interface: String,
 }
 
@@ -67,14 +67,17 @@ fn main() {
     info!("  host: {}", args.host);
     info!("  interface: {}", args.interface);
 
-    let interface = args.interface.as_str();
+    let interface = network::get_interface(&args.interface);
 
-    let reader = packet::pcap_reader::new(interface);
+    let reader = packet::bpf::new_reader(Arc::clone(&interface));
+    let sender = packet::bpf::new_sender(Arc::clone(&interface));
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
     let scanner = full_scanner::new(
+        Arc::clone(&interface),
         reader,
+        sender,
         args.targets,
         args.ports,
         args.vendor,
@@ -85,7 +88,7 @@ fn main() {
     scanner.scan();
 
     while let Ok(msg) = rx.recv() {
-        if msg.is_done() {
+        if let Some(_done) = msg.is_done() {
             info!("scanning complete");
             break;
         }

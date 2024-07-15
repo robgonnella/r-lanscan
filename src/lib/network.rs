@@ -1,38 +1,38 @@
-use std::{net::Ipv4Addr, str::FromStr};
+use std::{net::Ipv4Addr, sync::Arc};
 
-pub fn get_default_device_name() -> String {
-    let device = pcap::Device::lookup()
-        .expect("device lookup failed")
-        .expect("no device available");
-    device.name
+use pnet::{datalink::NetworkInterface, util::MacAddr};
+
+#[derive(Debug)]
+pub struct Interface {
+    pub name: String,
+    pub mac: MacAddr,
+    pub ipv4: Ipv4Addr,
+    pub cidr: String,
 }
 
-pub fn get_default_network_cidr() -> String {
-    let device = pcap::Device::lookup()
-        .expect("device lookup failed")
-        .expect("no device available");
-
-    let mut cidr: String = String::from("");
-
-    for a in device.addresses.iter() {
-        if a.addr.is_ipv4() && !a.addr.is_loopback() {
-            let prefix = netmask_to_bit(&a.netmask.unwrap().to_string());
-            let ipv4 = Ipv4Addr::from_str(a.addr.to_string().as_str()).unwrap();
-            let net = ipnet::Ipv4Net::new(ipv4, u8::try_from(prefix).ok().unwrap()).unwrap();
-            cidr = net.trunc().to_string();
-            break;
-        }
-    }
-
-    cidr
+pub fn get_interface(name: &str) -> Arc<NetworkInterface> {
+    Arc::new(
+        pnet::datalink::interfaces()
+            .iter()
+            .find(|i| i.name == name)
+            .unwrap()
+            .to_owned(),
+    )
 }
 
-// private functions
+pub fn get_default_interface<'a>() -> Arc<NetworkInterface> {
+    Arc::new(
+        pnet::datalink::interfaces()
+            .iter()
+            .find(|e| e.is_up() && !e.is_loopback() && e.ips.iter().find(|i| i.is_ipv4()).is_some())
+            .unwrap()
+            .to_owned(),
+    )
+}
 
-fn netmask_to_bit(netmask: &str) -> u32 {
-    let bits: u32 = netmask
-        .split(".")
-        .map(|x| x.parse::<u8>().unwrap().count_ones())
-        .sum();
-    bits
+pub fn get_interface_cidr(interface: Arc<NetworkInterface>) -> String {
+    let ipnet = interface.ips.iter().find(|i| i.is_ipv4()).unwrap();
+    let ip = ipnet.ip().to_string();
+    let prefix = ipnet.prefix().to_string();
+    String::from(format!("{ip}/{prefix}"))
 }

@@ -11,8 +11,9 @@ path = "src/lib/lib.rs"
 
 [dependencies]
 clap = { version = "4.4.16", features = ["derive"] }
-pcap = "1.1.0"
+pcap = "1.3.0"
 ipnet = "2.9.0"
 log = "0.4"
 paris = { version = "1.5", features = ["timestamps"] }
 simplelog = { version = "0.12", features = ["paris"] }
+pnet = "0.35.0"
