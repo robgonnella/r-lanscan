@@ -39,33 +39,28 @@ pub enum ScanMessage {
 }
 
 impl ScanMessage {
-    pub fn is_arp_message(&self) -> bool {
-        mem::discriminant(&ScanMessage::ARPScanResult(ARPScanResult {
-            hostname: String::from(""),
-            ip: String::from(""),
-            mac: String::from(""),
-            status: DeviceStatus::Online,
-            vendor: String::from(""),
-        })) == mem::discriminant(self)
+    pub fn is_arp_message(&self) -> Option<&ARPScanResult> {
+        match self {
+            ScanMessage::Done(_msg) => None,
+            ScanMessage::SYNScanResult(_msg) => None,
+            ScanMessage::ARPScanResult(msg) => Some(msg),
+        }
     }
 
-    pub fn is_syn_message(&self) -> bool {
-        mem::discriminant(&ScanMessage::SYNScanResult(SYNScanResult {
-            device: ARPScanResult {
-                hostname: String::from(""),
-                ip: String::from(""),
-                mac: String::from(""),
-                status: DeviceStatus::Online,
-                vendor: String::from(""),
-            },
-            port: String::from(""),
-            port_service: String::from(""),
-            port_status: PortStatus::Closed,
-        })) == mem::discriminant(self)
+    pub fn is_syn_message(&self) -> Option<&SYNScanResult> {
+        match self {
+            ScanMessage::Done(_msg) => None,
+            ScanMessage::SYNScanResult(msg) => Some(msg),
+            ScanMessage::ARPScanResult(_msg) => None,
+        }
     }
 
-    pub fn is_done(&self) -> bool {
-        mem::discriminant(&ScanMessage::Done(())) == mem::discriminant(self)
+    pub fn is_done(&self) -> Option<()> {
+        match self {
+            ScanMessage::Done(_msg) => Some(()),
+            ScanMessage::SYNScanResult(_msg) => None,
+            ScanMessage::ARPScanResult(_msg) => None,
+        }
     }
 }
 

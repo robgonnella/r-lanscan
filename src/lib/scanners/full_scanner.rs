@@ -1,4 +1,5 @@
 use log::*;
+use pnet::datalink::NetworkInterface;
 
 use std::{
     cell::RefCell,
@@ -21,7 +22,9 @@ pub struct FullScanner {
 
 // Returns a new instance of ARPScanner
 pub fn new(
-    reader: Arc<Mutex<Box<dyn packet::Reader + Send + Sync>>>,
+    interface: Arc<NetworkInterface>,
+    packet_reader: Arc<Mutex<Box<dyn packet::Reader>>>,
+    packet_sender: Arc<Mutex<Box<dyn packet::Sender>>>,
     targets: Vec<String>,
     ports: Vec<String>,
     vendor: bool,
@@ -34,14 +37,23 @@ pub fn new(
         arp_receiver: rx,
         // make sure to clone the reader as we want both arp and syn scanners
         // to have access
-        arp: arp_scanner::new(Arc::clone(&reader), targets, vendor, host, tx.clone()),
+        arp: arp_scanner::new(
+            interface,
+            Arc::clone(&packet_reader),
+            Arc::clone(&packet_sender),
+            targets,
+            vendor,
+            host,
+            tx.clone(),
+        ),
         // Here we need the internals of syn_scanner to be mutable in order to
         // call "set_targets" but our outer data structure should still be
         // immutable. To Achieve this we use "RefCell", which is not thread-safe
         // but doesn't need to be for our purpose. If we needed it to be
         // thread-safe we would use Mutex.
         syn: RefCell::new(syn_scanner::new(
-            Arc::clone(&reader),
+            Arc::clone(&packet_reader),
+            Arc::clone(&packet_sender),
             vec![],
             ports,
             sender.clone(),
@@ -58,18 +70,17 @@ impl Scanner<SYNScanResult> for FullScanner {
 
         loop {
             let msg = self.arp_receiver.recv().unwrap();
-            info!("received scan message: {:?}", msg);
 
-            if msg.is_done() {
+            if let Some(_msg) = msg.is_done() {
                 info!("arp sending complete");
                 break;
             }
 
-            if msg.is_arp_message() {
+            if let Some(arp) = msg.is_arp_message() {
                 info!("received arp message: {:?}", msg);
                 syn_targets.push(SYNTarget {
-                    ip: String::from("ip"),
-                    mac: String::from("mac"),
+                    ip: arp.ip.clone(),
+                    mac: arp.mac.clone(),
                 });
             }
         }
