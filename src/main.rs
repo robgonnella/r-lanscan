@@ -6,7 +6,7 @@ use clap::Parser;
 
 use r_lanscan::{
     network, packet,
-    scanners::{full_scanner, ScanMessage, Scanner},
+    scanners::{full_scanner, SYNScanResult, ScanMessage, Scanner},
     targets,
 };
 use simplelog;
@@ -85,11 +85,23 @@ fn main() {
 
     scanner.scan();
 
+    let mut results: Vec<SYNScanResult> = Vec::new();
+
     while let Ok(msg) = rx.recv() {
         if let Some(_done) = msg.is_done() {
             info!("scanning complete");
             break;
         }
-        info!("received scanning message: {:?}", msg);
+        if let Some(m) = msg.is_syn_message() {
+            info!("received scanning message: {:?}", msg);
+            results.push(SYNScanResult {
+                device: m.device.to_owned(),
+                port: m.port.to_owned(),
+                port_service: m.port_service.to_owned(),
+                port_status: m.port_status.to_owned(),
+            });
+        }
     }
+
+    info!("scan results: {:?}", results);
 }
