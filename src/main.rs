@@ -1,12 +1,13 @@
 use log::*;
 
-use std::sync::{mpsc, Arc};
+use std::sync::{self, mpsc, Arc};
 
 use clap::Parser;
 
 use r_lanscan::{
     network, packet,
     scanners::{full_scanner, ScanMessage, Scanner},
+    targets,
 };
 use simplelog;
 
@@ -73,10 +74,10 @@ fn main() {
 
     let scanner = full_scanner::new(
         Arc::clone(&interface),
-        packet::bpf::new_reader,
-        packet::bpf::new_sender,
-        args.targets,
-        args.ports,
+        packet::wire::bpf::new_reader,
+        packet::wire::bpf::new_sender,
+        sync::Arc::new(targets::ips::new(args.targets)),
+        sync::Arc::new(targets::ports::new(args.ports)),
         args.vendor,
         args.host,
         tx.clone(),

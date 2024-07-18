@@ -1,44 +1,39 @@
 use log::*;
-use pnet::datalink;
-
-use std::{
-    sync::{mpsc, Arc},
-    thread,
+use pnet::{
+    datalink,
+    packet::{ethernet, ip, ipv4, tcp, Packet},
+    util,
 };
 
+use core::time;
+use std::{net, str::FromStr, sync, thread};
+
 use crate::{
-    packet::{PacketReaderFactory, PacketSenderFactory},
-    scanners::{ARPScanResult, DeviceStatus, PortStatus, IDLE_TIMEOUT},
+    network, packet,
+    scanners::{PortStatus, IDLE_TIMEOUT},
     targets::{self, LazyLooper},
 };
 
-use super::{SYNScanResult, ScanMessage, Scanner};
+use super::{DeviceHashMap, SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing an ARP scanner
 pub struct SYNScanner {
-    interface: Arc<datalink::NetworkInterface>,
-    packet_reader_factory: PacketReaderFactory,
-    packet_sender_factory: PacketSenderFactory,
-    targets: Vec<SYNTarget>,
-    ports: Vec<String>,
-    sender: mpsc::Sender<ScanMessage>,
-}
-
-// SYN Target represents the required fields to send a SYN packet to a device
-#[derive(Debug)]
-pub struct SYNTarget {
-    pub ip: String,
-    pub mac: String,
+    interface: sync::Arc<datalink::NetworkInterface>,
+    packet_reader_factory: packet::PacketReaderFactory,
+    packet_sender_factory: packet::PacketSenderFactory,
+    targets: sync::Arc<DeviceHashMap>,
+    ports: sync::Arc<targets::ports::PortTargets>,
+    sender: sync::mpsc::Sender<ScanMessage>,
 }
 
 // Returns a new instance of SYNScanner
 pub fn new(
-    interface: Arc<datalink::NetworkInterface>,
-    packet_reader_factory: PacketReaderFactory,
-    packet_sender_factory: PacketSenderFactory,
-    targets: Vec<SYNTarget>,
-    ports: Vec<String>,
-    sender: mpsc::Sender<ScanMessage>,
+    interface: sync::Arc<datalink::NetworkInterface>,
+    packet_reader_factory: packet::PacketReaderFactory,
+    packet_sender_factory: packet::PacketSenderFactory,
+    targets: sync::Arc<DeviceHashMap>,
+    ports: sync::Arc<targets::ports::PortTargets>,
+    sender: sync::mpsc::Sender<ScanMessage>,
 ) -> SYNScanner {
     SYNScanner {
         interface,
@@ -51,38 +46,66 @@ pub fn new(
 }
 
 impl SYNScanner {
-    // Allow mutable setting of syn targets
-    pub fn set_targets(&mut self, targets: Vec<SYNTarget>) {
-        self.targets = targets;
-    }
-
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self, done_rx: mpsc::Receiver<()>) {
-        let mut packet_reader = (self.packet_reader_factory)(Arc::clone(&self.interface));
+    fn read_packets(&self, done_rx: sync::mpsc::Receiver<()>) {
+        let mut packet_reader = (self.packet_reader_factory)(sync::Arc::clone(&self.interface));
+        let device_hash_map = self.targets.to_owned();
         let sender = self.sender.clone();
 
         thread::spawn(move || {
-            while let Ok(_packet) = packet_reader.next_packet() {
+            while let Ok(pkt) = packet_reader.next_packet() {
                 if let Ok(_) = done_rx.try_recv() {
                     info!("exiting syn packet reader");
                     break;
                 }
 
-                sender
-                    .send(ScanMessage::SYNScanResult(SYNScanResult {
-                        device: ARPScanResult {
-                            hostname: String::from("hostname"),
-                            ip: String::from("ip"),
-                            mac: String::from("mac"),
-                            status: DeviceStatus::Online,
-                            vendor: String::from("vendor"),
-                        },
-                        port: String::from("22"),
-                        port_service: String::from("ssh"),
-                        port_status: PortStatus::Open,
-                    }))
-                    .unwrap();
+                let eth: &Option<ethernet::EthernetPacket> = &ethernet::EthernetPacket::new(pkt);
+
+                if let Some(eth) = eth {
+                    let header = ipv4::Ipv4Packet::new(eth.payload());
+                    if let Some(header) = header {
+                        let source = net::IpAddr::V4(header.get_source());
+                        let protocol = header.get_next_level_protocol();
+                        let payload = header.payload();
+
+                        match protocol {
+                            ip::IpNextHeaderProtocols::Tcp => {
+                                let tcp_packet = tcp::TcpPacket::new(payload);
+                                if let Some(tcp_packet) = tcp_packet {
+                                    let destination_port = tcp_packet.get_destination();
+                                    let device = device_hash_map.get(&source.to_string());
+                                    let matches_destination =
+                                        destination_port == packet::LISTEN_PORT;
+                                    let flags: u8 = tcp_packet.get_flags();
+                                    let is_syn_ack =
+                                        flags == tcp::TcpFlags::SYN + tcp::TcpFlags::ACK;
+
+                                    match device {
+                                        Some(device) => {
+                                            if matches_destination && is_syn_ack {
+                                                sender
+                                                    .send(ScanMessage::SYNScanResult(
+                                                        SYNScanResult {
+                                                            device: device.to_owned(),
+                                                            port: tcp_packet
+                                                                .get_source()
+                                                                .to_string(),
+                                                            port_status: PortStatus::Open,
+                                                            port_service: String::from(""),
+                                                        },
+                                                    ))
+                                                    .unwrap();
+                                            }
+                                        }
+                                        None => {}
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
             }
         });
     }
@@ -95,22 +118,39 @@ impl Scanner<SYNScanResult> for SYNScanner {
 
         info!("starting syn packet reader");
 
-        let (done_tx, done_rx) = mpsc::channel::<()>();
+        let (done_tx, done_rx) = sync::mpsc::channel::<()>();
         let msg_sender = self.sender.clone();
+        let mut packet_sender = (self.packet_sender_factory)(sync::Arc::clone(&self.interface));
+        let targets = sync::Arc::clone(&self.targets);
+        let interface = sync::Arc::clone(&self.interface);
+        let source_ipv4 = net::Ipv4Addr::from_str(&network::get_interface_ipv4(interface)).unwrap();
+        let source_mac = self.interface.mac.unwrap();
+        let ports = sync::Arc::clone(&self.ports);
 
         self.read_packets(done_rx);
 
-        for target in self.targets.iter() {
-            let port_list = targets::ports::new(&self.ports);
-
-            let process_port = |port: u32| {
-                info!("scanning SYN target: {}:{}", target.ip, port);
-            };
-
-            port_list.lazy_loop(process_port);
-        }
-
         thread::spawn(move || {
+            for (ip, device) in targets.iter() {
+                let process_port = |port: u16| {
+                    thread::sleep(time::Duration::from_micros(100));
+                    info!("scanning SYN target: {}:{}", ip, port);
+
+                    let ipv4_destination = net::Ipv4Addr::from_str(ip);
+
+                    if ipv4_destination.is_ok() {
+                        let source_ipv4 = source_ipv4;
+                        let source_mac = source_mac;
+                        let dest_ipv4 = ipv4_destination.unwrap();
+                        let dest_mac = util::MacAddr::from_str(&device.mac).unwrap();
+                        let pkt_buf =
+                            packet::syn::new(source_ipv4, source_mac, dest_ipv4, dest_mac, port);
+                        packet_sender.send(&pkt_buf).unwrap();
+                    }
+                };
+
+                ports.lazy_loop(process_port)
+            }
+
             thread::sleep(IDLE_TIMEOUT);
             // run your function here
             done_tx.send(()).unwrap();

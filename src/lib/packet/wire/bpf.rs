@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use pnet::datalink::{self, DataLinkReceiver, DataLinkSender, NetworkInterface};
 
-use super::{Reader, Sender};
+use crate::packet::{Reader, Sender};
 
 /**
  * A BPF implementation of packet Reader
