@@ -1,23 +1,26 @@
 use core::time;
+use std::collections::HashMap;
 
 const IDLE_TIMEOUT: time::Duration = time::Duration::from_secs(5);
 
 // we only discover "online" devices so there is no "offline" status
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DeviceStatus {
     Online,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PortStatus {
     Open,
     Closed,
 }
 
+pub type DeviceIp = String;
+
 // ARP Result from a single device
-#[derive(Debug)]
-pub struct ARPScanResult {
-    pub ip: String,
+#[derive(Debug, Clone)]
+pub struct Device {
+    pub ip: DeviceIp,
     pub mac: String,
     pub status: DeviceStatus,
     pub hostname: String,
@@ -27,21 +30,23 @@ pub struct ARPScanResult {
 // SYN Result from a single device
 #[derive(Debug)]
 pub struct SYNScanResult {
-    pub device: ARPScanResult,
+    pub device: Device,
     pub port: String,
     pub port_status: PortStatus,
     pub port_service: String,
 }
 
+pub type DeviceHashMap = HashMap<DeviceIp, Device>;
+
 #[derive(Debug)]
 pub enum ScanMessage {
     Done(()),
-    ARPScanResult(ARPScanResult),
+    ARPScanResult(Device),
     SYNScanResult(SYNScanResult),
 }
 
 impl ScanMessage {
-    pub fn is_arp_message(&self) -> Option<&ARPScanResult> {
+    pub fn is_arp_message(&self) -> Option<&Device> {
         match self {
             ScanMessage::Done(_msg) => None,
             ScanMessage::SYNScanResult(_msg) => None,

@@ -5,7 +5,7 @@
  * use a lazy loop to process those extra value "lazily" to save memory.
  */
 pub trait LazyLooper<T> {
-    fn lazy_loop<F: FnMut(T)>(self, cb: F);
+    fn lazy_loop<F: FnMut(T)>(&self, cb: F);
 }
 
 pub mod ips;

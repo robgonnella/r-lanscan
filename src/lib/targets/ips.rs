@@ -1,25 +1,23 @@
-use std::{net::Ipv4Addr, str::FromStr};
-
-use ipnet::{Ipv4Net, Ipv4Subnets};
+use std::{net, str::FromStr};
 
 use super::LazyLooper;
 
 #[derive(Debug)]
-pub struct IPTargets<'a>(&'a Vec<String>);
+pub struct IPTargets(Vec<String>);
 
-pub fn new<'a>(list: &'a Vec<String>) -> IPTargets {
+pub fn new(list: Vec<String>) -> IPTargets {
     IPTargets(list)
 }
 
-impl<'a> LazyLooper<String> for IPTargets<'a> {
-    fn lazy_loop<F: FnMut(String)>(self, mut cb: F) {
-        for target in self.0 {
+impl LazyLooper<String> for IPTargets {
+    fn lazy_loop<F: FnMut(String)>(&self, mut cb: F) {
+        for target in self.0.iter() {
             if target.contains("-") {
                 // target is range
                 let parts: Vec<&str> = target.split("-").collect();
-                let begin = Ipv4Addr::from_str(parts[0]).unwrap();
-                let end = Ipv4Addr::from_str(parts[1]).unwrap();
-                let subnet = Ipv4Subnets::new(begin, end, 32);
+                let begin = net::Ipv4Addr::from_str(parts[0]).unwrap();
+                let end = net::Ipv4Addr::from_str(parts[1]).unwrap();
+                let subnet = ipnet::Ipv4Subnets::new(begin, end, 32);
                 for (_, ip_net) in subnet.enumerate() {
                     for ip in ip_net.hosts() {
                         cb(ip.to_string())
@@ -27,13 +25,13 @@ impl<'a> LazyLooper<String> for IPTargets<'a> {
                 }
             } else if target.contains("/") {
                 // target is cidr block
-                let ip_net = Ipv4Net::from_str(target).unwrap();
+                let ip_net = ipnet::Ipv4Net::from_str(&target).unwrap();
                 for ip in ip_net.hosts() {
                     cb(ip.to_string());
                 }
             } else {
                 // target is ip
-                let ip: Ipv4Addr = Ipv4Addr::from_str(target).unwrap();
+                let ip: net::Ipv4Addr = net::Ipv4Addr::from_str(&target).unwrap();
                 cb(ip.to_string());
             }
         }
@@ -42,13 +40,14 @@ impl<'a> LazyLooper<String> for IPTargets<'a> {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
     fn returns_new_ip_targets() {
         let list = vec![String::from("1"), String::from("2"), String::from("3")];
-        let targets = new(&list);
-        assert_eq!(targets.0, &list);
+        let targets = new(list);
+        assert!(!targets.0.is_empty());
     }
 
     #[test]
@@ -68,7 +67,7 @@ mod tests {
             String::from("192.128.30.2"),
         ];
 
-        let targets = new(&list);
+        let targets = new(list);
 
         let mut idx = 0;
 

@@ -1,17 +1,9 @@
-use std::{net::Ipv4Addr, sync::Arc};
+use std::sync;
 
-use pnet::{datalink::NetworkInterface, util::MacAddr};
+use pnet::datalink::NetworkInterface;
 
-#[derive(Debug)]
-pub struct Interface {
-    pub name: String,
-    pub mac: MacAddr,
-    pub ipv4: Ipv4Addr,
-    pub cidr: String,
-}
-
-pub fn get_interface(name: &str) -> Arc<NetworkInterface> {
-    Arc::new(
+pub fn get_interface(name: &str) -> sync::Arc<NetworkInterface> {
+    sync::Arc::new(
         pnet::datalink::interfaces()
             .iter()
             .find(|i| i.name == name)
@@ -20,8 +12,8 @@ pub fn get_interface(name: &str) -> Arc<NetworkInterface> {
     )
 }
 
-pub fn get_default_interface<'a>() -> Arc<NetworkInterface> {
-    Arc::new(
+pub fn get_default_interface<'a>() -> sync::Arc<NetworkInterface> {
+    sync::Arc::new(
         pnet::datalink::interfaces()
             .iter()
             .find(|e| e.is_up() && !e.is_loopback() && e.ips.iter().find(|i| i.is_ipv4()).is_some())
@@ -30,7 +22,12 @@ pub fn get_default_interface<'a>() -> Arc<NetworkInterface> {
     )
 }
 
-pub fn get_interface_cidr(interface: Arc<NetworkInterface>) -> String {
+pub fn get_interface_ipv4(interface: sync::Arc<NetworkInterface>) -> String {
+    let ipnet = interface.ips.iter().find(|i| i.is_ipv4()).unwrap();
+    ipnet.ip().to_string()
+}
+
+pub fn get_interface_cidr(interface: sync::Arc<NetworkInterface>) -> String {
     let ipnet = interface.ips.iter().find(|i| i.is_ipv4()).unwrap();
     let ip = ipnet.ip().to_string();
     let prefix = ipnet.prefix().to_string();

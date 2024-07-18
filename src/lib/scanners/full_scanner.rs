@@ -1,37 +1,38 @@
 use log::*;
-use pnet::datalink::{self, NetworkInterface};
+use pnet::datalink;
 
-use std::sync::{mpsc, Arc};
+use std::{collections::HashMap, sync};
 
 use crate::{
     packet::{PacketReaderFactory, PacketSenderFactory},
     scanners::{arp_scanner, syn_scanner},
+    targets,
 };
 
-use super::{syn_scanner::SYNTarget, SYNScanResult, ScanMessage, Scanner};
+use super::{Device, DeviceHashMap, SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing a Full scanner (ARP + SYN)
 pub struct FullScanner {
-    interface: Arc<datalink::NetworkInterface>,
+    interface: sync::Arc<datalink::NetworkInterface>,
     packet_reader_factory: PacketReaderFactory,
     packet_sender_factory: PacketSenderFactory,
-    targets: Vec<String>,
-    ports: Vec<String>,
+    targets: sync::Arc<targets::ips::IPTargets>,
+    ports: sync::Arc<targets::ports::PortTargets>,
     vendor: bool,
     host: bool,
-    sender: mpsc::Sender<ScanMessage>,
+    sender: sync::mpsc::Sender<ScanMessage>,
 }
 
 // Returns a new instance of ARPScanner
-pub fn new(
-    interface: Arc<NetworkInterface>,
+pub fn new<'targets, 'ports>(
+    interface: sync::Arc<datalink::NetworkInterface>,
     packet_reader_factory: PacketReaderFactory,
     packet_sender_factory: PacketSenderFactory,
-    targets: Vec<String>,
-    ports: Vec<String>,
+    targets: sync::Arc<targets::ips::IPTargets>,
+    ports: sync::Arc<targets::ports::PortTargets>,
     vendor: bool,
     host: bool,
-    sender: mpsc::Sender<ScanMessage>,
+    sender: sync::mpsc::Sender<ScanMessage>,
 ) -> FullScanner {
     FullScanner {
         interface,
@@ -46,16 +47,16 @@ pub fn new(
 }
 
 impl FullScanner {
-    fn get_syn_targets_from_arp_scan(&self) -> Vec<SYNTarget> {
-        let (tx, rx) = mpsc::channel::<ScanMessage>();
+    fn get_syn_targets_from_arp_scan(&self) -> DeviceHashMap {
+        let (tx, rx) = sync::mpsc::channel::<ScanMessage>();
 
-        let mut syn_targets: Vec<SYNTarget> = Vec::new();
+        let mut syn_targets: HashMap<String, Device> = HashMap::new();
 
         let arp = arp_scanner::new(
-            Arc::clone(&self.interface),
+            sync::Arc::clone(&self.interface),
             self.packet_reader_factory,
             self.packet_sender_factory,
-            self.targets.to_owned(),
+            sync::Arc::clone(&self.targets),
             self.vendor,
             self.host,
             tx.clone(),
@@ -70,12 +71,9 @@ impl FullScanner {
                     break;
                 }
 
-                if let Some(arp) = msg.is_arp_message() {
+                if let Some(device) = msg.is_arp_message() {
                     info!("received arp message: {:?}", msg);
-                    syn_targets.push(SYNTarget {
-                        ip: arp.ip.clone(),
-                        mac: arp.mac.clone(),
-                    });
+                    syn_targets.insert(device.ip.to_owned(), device.to_owned());
                 }
             }
         }
@@ -89,11 +87,11 @@ impl Scanner<SYNScanResult> for FullScanner {
     fn scan(&self) {
         let syn_targets = self.get_syn_targets_from_arp_scan();
         let syn = syn_scanner::new(
-            Arc::clone(&self.interface),
+            sync::Arc::clone(&self.interface),
             self.packet_reader_factory,
             self.packet_sender_factory,
-            syn_targets,
-            self.ports.to_owned(),
+            sync::Arc::new(syn_targets),
+            sync::Arc::clone(&self.ports),
             self.sender.clone(),
         );
 

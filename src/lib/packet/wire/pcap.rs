@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use pnet::datalink::{self, NetworkInterface};
 
-use super::{Reader, Sender};
+use crate::packet::{Reader, Sender};
 
 /**
  * A PCAP implementation of packet Reader
