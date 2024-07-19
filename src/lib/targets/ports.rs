@@ -1,10 +1,12 @@
+use std::sync;
+
 use super::LazyLooper;
 
 #[derive(Debug)]
 pub struct PortTargets(Vec<String>);
 
-pub fn new(list: Vec<String>) -> PortTargets {
-    PortTargets(list)
+pub fn new(list: Vec<String>) -> sync::Arc<PortTargets> {
+    sync::Arc::new(PortTargets(list))
 }
 
 impl LazyLooper<u16> for PortTargets {

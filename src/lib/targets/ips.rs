@@ -1,12 +1,12 @@
-use std::{net, str::FromStr};
+use std::{net, str::FromStr, sync};
 
 use super::LazyLooper;
 
 #[derive(Debug)]
 pub struct IPTargets(Vec<String>);
 
-pub fn new(list: Vec<String>) -> IPTargets {
-    IPTargets(list)
+pub fn new(list: Vec<String>) -> sync::Arc<IPTargets> {
+    sync::Arc::new(IPTargets(list))
 }
 
 impl LazyLooper<String> for IPTargets {
