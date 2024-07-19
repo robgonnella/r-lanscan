@@ -98,7 +98,12 @@ fn main() {
             }
         }
 
-        info!("scan results: {:?}", results);
+        if args.json {
+            let j: String = serde_json::to_string(&results).unwrap();
+            info!("{}", j);
+        } else {
+            info!("{:?}", results);
+        }
     } else {
         let scanner = full_scanner::new(
             interface,
@@ -131,6 +136,11 @@ fn main() {
             }
         }
 
-        info!("scan results: {:?}", results);
+        if args.json {
+            let j: String = serde_json::to_string(&results).unwrap();
+            info!("{}", j);
+        } else {
+            info!("{:?}", results);
+        }
     }
 }
