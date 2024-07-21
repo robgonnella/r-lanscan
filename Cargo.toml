@@ -7,6 +7,11 @@ edition = "2021"
 name = "r_lanscan"
 path = "src/lib/lib.rs"
 
+[features]
+default = []
+debug_logs = []
+
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

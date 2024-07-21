@@ -44,9 +44,21 @@ struct Args {
     interface: String,
 }
 
+#[cfg(feature = "debug_logs")]
 fn initialize_logger() {
     simplelog::TermLogger::init(
         simplelog::LevelFilter::max(),
+        simplelog::Config::default(),
+        simplelog::TerminalMode::Mixed,
+        simplelog::ColorChoice::Auto,
+    )
+    .unwrap();
+}
+
+#[cfg(not(feature = "debug_logs"))]
+fn initialize_logger() {
+    simplelog::TermLogger::init(
+        simplelog::LevelFilter::Info,
         simplelog::Config::default(),
         simplelog::TerminalMode::Mixed,
         simplelog::ColorChoice::Auto,
@@ -89,11 +101,11 @@ fn main() {
 
         while let Ok(msg) = rx.recv() {
             if let Some(_done) = msg.is_done() {
-                info!("scanning complete");
+                debug!("scanning complete");
                 break;
             }
             if let Some(m) = msg.is_arp_message() {
-                info!("received scanning message: {:?}", msg);
+                debug!("received scanning message: {:?}", msg);
                 results.push(m.to_owned());
             }
         }
@@ -122,11 +134,11 @@ fn main() {
 
         while let Ok(msg) = rx.recv() {
             if let Some(_done) = msg.is_done() {
-                info!("scanning complete");
+                debug!("scanning complete");
                 break;
             }
             if let Some(m) = msg.is_syn_message() {
-                info!("received scanning message: {:?}", msg);
+                debug!("received scanning message: {:?}", msg);
                 results.push(SYNScanResult {
                     device: m.device.to_owned(),
                     port: m.port.to_owned(),

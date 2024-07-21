@@ -56,7 +56,7 @@ impl SYNScanner {
         thread::spawn(move || {
             while let Ok(pkt) = packet_reader.next_packet() {
                 if let Ok(_) = done_rx.try_recv() {
-                    info!("exiting syn packet reader");
+                    debug!("exiting syn packet reader");
                     break;
                 }
 
@@ -114,9 +114,9 @@ impl SYNScanner {
 // Implements the Scanner trait for SYNScanner
 impl Scanner<SYNScanResult> for SYNScanner {
     fn scan(&self) {
-        info!("performing SYN scan on targets: {:?}", self.targets);
+        debug!("performing SYN scan on targets: {:?}", self.targets);
 
-        info!("starting syn packet reader");
+        debug!("starting syn packet reader");
 
         let (done_tx, done_rx) = sync::mpsc::channel::<()>();
         let msg_sender = self.sender.clone();
@@ -133,7 +133,7 @@ impl Scanner<SYNScanResult> for SYNScanner {
             for (ip, device) in targets.iter() {
                 let process_port = |port: u16| {
                     thread::sleep(time::Duration::from_micros(100));
-                    info!("scanning SYN target: {}:{}", ip, port);
+                    debug!("scanning SYN target: {}:{}", ip, port);
 
                     let ipv4_destination = net::Ipv4Addr::from_str(ip);
 

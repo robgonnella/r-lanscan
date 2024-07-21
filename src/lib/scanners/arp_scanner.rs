@@ -58,7 +58,7 @@ impl ARPScanner {
         thread::spawn(move || {
             while let Ok(pkt) = packet_reader.next_packet() {
                 if let Ok(_) = done.try_recv() {
-                    info!("exiting arp packet reader");
+                    debug!("exiting arp packet reader");
                     break;
                 }
 
@@ -92,10 +92,10 @@ impl ARPScanner {
 // Implements the Scanner trait for ARPScanner
 impl Scanner<Device> for ARPScanner {
     fn scan(&self) {
-        info!("performing ARP scan on targets: {:?}", self.targets);
-        info!("include_vendor: {}", self.include_vendor);
-        info!("include_host_names: {}", self.include_host_names);
-        info!("starting arp packet reader");
+        debug!("performing ARP scan on targets: {:?}", self.targets);
+        debug!("include_vendor: {}", self.include_vendor);
+        debug!("include_host_names: {}", self.include_host_names);
+        debug!("starting arp packet reader");
         let (done_tx, done_rx) = sync::mpsc::channel::<()>();
         let mut packet_sender = (self.packet_sender_factory)(sync::Arc::clone(&self.interface));
         let msg_sender = self.sender.clone();
@@ -107,7 +107,7 @@ impl Scanner<Device> for ARPScanner {
         thread::spawn(move || {
             let process_target = |t: String| {
                 thread::sleep(time::Duration::from_micros(100));
-                info!("scanning ARP target: {}", t);
+                debug!("scanning ARP target: {}", t);
                 let target_ipv4 = net::Ipv4Addr::from_str(&t).unwrap();
                 let source_ipv4 = interface
                     .ips

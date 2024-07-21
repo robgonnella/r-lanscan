@@ -67,12 +67,12 @@ impl FullScanner {
         loop {
             if let Ok(msg) = rx.recv() {
                 if let Some(_msg) = msg.is_done() {
-                    info!("arp sending complete");
+                    debug!("arp sending complete");
                     break;
                 }
 
                 if let Some(device) = msg.is_arp_message() {
-                    info!("received arp message: {:?}", msg);
+                    debug!("received arp message: {:?}", msg);
                     syn_targets.insert(device.ip.to_owned(), device.to_owned());
                 }
             }
