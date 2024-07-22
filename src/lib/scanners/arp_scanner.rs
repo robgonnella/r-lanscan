@@ -77,8 +77,8 @@ impl ARPScanner {
                                     hostname: String::from(""),
                                     ip: header.get_sender_proto_addr().to_string(),
                                     mac: eth.get_source().to_string(),
-                                    vendor: String::from(""),
                                     status: DeviceStatus::Online,
+                                    vendor: String::from(""),
                                 }))
                                 .unwrap();
                         }

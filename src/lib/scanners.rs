@@ -1,31 +1,35 @@
 use core::time;
 use serde;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 const IDLE_TIMEOUT: time::Duration = time::Duration::from_secs(5);
 
-// we only discover "online" devices so there is no "offline" status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum DeviceStatus {
-    Online,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PortStatus {
-    Open,
     Closed,
+    Open,
 }
 
-pub type DeviceIp = String;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Port {
+    pub id: String,
+    pub service: String,
+    pub status: PortStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DeviceStatus {
+    Offline,
+    Online,
+}
 
 // ARP Result from a single device
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Device {
-    pub ip: DeviceIp,
+    pub hostname: String,
+    pub ip: String,
     pub mac: String,
     pub status: DeviceStatus,
-    pub hostname: String,
     pub vendor: String,
 }
 
@@ -33,12 +37,8 @@ pub struct Device {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SYNScanResult {
     pub device: Device,
-    pub port: String,
-    pub port_status: PortStatus,
-    pub port_service: String,
+    pub open_port: Port,
 }
-
-pub type DeviceHashMap = HashMap<DeviceIp, Device>;
 
 #[derive(Debug)]
 pub enum ScanMessage {

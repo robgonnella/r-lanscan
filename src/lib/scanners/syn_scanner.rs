@@ -10,18 +10,18 @@ use std::{net, str::FromStr, sync, thread};
 
 use crate::{
     network, packet,
-    scanners::{PortStatus, IDLE_TIMEOUT},
+    scanners::IDLE_TIMEOUT,
     targets::{self, LazyLooper},
 };
 
-use super::{DeviceHashMap, SYNScanResult, ScanMessage, Scanner};
+use super::{Device, Port, PortStatus, SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing an ARP scanner
 pub struct SYNScanner {
     interface: sync::Arc<datalink::NetworkInterface>,
     packet_reader_factory: packet::PacketReaderFactory,
     packet_sender_factory: packet::PacketSenderFactory,
-    targets: sync::Arc<DeviceHashMap>,
+    targets: sync::Arc<Vec<Device>>,
     ports: sync::Arc<targets::ports::PortTargets>,
     sender: sync::mpsc::Sender<ScanMessage>,
 }
@@ -31,7 +31,7 @@ pub fn new(
     interface: sync::Arc<datalink::NetworkInterface>,
     packet_reader_factory: packet::PacketReaderFactory,
     packet_sender_factory: packet::PacketSenderFactory,
-    targets: sync::Arc<DeviceHashMap>,
+    targets: sync::Arc<Vec<Device>>,
     ports: sync::Arc<targets::ports::PortTargets>,
     sender: sync::mpsc::Sender<ScanMessage>,
 ) -> SYNScanner {
@@ -50,7 +50,7 @@ impl SYNScanner {
     // receive packets simultaneously
     fn read_packets(&self, done_rx: sync::mpsc::Receiver<()>) {
         let mut packet_reader = (self.packet_reader_factory)(sync::Arc::clone(&self.interface));
-        let device_hash_map = self.targets.to_owned();
+        let devices = self.targets.to_owned();
         let sender = self.sender.clone();
 
         thread::spawn(move || {
@@ -74,7 +74,8 @@ impl SYNScanner {
                                 let tcp_packet = tcp::TcpPacket::new(payload);
                                 if let Some(tcp_packet) = tcp_packet {
                                     let destination_port = tcp_packet.get_destination();
-                                    let device = device_hash_map.get(&source.to_string());
+                                    let device =
+                                        devices.iter().find(|&d| d.ip == source.to_string());
                                     let matches_destination =
                                         destination_port == packet::LISTEN_PORT;
                                     let flags: u8 = tcp_packet.get_flags();
@@ -88,11 +89,13 @@ impl SYNScanner {
                                                     .send(ScanMessage::SYNScanResult(
                                                         SYNScanResult {
                                                             device: device.to_owned(),
-                                                            port: tcp_packet
-                                                                .get_source()
-                                                                .to_string(),
-                                                            port_status: PortStatus::Open,
-                                                            port_service: String::from(""),
+                                                            open_port: Port {
+                                                                id: tcp_packet
+                                                                    .get_source()
+                                                                    .to_string(),
+                                                                service: String::from(""),
+                                                                status: PortStatus::Open,
+                                                            },
                                                         },
                                                     ))
                                                     .unwrap();
@@ -130,12 +133,12 @@ impl Scanner<SYNScanResult> for SYNScanner {
         self.read_packets(done_rx);
 
         thread::spawn(move || {
-            for (ip, device) in targets.iter() {
+            for device in targets.iter() {
                 let process_port = |port: u16| {
                     thread::sleep(time::Duration::from_micros(100));
-                    debug!("scanning SYN target: {}:{}", ip, port);
+                    debug!("scanning SYN target: {}:{}", device.ip, port);
 
-                    let ipv4_destination = net::Ipv4Addr::from_str(ip);
+                    let ipv4_destination = net::Ipv4Addr::from_str(&device.ip);
 
                     if ipv4_destination.is_ok() {
                         let source_ipv4 = source_ipv4;

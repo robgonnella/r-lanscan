@@ -1,7 +1,7 @@
 use log::*;
 use pnet::datalink;
 
-use std::{collections::HashMap, sync};
+use std::sync;
 
 use crate::{
     packet::{PacketReaderFactory, PacketSenderFactory},
@@ -9,7 +9,7 @@ use crate::{
     targets,
 };
 
-use super::{Device, DeviceHashMap, SYNScanResult, ScanMessage, Scanner};
+use super::{Device, SYNScanResult, ScanMessage, Scanner};
 
 // Data structure representing a Full scanner (ARP + SYN)
 pub struct FullScanner {
@@ -47,10 +47,10 @@ pub fn new<'targets, 'ports>(
 }
 
 impl FullScanner {
-    fn get_syn_targets_from_arp_scan(&self) -> DeviceHashMap {
+    fn get_syn_targets_from_arp_scan(&self) -> Vec<Device> {
         let (tx, rx) = sync::mpsc::channel::<ScanMessage>();
 
-        let mut syn_targets: HashMap<String, Device> = HashMap::new();
+        let mut syn_targets: Vec<Device> = Vec::new();
 
         let arp = arp_scanner::new(
             sync::Arc::clone(&self.interface),
@@ -73,7 +73,7 @@ impl FullScanner {
 
                 if let Some(device) = msg.is_arp_message() {
                     debug!("received arp message: {:?}", msg);
-                    syn_targets.insert(device.ip.to_owned(), device.to_owned());
+                    syn_targets.push(device.to_owned());
                 }
             }
         }
