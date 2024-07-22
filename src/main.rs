@@ -2,9 +2,12 @@ use log::*;
 use pnet::datalink::NetworkInterface;
 use serde::{Deserialize, Serialize};
 
-use std::sync::{
-    mpsc::{self, Receiver, Sender},
-    Arc,
+use std::{
+    collections::HashSet,
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc,
+    },
 };
 
 use prettytable;
@@ -68,7 +71,7 @@ struct Args {
 #[cfg(feature = "debug_logs")]
 fn initialize_logger(args: &Args) {
     let filter = if args.quiet {
-        simplelog::LevelFilter::Off
+        simplelog::LevelFilter::Error
     } else {
         simplelog::LevelFilter::max()
     };
@@ -85,7 +88,7 @@ fn initialize_logger(args: &Args) {
 #[cfg(not(feature = "debug_logs"))]
 fn initialize_logger(args: &Args) {
     let filter = if args.quiet {
-        simplelog::LevelFilter::Off
+        simplelog::LevelFilter::Error
     } else {
         simplelog::LevelFilter::Info
     };
@@ -117,7 +120,7 @@ fn process_arp(
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
 ) -> (Vec<Device>, Receiver<ScanMessage>) {
-    let mut arp_results: Vec<Device> = Vec::new();
+    let mut arp_results: HashSet<Device> = HashSet::new();
 
     let scanner = arp_scanner::new(
         interface,
@@ -138,11 +141,14 @@ fn process_arp(
         }
         if let Some(m) = msg.is_arp_message() {
             debug!("received scanning message: {:?}", msg);
-            arp_results.push(m.to_owned());
+            arp_results.insert(m.to_owned());
         }
     }
 
-    (arp_results, rx)
+    let mut items: Vec<Device> = arp_results.into_iter().collect();
+    items.sort_by_key(|i| i.ip.to_owned());
+
+    (items, rx)
 }
 
 fn print_arp(args: &Args, devices: &Vec<Device>) {
@@ -209,6 +215,7 @@ fn process_syn(
             match device {
                 Some(d) => {
                     d.open_ports.push(m.open_port.to_owned());
+                    d.open_ports.sort_by_key(|p| p.id.to_owned())
                 }
                 None => {
                     warn!("received syn result for unknown device: {:?}", m);
@@ -241,7 +248,7 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
             let ports = d
                 .open_ports
                 .iter()
-                .map(|p| p.id.to_owned())
+                .map(|p| p.id.to_owned().to_string())
                 .collect::<Vec<String>>();
             syn_table.add_row(prettytable::row![
                 d.hostname,

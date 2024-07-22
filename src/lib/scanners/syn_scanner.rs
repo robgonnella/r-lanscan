@@ -90,9 +90,12 @@ impl SYNScanner {
                                                         SYNScanResult {
                                                             device: device.to_owned(),
                                                             open_port: Port {
-                                                                id: tcp_packet
-                                                                    .get_source()
-                                                                    .to_string(),
+                                                                id: u16::from_str(
+                                                                    &tcp_packet
+                                                                        .get_source()
+                                                                        .to_string(),
+                                                                )
+                                                                .unwrap(),
                                                                 service: String::from(""),
                                                                 status: PortStatus::Open,
                                                             },

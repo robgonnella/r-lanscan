@@ -2,29 +2,29 @@ use core::time;
 use serde;
 use serde::{Deserialize, Serialize};
 
-const IDLE_TIMEOUT: time::Duration = time::Duration::from_secs(5);
+const IDLE_TIMEOUT: time::Duration = time::Duration::from_secs(10);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PortStatus {
     Closed,
     Open,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Port {
-    pub id: String,
+    pub id: u16,
     pub service: String,
     pub status: PortStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DeviceStatus {
     Offline,
     Online,
 }
 
 // ARP Result from a single device
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Device {
     pub hostname: String,
     pub ip: String,
@@ -34,7 +34,7 @@ pub struct Device {
 }
 
 // SYN Result from a single device
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SYNScanResult {
     pub device: Device,
     pub open_port: Port,

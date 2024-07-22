@@ -53,6 +53,8 @@ impl ARPScanner {
     fn read_packets(&self, done: sync::mpsc::Receiver<()>) {
         let interface = sync::Arc::clone(&self.interface);
         let mut packet_reader = (self.packet_reader_factory)(sync::Arc::clone(&self.interface));
+        let include_host_names = self.include_host_names.clone();
+        let include_vendor = self.include_vendor.clone();
         let sender = self.sender.clone();
 
         thread::spawn(move || {
@@ -72,13 +74,24 @@ impl ARPScanner {
                         let this_mac = interface.mac.unwrap();
 
                         if op == arp::ArpOperations::Reply && eth.get_source() != this_mac {
+                            let mac = eth.get_source().to_string();
+                            let mut hostname = String::from("");
+                            if include_host_names {
+                                hostname = String::from("");
+                            }
+                            let mut vendor = String::from("");
+                            if include_vendor {
+                                if let Some(vendor_data) = oui_data::lookup(&mac) {
+                                    vendor = vendor_data.organization().to_owned();
+                                }
+                            }
                             sender
                                 .send(ScanMessage::ARPScanResult(Device {
-                                    hostname: String::from(""),
+                                    hostname,
                                     ip: header.get_sender_proto_addr().to_string(),
-                                    mac: eth.get_source().to_string(),
+                                    mac,
                                     status: DeviceStatus::Online,
-                                    vendor: String::from(""),
+                                    vendor,
                                 }))
                                 .unwrap();
                         }
