@@ -1,8 +1,7 @@
-use core::time;
 use serde;
 use serde::{Deserialize, Serialize};
 
-const IDLE_TIMEOUT: time::Duration = time::Duration::from_secs(10);
+pub const IDLE_TIMEOUT: u16 = 10000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PortStatus {
