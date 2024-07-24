@@ -59,9 +59,9 @@ struct Args {
     #[arg(long, default_value_t = false)]
     vendor: bool,
 
-    /// Perform hostname lookups
+    /// Perform reverse dns lookups
     #[arg(long, default_value_t = false)]
-    host: bool,
+    dns: bool,
 
     /// Choose a specific network interface for the scan
     #[arg(short, long, default_value_t = network::get_default_interface().name.to_string())]
@@ -109,7 +109,7 @@ fn print_args(args: &Args) {
     info!("json:      {}", args.json);
     info!("arpOnly:   {}", args.arp_only);
     info!("vendor:    {}", args.vendor);
-    info!("host:      {}", args.host);
+    info!("dns:       {}", args.dns);
     info!("quiet:     {}", args.quiet);
     info!("interface: {}", args.interface);
 }
@@ -124,11 +124,11 @@ fn process_arp(
 
     let scanner = arp_scanner::new(
         interface,
-        packet::wire::bpf::new_reader,
-        packet::wire::bpf::new_sender,
+        packet::wire::new_default_reader,
+        packet::wire::new_default_sender,
         targets::ips::new(args.targets.to_owned()),
         args.vendor,
-        args.host,
+        args.dns,
         tx,
     );
 
@@ -195,8 +195,8 @@ fn process_syn(
 
     let scanner = syn_scanner::new(
         interface,
-        packet::wire::bpf::new_reader,
-        packet::wire::bpf::new_sender,
+        packet::wire::new_default_reader,
+        packet::wire::new_default_sender,
         Arc::new(devices),
         targets::ports::new(args.ports.to_owned()),
         tx,

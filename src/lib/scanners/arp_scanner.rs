@@ -74,26 +74,33 @@ impl ARPScanner {
                         let this_mac = interface.mac.unwrap();
 
                         if op == arp::ArpOperations::Reply && eth.get_source() != this_mac {
+                            let sender = sender.clone();
+                            let ip4 = header.get_sender_proto_addr();
                             let mac = eth.get_source().to_string();
-                            let mut hostname = String::from("");
-                            if include_host_names {
-                                hostname = String::from("");
-                            }
-                            let mut vendor = String::from("");
-                            if include_vendor {
-                                if let Some(vendor_data) = oui_data::lookup(&mac) {
-                                    vendor = vendor_data.organization().to_owned();
+                            thread::spawn(move || {
+                                let mut hostname = String::from("");
+                                if include_host_names {
+                                    debug!("looking up hostname for {}", ip4.to_string());
+                                    if let Ok(host) = dns_lookup::lookup_addr(&ip4.into()) {
+                                        hostname = host;
+                                    }
                                 }
-                            }
-                            sender
-                                .send(ScanMessage::ARPScanResult(Device {
-                                    hostname,
-                                    ip: header.get_sender_proto_addr().to_string(),
-                                    mac,
-                                    status: DeviceStatus::Online,
-                                    vendor,
-                                }))
-                                .unwrap();
+                                let mut vendor = String::from("");
+                                if include_vendor {
+                                    if let Some(vendor_data) = oui_data::lookup(&mac) {
+                                        vendor = vendor_data.organization().to_owned();
+                                    }
+                                }
+                                sender
+                                    .send(ScanMessage::ARPScanResult(Device {
+                                        hostname,
+                                        ip: ip4.to_string(),
+                                        mac,
+                                        status: DeviceStatus::Online,
+                                        vendor,
+                                    }))
+                                    .unwrap();
+                            });
                         }
                     }
                 }
