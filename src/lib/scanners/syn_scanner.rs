@@ -6,11 +6,10 @@ use pnet::{
 };
 
 use core::time;
-use std::{net, str::FromStr, sync, thread};
+use std::{net, str::FromStr, sync, thread, time::Duration};
 
 use crate::{
     network, packet,
-    scanners::IDLE_TIMEOUT,
     targets::{self, LazyLooper},
 };
 
@@ -23,6 +22,7 @@ pub struct SYNScanner {
     packet_sender_factory: packet::PacketSenderFactory,
     targets: sync::Arc<Vec<Device>>,
     ports: sync::Arc<targets::ports::PortTargets>,
+    idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
 }
 
@@ -33,6 +33,7 @@ pub fn new(
     packet_sender_factory: packet::PacketSenderFactory,
     targets: sync::Arc<Vec<Device>>,
     ports: sync::Arc<targets::ports::PortTargets>,
+    idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
 ) -> SYNScanner {
     SYNScanner {
@@ -41,6 +42,7 @@ pub fn new(
         packet_sender_factory,
         targets,
         ports,
+        idle_timeout,
         sender,
     }
 }
@@ -132,6 +134,7 @@ impl Scanner<SYNScanResult> for SYNScanner {
         let source_ipv4 = net::Ipv4Addr::from_str(&network::get_interface_ipv4(interface)).unwrap();
         let source_mac = self.interface.mac.unwrap();
         let ports = sync::Arc::clone(&self.ports);
+        let idle_timeout = self.idle_timeout.to_owned();
 
         self.read_packets(done_rx);
 
@@ -157,8 +160,7 @@ impl Scanner<SYNScanResult> for SYNScanner {
                 ports.lazy_loop(process_port)
             }
 
-            thread::sleep(IDLE_TIMEOUT);
-            // run your function here
+            thread::sleep(idle_timeout);
             done_tx.send(()).unwrap();
             msg_sender.send(ScanMessage::Done(())).unwrap();
         });

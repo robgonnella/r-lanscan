@@ -2,6 +2,7 @@ use log::*;
 use pnet::datalink::NetworkInterface;
 use serde::{Deserialize, Serialize};
 
+use core::time;
 use std::{
     collections::HashSet,
     sync::{
@@ -16,7 +17,7 @@ use clap::Parser;
 
 use r_lanscan::{
     network, packet,
-    scanners::{arp_scanner, syn_scanner, Device, Port, ScanMessage, Scanner},
+    scanners::{arp_scanner, syn_scanner, Device, Port, ScanMessage, Scanner, IDLE_TIMEOUT},
     targets,
 };
 use simplelog;
@@ -36,7 +37,7 @@ pub struct DeviceWithPorts {
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Comma separated list of IPs, IP ranges, and CIDR blocks to scan
-    #[arg(short, long, default_values_t = vec![network::get_interface_cidr(network::get_default_interface())], use_value_delimiter = true)]
+    #[arg(short, long, use_value_delimiter = true)]
     targets: Vec<String>,
 
     /// Comma separated list of ports and port ranges to scan
@@ -62,6 +63,10 @@ struct Args {
     /// Perform reverse dns lookups
     #[arg(long, default_value_t = false)]
     dns: bool,
+
+    /// Set idle timeout in milliseconds for all scanners
+    #[arg(long, default_value_t = IDLE_TIMEOUT)]
+    idle_timeout_ms: u16,
 
     /// Choose a specific network interface for the scan
     #[arg(short, long, default_value_t = network::get_default_interface().name.to_string())]
@@ -104,14 +109,15 @@ fn initialize_logger(args: &Args) {
 
 fn print_args(args: &Args) {
     info!("configuration:");
-    info!("targets:   {:?}", args.targets);
-    info!("ports      {:?}", args.ports);
-    info!("json:      {}", args.json);
-    info!("arpOnly:   {}", args.arp_only);
-    info!("vendor:    {}", args.vendor);
-    info!("dns:       {}", args.dns);
-    info!("quiet:     {}", args.quiet);
-    info!("interface: {}", args.interface);
+    info!("targets:         {:?}", args.targets);
+    info!("ports            {:?}", args.ports);
+    info!("json:            {}", args.json);
+    info!("arpOnly:         {}", args.arp_only);
+    info!("vendor:          {}", args.vendor);
+    info!("dns:             {}", args.dns);
+    info!("quiet:           {}", args.quiet);
+    info!("idle_timeout_ms: {}", args.idle_timeout_ms);
+    info!("interface:       {}", args.interface);
 }
 
 fn process_arp(
@@ -129,6 +135,7 @@ fn process_arp(
         targets::ips::new(args.targets.to_owned()),
         args.vendor,
         args.dns,
+        time::Duration::from_millis(args.idle_timeout_ms.into()),
         tx,
     );
 
@@ -199,6 +206,7 @@ fn process_syn(
         packet::wire::new_default_sender,
         Arc::new(devices),
         targets::ports::new(args.ports.to_owned()),
+        time::Duration::from_millis(args.idle_timeout_ms.into()),
         tx,
     );
 
@@ -263,13 +271,19 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
 }
 
 fn main() {
-    let args = Args::parse();
+    let mut args = Args::parse();
 
     initialize_logger(&args);
 
-    print_args(&args);
-
     let interface = network::get_interface(&args.interface);
+
+    args.interface = interface.name.to_owned();
+
+    if args.targets.len() == 0 {
+        args.targets = vec![network::get_interface_cidr(Arc::clone(&interface))]
+    }
+
+    print_args(&args);
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 

@@ -5,11 +5,11 @@ use pnet::{
 };
 
 use core::time;
-use std::{net, str::FromStr, sync, thread};
+use std::{net, str::FromStr, sync, thread, time::Duration};
 
 use crate::{
     packet::{self, PacketReaderFactory, PacketSenderFactory},
-    scanners::{Device, IDLE_TIMEOUT},
+    scanners::Device,
     targets::{self, LazyLooper},
 };
 
@@ -23,6 +23,7 @@ pub struct ARPScanner {
     targets: sync::Arc<targets::ips::IPTargets>,
     include_vendor: bool,
     include_host_names: bool,
+    idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
 }
 
@@ -34,6 +35,7 @@ pub fn new(
     targets: sync::Arc<targets::ips::IPTargets>,
     vendor: bool,
     host: bool,
+    idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
 ) -> ARPScanner {
     ARPScanner {
@@ -43,6 +45,7 @@ pub fn new(
         targets,
         include_vendor: vendor,
         include_host_names: host,
+        idle_timeout,
         sender,
     }
 }
@@ -121,6 +124,7 @@ impl Scanner<Device> for ARPScanner {
         let msg_sender = self.sender.clone();
         let interface = sync::Arc::clone(&self.interface);
         let targets = sync::Arc::clone(&self.targets);
+        let idle_timeout = self.idle_timeout.to_owned();
 
         self.read_packets(done_rx);
 
@@ -145,9 +149,7 @@ impl Scanner<Device> for ARPScanner {
 
             targets.lazy_loop(process_target);
 
-            // TODO make idleTimeout configurable
-            thread::sleep(IDLE_TIMEOUT);
-            // run your function here
+            thread::sleep(idle_timeout);
             done_tx.send(()).unwrap();
             msg_sender.send(ScanMessage::Done(())).unwrap();
         });

@@ -1,7 +1,7 @@
 use log::*;
 use pnet::datalink;
 
-use std::sync;
+use std::{sync, time::Duration};
 
 use crate::{
     packet::{PacketReaderFactory, PacketSenderFactory},
@@ -20,6 +20,7 @@ pub struct FullScanner {
     ports: sync::Arc<targets::ports::PortTargets>,
     vendor: bool,
     host: bool,
+    idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
 }
 
@@ -32,6 +33,7 @@ pub fn new<'targets, 'ports>(
     ports: sync::Arc<targets::ports::PortTargets>,
     vendor: bool,
     host: bool,
+    idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
 ) -> FullScanner {
     FullScanner {
@@ -42,6 +44,7 @@ pub fn new<'targets, 'ports>(
         ports,
         vendor,
         host,
+        idle_timeout,
         sender,
     }
 }
@@ -59,6 +62,7 @@ impl FullScanner {
             sync::Arc::clone(&self.targets),
             self.vendor,
             self.host,
+            self.idle_timeout,
             tx.clone(),
         );
 
@@ -92,6 +96,7 @@ impl Scanner<SYNScanResult> for FullScanner {
             self.packet_sender_factory,
             sync::Arc::new(syn_targets),
             sync::Arc::clone(&self.ports),
+            self.idle_timeout,
             self.sender.clone(),
         );
 
