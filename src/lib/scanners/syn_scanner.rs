@@ -24,6 +24,7 @@ pub struct SYNScanner {
     ports: sync::Arc<targets::ports::PortTargets>,
     idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
+    source_port: u16,
 }
 
 // Returns a new instance of SYNScanner
@@ -35,6 +36,7 @@ pub fn new(
     ports: sync::Arc<targets::ports::PortTargets>,
     idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
+    source_port: u16,
 ) -> SYNScanner {
     SYNScanner {
         interface,
@@ -44,6 +46,7 @@ pub fn new(
         ports,
         idle_timeout,
         sender,
+        source_port,
     }
 }
 
@@ -54,6 +57,7 @@ impl SYNScanner {
         let mut packet_reader = (self.packet_reader_factory)(sync::Arc::clone(&self.interface));
         let devices = self.targets.to_owned();
         let sender = self.sender.clone();
+        let source_port = self.source_port.to_owned();
 
         thread::spawn(move || {
             while let Ok(pkt) = packet_reader.next_packet() {
@@ -78,8 +82,7 @@ impl SYNScanner {
                                     let destination_port = tcp_packet.get_destination();
                                     let device =
                                         devices.iter().find(|&d| d.ip == source.to_string());
-                                    let matches_destination =
-                                        destination_port == packet::LISTEN_PORT;
+                                    let matches_destination = destination_port == source_port;
                                     let flags: u8 = tcp_packet.get_flags();
                                     let is_syn_ack =
                                         flags == tcp::TcpFlags::SYN + tcp::TcpFlags::ACK;
@@ -120,7 +123,7 @@ impl SYNScanner {
 }
 
 // Implements the Scanner trait for SYNScanner
-impl Scanner<SYNScanResult> for SYNScanner {
+impl Scanner for SYNScanner {
     fn scan(&self) {
         debug!("performing SYN scan on targets: {:?}", self.targets);
 
@@ -135,6 +138,7 @@ impl Scanner<SYNScanResult> for SYNScanner {
         let source_mac = self.interface.mac.unwrap();
         let ports = sync::Arc::clone(&self.ports);
         let idle_timeout = self.idle_timeout.to_owned();
+        let source_port = self.source_port.to_owned();
 
         self.read_packets(done_rx);
 
@@ -151,8 +155,14 @@ impl Scanner<SYNScanResult> for SYNScanner {
                         let source_mac = source_mac;
                         let dest_ipv4 = ipv4_destination.unwrap();
                         let dest_mac = util::MacAddr::from_str(&device.mac).unwrap();
-                        let pkt_buf =
-                            packet::syn::new(source_ipv4, source_mac, dest_ipv4, dest_mac, port);
+                        let pkt_buf = packet::syn::new(
+                            source_mac,
+                            source_ipv4,
+                            source_port,
+                            dest_ipv4,
+                            dest_mac,
+                            port,
+                        );
                         packet_sender.send(&pkt_buf).unwrap();
                     }
                 };
@@ -166,3 +176,6 @@ impl Scanner<SYNScanResult> for SYNScanner {
         });
     }
 }
+
+unsafe impl Sync for SYNScanner {}
+unsafe impl Send for SYNScanner {}

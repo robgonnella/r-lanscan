@@ -1,4 +1,4 @@
-use std::sync;
+use std::{net::TcpListener, sync};
 
 use pnet::datalink::NetworkInterface;
 
@@ -32,4 +32,10 @@ pub fn get_interface_cidr(interface: sync::Arc<NetworkInterface>) -> String {
     let ip = ipnet.ip().to_string();
     let prefix = ipnet.prefix().to_string();
     String::from(format!("{ip}/{prefix}"))
+}
+
+pub fn get_available_port() -> u16 {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let addr = listener.local_addr().unwrap();
+    addr.port()
 }

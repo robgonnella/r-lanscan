@@ -24,7 +24,7 @@ use simplelog;
 
 // Device with open ports
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeviceWithPorts {
+struct DeviceWithPorts {
     pub ip: String,
     pub mac: String,
     pub hostname: String,
@@ -71,6 +71,10 @@ struct Args {
     /// Choose a specific network interface for the scan
     #[arg(short, long, default_value_t = network::get_default_interface().name.to_string())]
     interface: String,
+
+    /// Sets the port for outgoing / incoming packets
+    #[arg(long, default_value_t = network::get_available_port())]
+    source_port: u16,
 }
 
 #[cfg(feature = "debug_logs")]
@@ -118,6 +122,7 @@ fn print_args(args: &Args) {
     info!("quiet:           {}", args.quiet);
     info!("idle_timeout_ms: {}", args.idle_timeout_ms);
     info!("interface:       {}", args.interface);
+    info!("source_port:     {}", args.source_port);
 }
 
 fn process_arp(
@@ -208,6 +213,7 @@ fn process_syn(
         targets::ports::new(args.ports.to_owned()),
         time::Duration::from_millis(args.idle_timeout_ms.into()),
         tx,
+        args.source_port,
     );
 
     scanner.scan();
