@@ -113,7 +113,7 @@ impl ARPScanner {
 }
 
 // Implements the Scanner trait for ARPScanner
-impl Scanner<Device> for ARPScanner {
+impl Scanner for ARPScanner {
     fn scan(&self) {
         debug!("performing ARP scan on targets: {:?}", self.targets);
         debug!("include_vendor: {}", self.include_vendor);
@@ -155,3 +155,6 @@ impl Scanner<Device> for ARPScanner {
         });
     }
 }
+
+unsafe impl Sync for ARPScanner {}
+unsafe impl Send for ARPScanner {}

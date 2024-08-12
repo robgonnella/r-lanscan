@@ -3,27 +3,39 @@ use std::sync;
 use super::LazyLooper;
 
 #[derive(Debug)]
-pub struct PortTargets(Vec<String>);
+pub struct PortTargets(Vec<String>, usize);
+
+fn loop_ports<F: FnMut(u16)>(list: &Vec<String>, mut cb: F) {
+    for target in list.iter() {
+        if target.contains("-") {
+            let parts: Vec<&str> = target.split("-").collect();
+            let begin = parts[0].parse::<u16>().unwrap();
+            let end = parts[1].parse::<u16>().unwrap();
+            for port in begin..end {
+                cb(port)
+            }
+        } else {
+            let port = target.parse::<u16>().unwrap();
+            cb(port)
+        }
+    }
+}
 
 pub fn new(list: Vec<String>) -> sync::Arc<PortTargets> {
-    sync::Arc::new(PortTargets(list))
+    let mut len = 0;
+    loop_ports(&list, |_| {
+        len += 1;
+    });
+    sync::Arc::new(PortTargets(list, len))
 }
 
 impl LazyLooper<u16> for PortTargets {
-    fn lazy_loop<F: FnMut(u16)>(&self, mut cb: F) {
-        for target in self.0.iter() {
-            if target.contains("-") {
-                let parts: Vec<&str> = target.split("-").collect();
-                let begin = parts[0].parse::<u16>().unwrap();
-                let end = parts[1].parse::<u16>().unwrap();
-                for port in begin..end {
-                    cb(port)
-                }
-            } else {
-                let port = target.parse::<u16>().unwrap();
-                cb(port)
-            }
-        }
+    fn len(&self) -> usize {
+        self.1
+    }
+
+    fn lazy_loop<F: FnMut(u16)>(&self, cb: F) {
+        loop_ports(&self.0, cb)
     }
 }
 

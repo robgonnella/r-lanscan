@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub const IDLE_TIMEOUT: u16 = 10000;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PortStatus {
     Closed,
     Open,
@@ -16,7 +16,7 @@ pub struct Port {
     pub status: PortStatus,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DeviceStatus {
     Offline,
     Online,
@@ -72,7 +72,7 @@ impl ScanMessage {
     }
 }
 
-pub trait Scanner<T> {
+pub trait Scanner: Sync + Send {
     fn scan(&self);
 }
 

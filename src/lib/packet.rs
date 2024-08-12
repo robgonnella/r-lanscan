@@ -16,5 +16,3 @@ pub trait Sender: Send + Sync {
 
 pub type PacketReaderFactory = fn(sync::Arc<datalink::NetworkInterface>) -> Box<dyn Reader>;
 pub type PacketSenderFactory = fn(sync::Arc<datalink::NetworkInterface>) -> Box<dyn Sender>;
-
-pub const LISTEN_PORT: u16 = 54322;

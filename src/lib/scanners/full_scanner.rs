@@ -9,7 +9,7 @@ use crate::{
     targets,
 };
 
-use super::{Device, SYNScanResult, ScanMessage, Scanner};
+use super::{Device, ScanMessage, Scanner};
 
 // Data structure representing a Full scanner (ARP + SYN)
 pub struct FullScanner {
@@ -22,6 +22,7 @@ pub struct FullScanner {
     host: bool,
     idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
+    source_port: u16,
 }
 
 // Returns a new instance of ARPScanner
@@ -35,6 +36,7 @@ pub fn new<'targets, 'ports>(
     host: bool,
     idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
+    source_port: u16,
 ) -> FullScanner {
     FullScanner {
         interface,
@@ -46,6 +48,7 @@ pub fn new<'targets, 'ports>(
         host,
         idle_timeout,
         sender,
+        source_port,
     }
 }
 
@@ -87,7 +90,7 @@ impl FullScanner {
 }
 
 // Implements the Scanner trait for FullScanner
-impl Scanner<SYNScanResult> for FullScanner {
+impl Scanner for FullScanner {
     fn scan(&self) {
         let syn_targets = self.get_syn_targets_from_arp_scan();
         let syn = syn_scanner::new(
@@ -98,8 +101,12 @@ impl Scanner<SYNScanResult> for FullScanner {
             sync::Arc::clone(&self.ports),
             self.idle_timeout,
             self.sender.clone(),
+            self.source_port,
         );
 
         syn.scan()
     }
 }
+
+unsafe impl Sync for FullScanner {}
+unsafe impl Send for FullScanner {}
