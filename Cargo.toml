@@ -11,6 +11,14 @@ path = "src/lib/lib.rs"
 default = []
 debug_logs = []
 
+[[bin]]
+name = "r-lanscan"
+path = "src/bin/r-lanscan.rs"
+
+[[bin]]
+name = "r-lanops"
+path = "src/bin/r-lanops.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
