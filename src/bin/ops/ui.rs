@@ -1,4 +1,10 @@
-use std::{error::Error, io};
+use core::time;
+use log::*;
+use std::{
+    error::Error,
+    io,
+    sync::{Arc, RwLock},
+};
 
 use ratatui::{
     backend::{Backend, CrosstermBackend},
@@ -57,12 +63,12 @@ impl TableColors {
     }
 }
 
-struct Data {
-    hostname: String,
-    ip: String,
-    mac: String,
-    vendor: String,
-    ports: String,
+pub struct Data {
+    pub hostname: String,
+    pub ip: String,
+    pub mac: String,
+    pub vendor: String,
+    pub ports: String,
 }
 
 impl Data {
@@ -99,7 +105,7 @@ impl Data {
 
 struct App {
     state: TableState,
-    items: Vec<Data>,
+    items: Arc<RwLock<Vec<Data>>>,
     longest_item_lens: (u16, u16, u16, u16, u16), // order is (hostname, ip, mac, vendor, ports)
     scroll_state: ScrollbarState,
     colors: TableColors,
@@ -107,35 +113,26 @@ struct App {
 }
 
 impl App {
-    fn new() -> Self {
-        let data_vec = vec![
-            Data {
-            hostname: "This is a much longer hostname".to_string(),
-            ip: "172.17.0.1".to_string(),
-            mac: "00:00:00:00:00".to_string(),
-            vendor: "Android".to_string(),
-            ports: "22,2000,3000,4000,5000,6000,7000,8000,9000,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000".to_string(),
-        },
-        Data {
-            hostname: "Another Machine".to_string(),
-            ip: "172.17.0.2".to_string(),
-            mac: "00:00:00:00:01".to_string(),
-            vendor: "MacOS".to_string(),
-            ports: "7000,8000,9000,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000".to_string(),
+    fn new(data_set: Arc<RwLock<Vec<Data>>>) -> Self {
+        let set = data_set.read().unwrap();
+        let mut height = ITEM_HEIGHT;
+        if set.len() > 0 {
+            height = (set.len() - 1) * ITEM_HEIGHT;
         }
-        ];
         Self {
             state: TableState::default().with_selected(0),
-            longest_item_lens: constraint_len_calculator(&data_vec),
-            scroll_state: ScrollbarState::new((data_vec.len() - 1) * ITEM_HEIGHT),
+            longest_item_lens: constraint_len_calculator(Arc::clone(&data_set)),
+            scroll_state: ScrollbarState::new(height),
             colors: TableColors::new(&PALETTES[0]),
             color_index: 0,
-            items: data_vec,
+            items: Arc::clone(&data_set),
         }
     }
     pub fn next(&mut self) {
+        let data = self.items.read().unwrap();
+
         let i = match self.state.selected() {
-            Some(i) => (i + 1) % self.items.len(),
+            Some(i) => (i + 1) % data.len(),
             None => 0,
         };
         self.state.select(Some(i));
@@ -143,10 +140,12 @@ impl App {
     }
 
     pub fn previous(&mut self) {
+        let data = self.items.read().unwrap();
+
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.len() - 1
+                    data.len() - 1
                 } else {
                     i - 1
                 }
@@ -171,12 +170,7 @@ impl App {
     }
 }
 
-fn monitor_network() {}
-
-pub fn launch() -> Result<(), Box<dyn Error>> {
-    // start monitoring network
-    monitor_network();
-
+pub fn launch(data_set: Arc<RwLock<Vec<Data>>>) -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -185,7 +179,9 @@ pub fn launch() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let app = App::new();
+    info!("creating app");
+    let app = App::new(Arc::clone(&data_set));
+    info!("running app");
     let res = run_app(&mut terminal, app);
 
     // restore terminal
@@ -206,17 +202,31 @@ pub fn launch() -> Result<(), Box<dyn Error>> {
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
+        {
+            let set = app.items.read().unwrap();
+            let mut height = ITEM_HEIGHT;
+            if set.len() > 0 {
+                height = (set.len() - 1) * ITEM_HEIGHT;
+            }
+            app.longest_item_lens = constraint_len_calculator(Arc::clone(&app.items));
+            app.scroll_state = ScrollbarState::new(height);
+        }
+
         terminal.draw(|f| ui(f, &mut app))?;
 
-        if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Press {
-                match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
-                    KeyCode::Char('j') | KeyCode::Down => app.next(),
-                    KeyCode::Char('k') | KeyCode::Up => app.previous(),
-                    KeyCode::Char('l') | KeyCode::Right => app.next_color(),
-                    KeyCode::Char('h') | KeyCode::Left => app.previous_color(),
-                    _ => {}
+        if let Ok(has_event) = event::poll(time::Duration::from_secs(1)) {
+            if has_event {
+                if let Event::Key(key) = event::read()? {
+                    if key.kind == KeyEventKind::Press {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                            KeyCode::Char('j') | KeyCode::Down => app.next(),
+                            KeyCode::Char('k') | KeyCode::Up => app.previous(),
+                            KeyCode::Char('l') | KeyCode::Right => app.next_color(),
+                            KeyCode::Char('h') | KeyCode::Left => app.previous_color(),
+                            _ => {}
+                        }
+                    }
                 }
             }
         }
@@ -249,7 +259,10 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
         .collect::<Row>()
         .style(header_style)
         .height(1);
-    let rows = app.items.iter().enumerate().map(|(i, data)| {
+
+    let items = app.items.read().unwrap();
+
+    let rows = items.iter().enumerate().map(|(i, data)| {
         let color = match i % 2 {
             0 => app.colors.normal_row_color,
             _ => app.colors.alt_row_color,
@@ -286,33 +299,34 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_stateful_widget(t, area, &mut app.state);
 }
 
-fn constraint_len_calculator(items: &[Data]) -> (u16, u16, u16, u16, u16) {
-    let hostname_len = items
+fn constraint_len_calculator(items: Arc<RwLock<Vec<Data>>>) -> (u16, u16, u16, u16, u16) {
+    let data = items.read().unwrap();
+    let hostname_len = data
         .iter()
         .map(Data::hostname)
         .map(UnicodeWidthStr::width)
         .max()
         .unwrap_or(0);
-    let ip_len = items
+    let ip_len = data
         .iter()
         .map(Data::ip)
         .flat_map(str::lines)
         .map(UnicodeWidthStr::width)
         .max()
         .unwrap_or(0);
-    let mac_len = items
+    let mac_len = data
         .iter()
         .map(Data::mac)
         .map(UnicodeWidthStr::width)
         .max()
         .unwrap_or(0);
-    let vendor_len = items
+    let vendor_len = data
         .iter()
         .map(Data::vendor)
         .map(UnicodeWidthStr::width)
         .max()
         .unwrap_or(0);
-    let ports_len = items
+    let ports_len = data
         .iter()
         .map(Data::ports)
         .map(UnicodeWidthStr::width)
@@ -384,7 +398,7 @@ mod tests {
             longest_mac_len,
             longest_vendor_len,
             longest_ports_len,
-        ) = constraint_len_calculator(&test_data);
+        ) = constraint_len_calculator(Arc::new(RwLock::new(test_data)));
 
         assert_eq!(12, longest_hostname_len);
         assert_eq!(33, longest_ip_len);

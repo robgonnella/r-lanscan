@@ -1,5 +1,6 @@
 use clap::Parser;
 use core::time;
+use itertools::Itertools;
 use log::*;
 use ops::ui;
 use pnet::datalink::NetworkInterface;
@@ -10,7 +11,7 @@ use std::{
     error::Error,
     sync::{
         mpsc::{self, Receiver, Sender},
-        Arc,
+        Arc, RwLock,
     },
     thread,
 };
@@ -29,6 +30,10 @@ struct Args {
     /// Run in debug mode - Only prints logs foregoing UI
     #[arg(short, long, default_value_t = false)]
     debug: bool,
+
+    /// Comma separated list of ports and port ranges to scan
+    #[arg(short, long, default_value = "1-65535", use_value_delimiter = true)]
+    ports: Vec<String>,
 }
 
 // Device with open ports
@@ -98,10 +103,11 @@ fn process_arp(
 fn process_syn(
     interface: Arc<NetworkInterface>,
     devices: Vec<Device>,
+    ports: Vec<String>,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
     source_port: u16,
-) {
+) -> Vec<DeviceWithPorts> {
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
     for d in devices.iter() {
@@ -119,7 +125,7 @@ fn process_syn(
         packet::wire::new_default_reader,
         packet::wire::new_default_sender,
         Arc::new(devices),
-        targets::ports::new(vec!["1-65535".to_string()]),
+        targets::ports::new(ports),
         time::Duration::from_millis(IDLE_TIMEOUT.into()),
         tx,
         source_port,
@@ -146,25 +152,49 @@ fn process_syn(
             }
         }
     }
+
+    syn_results
 }
 
-fn monitor_network() {
-    thread::spawn(|| {
+fn monitor_network(ports: Vec<String>, data_set: Arc<RwLock<Vec<ui::Data>>>) {
+    info!("starting network monitor");
+    thread::spawn(move || {
         let interface = network::get_default_interface();
         let cidr = network::get_interface_cidr(Arc::clone(&interface));
         let source_port = network::get_available_port();
         let (tx, rx) = mpsc::channel::<ScanMessage>();
         let (arp_results, rx) = process_arp(cidr, Arc::clone(&interface), rx, tx.clone());
 
-        process_syn(
+        let results = process_syn(
             Arc::clone(&interface),
             arp_results,
+            ports.clone(),
             rx,
             tx.clone(),
             source_port,
         );
+
+        let mut ui_data: Vec<ui::Data> = results
+            .iter()
+            .map(|d| ui::Data {
+                hostname: d.hostname.to_owned(),
+                ip: d.ip.to_owned(),
+                mac: d.mac.to_owned(),
+                vendor: d.vendor.to_owned(),
+                ports: d.open_ports.iter().map(|p| p.id.to_owned()).join(", "),
+            })
+            .collect();
+
+        ui_data.sort_by_key(|d| d.ip.to_owned());
+
+        {
+            let mut set = data_set.write().unwrap();
+            *set = ui_data;
+        }
+
+        info!("network scan completed");
         thread::sleep(time::Duration::from_secs(15));
-        monitor_network();
+        monitor_network(ports, Arc::clone(&data_set));
     });
 }
 
@@ -173,10 +203,23 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     initialize_logger(&args);
 
+    let mut data_set: Vec<ui::Data> = Vec::new();
+
+    data_set.push(ui::Data {
+        hostname: "scanning...".to_string(),
+        ip: "".to_string(),
+        mac: "".to_string(),
+        vendor: "".to_string(),
+        ports: "".to_string(),
+    });
+
+    let thread_safe_data_set = Arc::new(RwLock::new(data_set));
+
+    monitor_network(args.ports, Arc::clone(&thread_safe_data_set));
+
     if args.debug {
-        monitor_network();
         loop {}
     }
 
-    ui::launch()
+    ui::launch(Arc::clone(&thread_safe_data_set))
 }
