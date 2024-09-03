@@ -1,5 +1,4 @@
 use core::time;
-use log::*;
 use std::{
     error::Error,
     io,
@@ -37,6 +36,10 @@ const INFO_TEXT: &str =
 
 const ITEM_HEIGHT: usize = 4;
 
+const ELLIPSIS: &str = "…";
+
+const COLUMN_WIDTH: u16 = 50;
+
 struct TableColors {
     buffer_bg: Color,
     header_bg: Color,
@@ -72,41 +75,45 @@ pub struct Data {
 }
 
 impl Data {
-    const fn ref_array(&self) -> [&String; 5] {
-        [
-            &self.hostname,
-            &self.ip,
-            &self.mac,
-            &self.vendor,
-            &self.ports,
-        ]
-    }
+    fn ref_array(&self, col_width: usize) -> [String; 5] {
+        let hostname_len = self.hostname.width();
+        let ip_len = self.ip.width();
+        let mac_len = self.mac.width();
+        let vendor_len = self.mac.width();
+        let ports_len = self.ports.width();
 
-    fn hostname(&self) -> &str {
-        &self.hostname
-    }
-
-    fn ip(&self) -> &str {
-        &self.ip
-    }
-
-    fn mac(&self) -> &str {
-        &self.mac
-    }
-
-    fn vendor(&self) -> &str {
-        &self.vendor
-    }
-
-    fn ports(&self) -> &str {
-        &self.ports
+        let mut hostname = self.hostname.to_owned();
+        if hostname_len >= col_width {
+            hostname.truncate(col_width - 10);
+            hostname.push_str(ELLIPSIS);
+        }
+        let mut ip = self.ip.to_owned();
+        if ip_len >= col_width {
+            ip.truncate(col_width - 10);
+            ip.push_str(ELLIPSIS);
+        }
+        let mut mac = self.mac.to_owned();
+        if mac_len >= col_width {
+            mac.truncate(col_width - 10);
+            mac.push_str(ELLIPSIS);
+        }
+        let mut vendor = self.vendor.to_owned();
+        if vendor_len >= col_width {
+            vendor.truncate(col_width - 10);
+            vendor.push_str(ELLIPSIS);
+        }
+        let mut ports = self.ports.to_owned();
+        if ports_len >= col_width {
+            ports.truncate(col_width - 10);
+            ports.push_str(ELLIPSIS);
+        }
+        [hostname, ip, mac, vendor, ports]
     }
 }
 
 struct App {
     state: TableState,
     items: Arc<RwLock<Vec<Data>>>,
-    longest_item_lens: (u16, u16, u16, u16, u16), // order is (hostname, ip, mac, vendor, ports)
     scroll_state: ScrollbarState,
     colors: TableColors,
     color_index: usize,
@@ -121,13 +128,13 @@ impl App {
         }
         Self {
             state: TableState::default().with_selected(0),
-            longest_item_lens: constraint_len_calculator(Arc::clone(&data_set)),
             scroll_state: ScrollbarState::new(height),
             colors: TableColors::new(&PALETTES[0]),
             color_index: 0,
             items: Arc::clone(&data_set),
         }
     }
+
     pub fn next(&mut self) {
         let data = self.items.read().unwrap();
 
@@ -178,10 +185,7 @@ pub fn launch(data_set: Arc<RwLock<Vec<Data>>>) -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // create app and run it
-    info!("creating app");
     let app = App::new(Arc::clone(&data_set));
-    info!("running app");
     let res = run_app(&mut terminal, app);
 
     // restore terminal
@@ -208,12 +212,13 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
             if set.len() > 0 {
                 height = (set.len() - 1) * ITEM_HEIGHT;
             }
-            app.longest_item_lens = constraint_len_calculator(Arc::clone(&app.items));
             app.scroll_state = ScrollbarState::new(height);
         }
 
         terminal.draw(|f| ui(f, &mut app))?;
 
+        // Use poll here so we don't block the thread, this will allow
+        // rendering of incoming device data from network as it's received
         if let Ok(has_event) = event::poll(time::Duration::from_secs(1)) {
             if has_event {
                 if let Event::Key(key) = event::read()? {
@@ -267,80 +272,36 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
             0 => app.colors.normal_row_color,
             _ => app.colors.alt_row_color,
         };
-        let item = data.ref_array();
+        let col_width = area.width / 5;
+        let item = data.ref_array(col_width as usize);
         item.into_iter()
             .map(|content| Cell::from(Text::from(format!("\n{content}\n"))))
             .collect::<Row>()
             .style(Style::new().fg(app.colors.row_fg).bg(color))
-            .height(4)
+            .height(ITEM_HEIGHT as u16)
     });
     let spacer = "  ";
     let t = Table::new(
         rows,
         [
-            // + 1 is for padding.
-            Constraint::Length(app.longest_item_lens.0 + 1),
-            Constraint::Min(app.longest_item_lens.1 + 1),
-            Constraint::Min(app.longest_item_lens.2 + 1),
-            Constraint::Min(app.longest_item_lens.3 + 1),
-            Constraint::Min(app.longest_item_lens.4 + 1),
+            Constraint::Max(COLUMN_WIDTH),
+            Constraint::Max(COLUMN_WIDTH),
+            Constraint::Max(COLUMN_WIDTH),
+            Constraint::Max(COLUMN_WIDTH),
+            Constraint::Max(COLUMN_WIDTH),
         ],
     )
     .header(header)
     .highlight_style(selected_style)
     .highlight_symbol(Text::from(vec![
-        "".into(),
         spacer.into(),
         spacer.into(),
-        "".into(),
+        spacer.into(),
+        spacer.into(),
     ]))
     .bg(app.colors.buffer_bg)
     .highlight_spacing(HighlightSpacing::Always);
     f.render_stateful_widget(t, area, &mut app.state);
-}
-
-fn constraint_len_calculator(items: Arc<RwLock<Vec<Data>>>) -> (u16, u16, u16, u16, u16) {
-    let data = items.read().unwrap();
-    let hostname_len = data
-        .iter()
-        .map(Data::hostname)
-        .map(UnicodeWidthStr::width)
-        .max()
-        .unwrap_or(0);
-    let ip_len = data
-        .iter()
-        .map(Data::ip)
-        .flat_map(str::lines)
-        .map(UnicodeWidthStr::width)
-        .max()
-        .unwrap_or(0);
-    let mac_len = data
-        .iter()
-        .map(Data::mac)
-        .map(UnicodeWidthStr::width)
-        .max()
-        .unwrap_or(0);
-    let vendor_len = data
-        .iter()
-        .map(Data::vendor)
-        .map(UnicodeWidthStr::width)
-        .max()
-        .unwrap_or(0);
-    let ports_len = data
-        .iter()
-        .map(Data::ports)
-        .map(UnicodeWidthStr::width)
-        .max()
-        .unwrap_or(0);
-
-    #[allow(clippy::cast_possible_truncation)]
-    (
-        hostname_len as u16,
-        ip_len as u16,
-        mac_len as u16,
-        vendor_len as u16,
-        ports_len as u16,
-    )
 }
 
 fn render_scrollbar(f: &mut Frame, app: &mut App, area: Rect) {
@@ -367,43 +328,4 @@ fn render_footer(f: &mut Frame, app: &App, area: Rect) {
                 .border_style(Style::new().fg(app.colors.footer_border_color)),
         );
     f.render_widget(info_footer, area);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_constraint_len_calculator() {
-        let test_data = vec![
-            Data {
-                hostname: "Emirhan Tala".to_string(),
-                ip: "Cambridgelaan 6XX\n3584 XX Utrecht".to_string(),
-                mac: "tala.emirhan@gmail.com".to_string(),
-                vendor: "some vendor from some place".to_string(),
-                ports: "22,23,24,25,26,27,28,29,2000,3000,4000,5000".to_string(),
-            },
-            Data {
-                hostname: "".to_string(),
-                ip: "this line is 31 characters long\nbottom line is 33 characters long"
-                    .to_string(),
-                mac: "thisemailis40caharacterslong@ratatui.com".to_string(),
-                vendor: "".to_string(),
-                ports: "".to_string(),
-            },
-        ];
-        let (
-            longest_hostname_len,
-            longest_ip_len,
-            longest_mac_len,
-            longest_vendor_len,
-            longest_ports_len,
-        ) = constraint_len_calculator(Arc::new(RwLock::new(test_data)));
-
-        assert_eq!(12, longest_hostname_len);
-        assert_eq!(33, longest_ip_len);
-        assert_eq!(40, longest_mac_len);
-        assert_eq!(27, longest_vendor_len);
-        assert_eq!(43, longest_ports_len);
-    }
 }
