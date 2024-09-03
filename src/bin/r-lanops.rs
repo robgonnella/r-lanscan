@@ -2,7 +2,6 @@ use clap::Parser;
 use core::time;
 use itertools::Itertools;
 use log::*;
-use ops::ui;
 use pnet::datalink::NetworkInterface;
 use serde::{Deserialize, Serialize};
 use simplelog;
@@ -16,12 +15,10 @@ use std::{
     thread,
 };
 
-mod ops;
-
 use r_lanscan::{
     network, packet,
     scanners::{arp_scanner, syn_scanner, Device, Port, ScanMessage, Scanner, IDLE_TIMEOUT},
-    targets,
+    targets, ui,
 };
 
 #[derive(Parser, Debug)]
@@ -156,7 +153,7 @@ fn process_syn(
     syn_results
 }
 
-fn monitor_network(ports: Vec<String>, data_set: Arc<RwLock<Vec<ui::Data>>>) {
+fn monitor_network(ports: Vec<String>, data_set: Arc<RwLock<Vec<ui::app::Data>>>) {
     info!("starting network monitor");
     thread::spawn(move || {
         let interface = network::get_default_interface();
@@ -174,9 +171,9 @@ fn monitor_network(ports: Vec<String>, data_set: Arc<RwLock<Vec<ui::Data>>>) {
             source_port,
         );
 
-        let mut ui_data: Vec<ui::Data> = results
+        let mut ui_data: Vec<ui::app::Data> = results
             .iter()
-            .map(|d| ui::Data {
+            .map(|d| ui::app::Data {
                 hostname: d.hostname.to_owned(),
                 ip: d.ip.to_owned(),
                 mac: d.mac.to_owned(),
@@ -203,9 +200,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     initialize_logger(&args);
 
-    let mut data_set: Vec<ui::Data> = Vec::new();
+    let mut data_set: Vec<ui::app::Data> = Vec::new();
 
-    data_set.push(ui::Data {
+    data_set.push(ui::app::Data {
         hostname: "scanning...".to_string(),
         ip: "".to_string(),
         mac: "".to_string(),
@@ -221,5 +218,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         loop {}
     }
 
-    ui::launch(Arc::clone(&thread_safe_data_set))
+    ui::app::launch(Arc::clone(&thread_safe_data_set))
 }
