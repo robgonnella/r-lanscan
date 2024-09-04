@@ -18,20 +18,12 @@ use clap::Parser;
 
 use r_lanlib::{
     network, packet,
-    scanners::{arp_scanner, syn_scanner, Device, Port, ScanMessage, Scanner, IDLE_TIMEOUT},
+    scanners::{
+        arp_scanner, syn_scanner, Device, DeviceWithPorts, ScanMessage, Scanner, IDLE_TIMEOUT,
+    },
     targets,
 };
 use simplelog;
-
-// Device with open ports
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DeviceWithPorts {
-    pub ip: String,
-    pub mac: String,
-    pub hostname: String,
-    pub vendor: String,
-    pub open_ports: HashSet<Port>,
-}
 
 /// Local Area Network ARP and SYN scanning
 #[derive(Parser, Debug)]
