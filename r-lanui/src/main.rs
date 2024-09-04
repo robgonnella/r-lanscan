@@ -15,11 +15,13 @@ use std::{
     thread,
 };
 
-use r_lanscan::{
+use r_lanlib::{
     network, packet,
     scanners::{arp_scanner, syn_scanner, Device, Port, ScanMessage, Scanner, IDLE_TIMEOUT},
-    targets, ui,
+    targets,
 };
+
+mod ui;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
