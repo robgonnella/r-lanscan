@@ -16,7 +16,7 @@ use prettytable;
 
 use clap::Parser;
 
-use r_lanscan::{
+use r_lanlib::{
     network, packet,
     scanners::{arp_scanner, syn_scanner, Device, Port, ScanMessage, Scanner, IDLE_TIMEOUT},
     targets,
