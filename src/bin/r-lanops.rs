@@ -40,7 +40,7 @@ struct DeviceWithPorts {
     pub mac: String,
     pub hostname: String,
     pub vendor: String,
-    pub open_ports: Vec<Port>,
+    pub open_ports: HashSet<Port>,
 }
 
 fn initialize_logger(args: &Args) {
@@ -113,7 +113,7 @@ fn process_syn(
             ip: d.ip.to_owned(),
             mac: d.mac.to_owned(),
             vendor: d.vendor.to_owned(),
-            open_ports: vec![],
+            open_ports: HashSet::new(),
         })
     }
 
@@ -140,8 +140,7 @@ fn process_syn(
             let device = syn_results.iter_mut().find(|d| d.mac == m.device.mac);
             match device {
                 Some(d) => {
-                    d.open_ports.push(m.open_port.to_owned());
-                    d.open_ports.sort_by_key(|p| p.id.to_owned())
+                    d.open_ports.insert(m.open_port.to_owned());
                 }
                 None => {
                     warn!("received syn result for unknown device: {:?}", m);
@@ -178,7 +177,12 @@ fn monitor_network(ports: Vec<String>, data_set: Arc<RwLock<Vec<ui::app::Data>>>
                 ip: d.ip.to_owned(),
                 mac: d.mac.to_owned(),
                 vendor: d.vendor.to_owned(),
-                ports: d.open_ports.iter().map(|p| p.id.to_owned()).join(", "),
+                ports: d
+                    .open_ports
+                    .iter()
+                    .map(|p| p.id.to_owned())
+                    .sorted()
+                    .join(", "),
             })
             .collect();
 

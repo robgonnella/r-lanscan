@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use log::*;
 use pnet::datalink::NetworkInterface;
 use serde::{Deserialize, Serialize};
@@ -29,7 +30,7 @@ struct DeviceWithPorts {
     pub mac: String,
     pub hostname: String,
     pub vendor: String,
-    pub open_ports: Vec<Port>,
+    pub open_ports: HashSet<Port>,
 }
 
 /// Local Area Network ARP and SYN scanning
@@ -201,7 +202,7 @@ fn process_syn(
             ip: d.ip.to_owned(),
             mac: d.mac.to_owned(),
             vendor: d.vendor.to_owned(),
-            open_ports: vec![],
+            open_ports: HashSet::new(),
         })
     }
 
@@ -228,8 +229,7 @@ fn process_syn(
             let device = syn_results.iter_mut().find(|d| d.mac == m.device.mac);
             match device {
                 Some(d) => {
-                    d.open_ports.push(m.open_port.to_owned());
-                    d.open_ports.sort_by_key(|p| p.id.to_owned())
+                    d.open_ports.insert(m.open_port.to_owned());
                 }
                 None => {
                     warn!("received syn result for unknown device: {:?}", m);
@@ -262,6 +262,7 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
             let ports = d
                 .open_ports
                 .iter()
+                .sorted_by_key(|p| p.id)
                 .map(|p| p.id.to_owned().to_string())
                 .collect::<Vec<String>>();
             syn_table.add_row(prettytable::row![
