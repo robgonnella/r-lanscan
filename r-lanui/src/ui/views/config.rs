@@ -1,6 +1,7 @@
 use crate::ui::store::{
     action::Action,
     dispatcher::Dispatcher,
+    store::Colors,
     types::{Theme, ViewName},
 };
 use ratatui::{
@@ -54,14 +55,15 @@ impl ConfigView {
     fn set_colors(&mut self) {
         let state = self.dispatcher.get_state();
         self.dispatcher.dispatch(Action::UpdateTheme((
-            state.config.id,
-            THEMES[self.theme_index].clone(),
+            &state.config.id,
+            &THEMES[self.theme_index],
         )));
     }
 
     fn render_footer(&mut self, f: &mut Frame, area: Rect) {
         let theme = THEMES[self.theme_index].clone();
-        let palette = theme.to_palette();
+        let colors = Colors::new(theme.to_palette());
+
         let info_footer = Paragraph::new(Line::from(INFO_TEXT))
             .style(
                 Style::new()
@@ -72,7 +74,7 @@ impl ConfigView {
             .block(
                 Block::bordered()
                     .border_type(BorderType::Double)
-                    .border_style(Style::new().fg(palette.c400)),
+                    .border_style(Style::new().fg(colors.footer_border_color)),
             );
         f.render_widget(info_footer, area);
     }
@@ -90,7 +92,7 @@ impl View for ConfigView {
             match key.code {
                 KeyCode::Esc => {
                     self.dispatcher
-                        .dispatch(Action::UpdateView(ViewName::Devices));
+                        .dispatch(Action::UpdateView(&ViewName::Devices));
                     handled = true;
                 }
                 KeyCode::Char('l') | KeyCode::Right => {

@@ -1,8 +1,4 @@
-use crate::ui::store::{
-    action::Action,
-    dispatcher::Dispatcher,
-    types::{Theme, ViewName},
-};
+use crate::ui::store::{action::Action, dispatcher::Dispatcher, types::ViewName};
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Rect},
@@ -31,9 +27,7 @@ impl DeviceView {
     }
 
     fn render_footer(&mut self, f: &mut Frame, area: Rect) {
-        let state = self.dispatcher.get_state();
-        let theme = Theme::from_string(&state.config.theme);
-        let palette = theme.to_palette();
+        let colors = self.dispatcher.get_state().colors;
         let info_footer = Paragraph::new(Line::from(INFO_TEXT))
             .style(
                 Style::new()
@@ -44,7 +38,7 @@ impl DeviceView {
             .block(
                 Block::bordered()
                     .border_type(BorderType::Double)
-                    .border_style(Style::new().fg(palette.c400)),
+                    .border_style(Style::new().fg(colors.footer_border_color)),
             );
         f.render_widget(info_footer, area);
     }
@@ -62,7 +56,7 @@ impl View for DeviceView {
             match key.code {
                 KeyCode::Esc => {
                     self.dispatcher
-                        .dispatch(Action::UpdateView(ViewName::Devices));
+                        .dispatch(Action::UpdateView(&ViewName::Devices));
                     handled = true;
                 }
                 _ => {}

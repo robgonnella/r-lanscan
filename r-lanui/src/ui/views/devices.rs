@@ -5,7 +5,7 @@ use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Margin, Rect},
-    style::{palette::tailwind, Color, Modifier, Style, Stylize},
+    style::{Modifier, Style, Stylize},
     text::{Line, Text},
     widgets::{
         Block, BorderType, Cell, HighlightSpacing, Paragraph, Row, Scrollbar, ScrollbarOrientation,
@@ -15,11 +15,7 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::ui::store::{
-    action::Action,
-    dispatcher::Dispatcher,
-    types::{Theme, ViewName},
-};
+use crate::ui::store::{action::Action, dispatcher::Dispatcher, store::Colors, types::ViewName};
 
 use super::View;
 
@@ -32,38 +28,11 @@ const COLUMN_WIDTH: u16 = 50;
 const INFO_TEXT: &str =
     "(Esc) quit | (↑) move up | (↓) move down | (Enter) view selected device | (c) manage config";
 
-struct TableColors {
-    buffer_bg: Color,
-    header_bg: Color,
-    header_fg: Color,
-    row_fg: Color,
-    selected_style_fg: Color,
-    normal_row_color: Color,
-    alt_row_color: Color,
-    footer_border_color: Color,
-}
-
-impl TableColors {
-    const fn new(color: &tailwind::Palette) -> Self {
-        Self {
-            buffer_bg: tailwind::SLATE.c950,
-            header_bg: color.c900,
-            header_fg: tailwind::SLATE.c200,
-            row_fg: tailwind::SLATE.c200,
-            selected_style_fg: color.c400,
-            normal_row_color: tailwind::SLATE.c950,
-            alt_row_color: tailwind::SLATE.c900,
-            footer_border_color: color.c400,
-        }
-    }
-}
-
 pub struct DevicesView {
     pub id: ViewName,
     table_state: TableState,
     dispatcher: Arc<Dispatcher>,
     scroll_state: ScrollbarState,
-    colors: TableColors,
 }
 
 impl DevicesView {
@@ -71,17 +40,15 @@ impl DevicesView {
         let state = dispatcher.get_state();
 
         let mut height = ITEM_HEIGHT;
+
         if state.devices.len() > 0 {
             height = (state.devices.len() - 1) * ITEM_HEIGHT;
         }
-
-        let palette = Theme::from_string(&state.config.theme).to_palette();
 
         Self {
             id: ViewName::Devices,
             table_state: TableState::default().with_selected(0),
             scroll_state: ScrollbarState::new(height),
-            colors: TableColors::new(&palette),
             dispatcher,
         }
     }
@@ -95,7 +62,7 @@ impl DevicesView {
         };
         self.table_state.select(Some(i));
         self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
-        self.dispatcher.dispatch(Action::UpdateSelectedDevice(i));
+        self.dispatcher.dispatch(Action::UpdateSelectedDevice(&i));
     }
 
     fn previous(&mut self) {
@@ -113,22 +80,18 @@ impl DevicesView {
         };
         self.table_state.select(Some(i));
         self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
-        self.dispatcher.dispatch(Action::UpdateSelectedDevice(i));
+        self.dispatcher.dispatch(Action::UpdateSelectedDevice(&i));
     }
 
-    fn set_colors(&mut self) {
-        let state = self.dispatcher.get_state();
-        let theme = Theme::from_string(&state.config.theme);
-        self.colors = TableColors::new(&theme.to_palette());
-    }
-
-    fn render_table(&mut self, f: &mut Frame, area: Rect) {
+    fn render_table(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {
         let header_style = Style::default()
-            .fg(self.colors.header_fg)
-            .bg(self.colors.header_bg);
+            .fg(colors.header_fg)
+            .bg(colors.header_bg)
+            .add_modifier(Modifier::BOLD);
+
         let selected_style = Style::default()
             .add_modifier(Modifier::REVERSED)
-            .fg(self.colors.selected_style_fg);
+            .fg(colors.selected_style_fg);
 
         let header: Row<'_> = ["Hostname", "IP", "MAC", "Vendor", "Ports"]
             .into_iter()
@@ -141,17 +104,18 @@ impl DevicesView {
 
         let rows = items.iter().enumerate().map(|(i, data)| {
             let color = match i % 2 {
-                0 => self.colors.normal_row_color,
-                _ => self.colors.alt_row_color,
+                0 => colors.normal_row_color,
+                _ => colors.alt_row_color,
             };
             let col_width = area.width / 5;
             let item = ref_array_from_device(data, col_width as usize);
             item.into_iter()
                 .map(|content| Cell::from(Text::from(format!("\n{content}\n"))))
                 .collect::<Row>()
-                .style(Style::new().fg(self.colors.row_fg).bg(color))
+                .style(Style::new().fg(colors.row_fg).bg(color))
                 .height(ITEM_HEIGHT as u16)
         });
+
         let spacer = "  ";
         let t = Table::new(
             rows,
@@ -171,7 +135,7 @@ impl DevicesView {
             spacer.into(),
             spacer.into(),
         ]))
-        .bg(self.colors.buffer_bg)
+        .bg(colors.buffer_bg)
         .highlight_spacing(HighlightSpacing::Always);
         f.render_stateful_widget(t, area, &mut self.table_state);
     }
@@ -190,18 +154,14 @@ impl DevicesView {
         );
     }
 
-    fn render_footer(&mut self, f: &mut Frame, area: Rect) {
+    fn render_footer(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {
         let info_footer = Paragraph::new(Line::from(INFO_TEXT))
-            .style(
-                Style::new()
-                    .fg(self.colors.row_fg)
-                    .bg(self.colors.buffer_bg),
-            )
+            .style(Style::new().fg(colors.row_fg).bg(colors.buffer_bg))
             .centered()
             .block(
                 Block::bordered()
                     .border_type(BorderType::Double)
-                    .border_style(Style::new().fg(self.colors.footer_border_color)),
+                    .border_style(Style::new().fg(colors.footer_border_color)),
             );
         f.render_widget(info_footer, area);
     }
@@ -210,14 +170,13 @@ impl DevicesView {
 impl View for DevicesView {
     fn render(&mut self, f: &mut Frame) {
         let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.area());
+        let colors = self.dispatcher.get_state().colors;
 
-        self.set_colors();
-
-        self.render_table(f, rects[0]);
+        self.render_table(f, rects[0], &colors);
 
         self.render_scrollbar(f, rects[0]);
 
-        self.render_footer(f, rects[1]);
+        self.render_footer(f, rects[1], &colors);
     }
 
     fn process_key_event(&mut self, key: KeyEvent) -> bool {
@@ -234,12 +193,12 @@ impl View for DevicesView {
                 }
                 KeyCode::Char('c') => {
                     self.dispatcher
-                        .dispatch(Action::UpdateView(ViewName::Config));
+                        .dispatch(Action::UpdateView(&ViewName::Config));
                     handled = true;
                 }
                 KeyCode::Enter => {
                     self.dispatcher
-                        .dispatch(Action::UpdateView(ViewName::Device));
+                        .dispatch(Action::UpdateView(&ViewName::Device));
                     handled = true;
                 }
                 _ => {}

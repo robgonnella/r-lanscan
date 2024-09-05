@@ -64,15 +64,15 @@ impl ConfigManager {
         }
     }
 
-    pub fn get_by_id(&self, id: String) -> Option<Config> {
-        let c = self.configs.get(&id);
+    pub fn get_by_id(&self, id: &String) -> Option<Config> {
+        let c = self.configs.get(id);
         match c {
             Some(conf) => Some(conf.clone()),
             None => None,
         }
     }
 
-    pub fn get_by_cidr(&self, cidr: String) -> Option<Config> {
+    pub fn get_by_cidr(&self, cidr: &String) -> Option<Config> {
         let mut config: Option<Config> = None;
 
         self.configs.iter().for_each(|(_, c)| {
@@ -85,14 +85,14 @@ impl ConfigManager {
         config
     }
 
-    pub fn create(&mut self, config: Config) {
-        self.configs.insert(config.id.clone(), config);
+    pub fn create(&mut self, config: &Config) {
+        self.configs.insert(config.id.clone(), config.clone());
         self.write();
     }
 
-    pub fn update_theme(&mut self, id: String, theme: Theme) {
-        if let Some(conf) = self.configs.get_mut(&id) {
-            conf.theme = theme.to_owned().to_string();
+    pub fn update_theme(&mut self, id: &String, theme: &Theme) {
+        if let Some(conf) = self.configs.get_mut(id) {
+            conf.theme = theme.clone().to_string();
             self.write();
         }
     }

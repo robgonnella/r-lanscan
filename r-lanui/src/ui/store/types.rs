@@ -26,7 +26,7 @@ impl Theme {
         }
     }
 
-    pub fn to_string(self) -> String {
+    pub fn to_string(&self) -> String {
         match self {
             Theme::Blue => "Blue".to_string(),
             Theme::Emerald => "Emerald".to_string(),
@@ -35,12 +35,12 @@ impl Theme {
         }
     }
 
-    pub fn to_palette(self) -> tailwind::Palette {
+    pub fn to_palette(&self) -> &'static tailwind::Palette {
         match self {
-            Theme::Blue => tailwind::BLUE,
-            Theme::Emerald => tailwind::EMERALD,
-            Theme::Indigo => tailwind::INDIGO,
-            Theme::Red => tailwind::RED,
+            Theme::Blue => &tailwind::BLUE,
+            Theme::Emerald => &tailwind::EMERALD,
+            Theme::Indigo => &tailwind::INDIGO,
+            Theme::Red => &tailwind::RED,
         }
     }
 }

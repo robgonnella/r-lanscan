@@ -170,7 +170,7 @@ fn monitor_network(
             source_port,
         );
 
-        dispatcher.dispatch(Action::UpdateDevices(results));
+        dispatcher.dispatch(Action::UpdateDevices(&results));
 
         info!("network scan completed");
         thread::sleep(time::Duration::from_secs(15));
@@ -195,11 +195,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     {
         let manager = config_manager.lock().unwrap();
-        let config = manager.get_by_cidr(cidr.clone());
+        let config = manager.get_by_cidr(&cidr);
         drop(manager);
 
         if let Some(target_config) = config {
-            dispatcher.dispatch(Action::SetConfig(target_config.id));
+            dispatcher.dispatch(Action::SetConfig(&target_config.id));
         } else {
             let config = Config {
                 id: fakeit::animal::animal().to_lowercase(),
@@ -207,7 +207,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 ssh_overrides: HashMap::new(),
                 theme: Theme::Blue.to_string(),
             };
-            dispatcher.dispatch(Action::CreateAndSetConfig(config))
+            dispatcher.dispatch(Action::CreateAndSetConfig(&config))
         }
     }
 
