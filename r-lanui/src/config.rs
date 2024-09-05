@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::ui::store::types::Theme;
 
 pub const DEFAULT_CONFIG_ID: &str = "default";
+pub const DEFAULT_PORTS_STR: &str = "22,80,443,2000-9999";
+pub const DEFAULT_PORTS: [&str; 4] = ["22", "80", "443", "2000-9999"];
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SshID {
@@ -25,7 +27,15 @@ pub struct Config {
     pub id: String,
     pub cidr: String,
     pub theme: String,
+    pub ports: Vec<String>,
     pub ssh_overrides: HashMap<SshID, SshOverride>,
+}
+
+pub fn get_default_ports() -> Vec<String> {
+    DEFAULT_PORTS
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<String>>()
 }
 
 impl Config {
@@ -34,6 +44,7 @@ impl Config {
             id: DEFAULT_CONFIG_ID.to_string(),
             theme: Theme::Blue.to_string(),
             cidr: "unknown".to_string(),
+            ports: get_default_ports(),
             ssh_overrides: HashMap::new(),
         }
     }

@@ -3,12 +3,8 @@ use log::*;
 use std::{collections::HashMap, error::Error, io, sync::Arc};
 
 use ratatui::{
-    backend::{Backend, CrosstermBackend},
-    crossterm::{
-        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
-        execute,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    },
+    backend::Backend,
+    crossterm::event::{self, Event, KeyCode},
     Terminal,
 };
 
@@ -48,24 +44,17 @@ impl App {
 }
 
 pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Box<dyn Error>> {
-    // setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    color_eyre::install()?;
 
+    // setup terminal
+    let mut terminal = ratatui::init();
     let app = App::new(dispatcher);
+
+    // start app loop
     let res = run_app(&mut terminal, app);
 
     // restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
+    ratatui::restore();
 
     if let Err(err) = res {
         error!("{err:?}");
@@ -84,15 +73,19 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
         // rendering of incoming device data from network as it's received
         if let Ok(has_event) = event::poll(time::Duration::from_secs(1)) {
             if has_event {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press {
-                        let handled = view.process_key_event(key);
-                        if !handled {
-                            match key.code {
-                                KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
-                                _ => {}
-                            }
-                        }
+                let evt = event::read()?;
+                let handled = view.process_event(&evt);
+                if !handled {
+                    match evt {
+                        Event::Key(key) => match key.code {
+                            KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                            _ => {}
+                        },
+                        Event::FocusGained => {}
+                        Event::FocusLost => {}
+                        Event::Mouse(_m) => {}
+                        Event::Paste(_p) => {}
+                        Event::Resize(_x, _y) => {}
                     }
                 }
             }

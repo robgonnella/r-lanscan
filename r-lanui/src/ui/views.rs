@@ -1,4 +1,4 @@
-use ratatui::{crossterm::event::KeyEvent, Frame};
+use ratatui::{crossterm::event::Event, Frame};
 
 pub mod config;
 pub mod device;
@@ -6,5 +6,5 @@ pub mod devices;
 
 pub trait View {
     fn render(&mut self, f: &mut Frame);
-    fn process_key_event(&mut self, key: KeyEvent) -> bool;
+    fn process_event(&mut self, evt: &Event) -> bool;
 }

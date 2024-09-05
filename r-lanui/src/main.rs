@@ -36,7 +36,12 @@ struct Args {
     debug: bool,
 
     /// Comma separated list of ports and port ranges to scan
-    #[arg(short, long, default_value = "1-65535", use_value_delimiter = true)]
+    #[arg(
+        short,
+        long,
+        default_value = config::DEFAULT_PORTS_STR,
+        use_value_delimiter = true
+    )]
     ports: Vec<String>,
 }
 
@@ -54,6 +59,13 @@ fn initialize_logger(args: &Args) {
         simplelog::ColorChoice::Auto,
     )
     .unwrap();
+}
+
+fn get_project_config_path() -> String {
+    let project_dir = ProjectDirs::from("", "", "r-lanui").unwrap();
+    let config_dir = project_dir.config_dir();
+    fs::create_dir_all(config_dir).unwrap();
+    config_dir.join("config.yml").to_str().unwrap().to_string()
 }
 
 fn process_arp(
@@ -150,7 +162,7 @@ fn process_syn(
 }
 
 fn monitor_network(
-    ports: Vec<String>,
+    config: Arc<Config>,
     interface: Arc<NetworkInterface>,
     cidr: String,
     dispatcher: Arc<Dispatcher>,
@@ -164,7 +176,7 @@ fn monitor_network(
         let results = process_syn(
             Arc::clone(&interface),
             arp_results,
-            ports.clone(),
+            config.ports.clone(),
             rx,
             tx.clone(),
             source_port,
@@ -174,7 +186,7 @@ fn monitor_network(
 
         info!("network scan completed");
         thread::sleep(time::Duration::from_secs(15));
-        monitor_network(ports, Arc::clone(&interface), cidr, dispatcher);
+        monitor_network(config, interface, cidr, dispatcher);
     });
 }
 
@@ -185,34 +197,32 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let interface = network::get_default_interface();
     let cidr = network::get_interface_cidr(Arc::clone(&interface));
-
-    let project_dir = ProjectDirs::from("", "", "r-lanui").unwrap();
-    let config_dir = project_dir.config_dir();
-    fs::create_dir_all(config_dir).unwrap();
-    let config_path = config_dir.join("config.yml").to_str().unwrap().to_string();
+    let config_path = get_project_config_path();
     let config_manager = Arc::new(Mutex::new(ConfigManager::new(config_path)));
     let dispatcher = Arc::new(Dispatcher::new(Arc::clone(&config_manager)));
 
-    {
-        let manager = config_manager.lock().unwrap();
-        let config = manager.get_by_cidr(&cidr);
-        drop(manager);
+    let manager = config_manager.lock().unwrap();
+    let config: Config;
+    let conf_opt = manager.get_by_cidr(&cidr);
+    // free up manager lock so dispatches can acquire lock as needed
+    drop(manager);
 
-        if let Some(target_config) = config {
-            dispatcher.dispatch(Action::SetConfig(&target_config.id));
-        } else {
-            let config = Config {
-                id: fakeit::animal::animal().to_lowercase(),
-                cidr: cidr.clone(),
-                ssh_overrides: HashMap::new(),
-                theme: Theme::Blue.to_string(),
-            };
-            dispatcher.dispatch(Action::CreateAndSetConfig(&config))
-        }
+    if let Some(target_config) = conf_opt {
+        config = target_config;
+        dispatcher.dispatch(Action::SetConfig(&config.id));
+    } else {
+        config = Config {
+            id: fakeit::animal::animal().to_lowercase(),
+            cidr: cidr.clone(),
+            ssh_overrides: HashMap::new(),
+            ports: args.ports.clone(),
+            theme: Theme::Blue.to_string(),
+        };
+        dispatcher.dispatch(Action::CreateAndSetConfig(&config))
     }
 
     monitor_network(
-        args.ports,
+        Arc::new(config),
         Arc::clone(&interface),
         cidr,
         Arc::clone(&dispatcher),

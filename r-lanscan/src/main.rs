@@ -1,21 +1,9 @@
+use clap::Parser;
+use core::time;
 use itertools::Itertools;
 use log::*;
 use pnet::datalink::NetworkInterface;
-use serde::{Deserialize, Serialize};
-
-use core::time;
-use std::{
-    collections::HashSet,
-    sync::{
-        mpsc::{self, Receiver, Sender},
-        Arc,
-    },
-};
-
 use prettytable;
-
-use clap::Parser;
-
 use r_lanlib::{
     network, packet,
     scanners::{
@@ -24,6 +12,13 @@ use r_lanlib::{
     targets,
 };
 use simplelog;
+use std::{
+    collections::HashSet,
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc,
+    },
+};
 
 /// Local Area Network ARP and SYN scanning
 #[derive(Parser, Debug)]
