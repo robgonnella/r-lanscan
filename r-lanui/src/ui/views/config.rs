@@ -17,15 +17,15 @@ use super::View;
 
 const INFO_TEXT: &str = "(Esc) back to main view";
 
-pub struct DeviceView {
+pub struct ConfigView {
     pub id: ViewName,
     dispatcher: Arc<Dispatcher>,
 }
 
-impl DeviceView {
+impl ConfigView {
     pub fn new(dispatcher: Arc<Dispatcher>) -> Self {
         Self {
-            id: ViewName::Device,
+            id: ViewName::Config,
             dispatcher,
         }
     }
@@ -50,7 +50,7 @@ impl DeviceView {
     }
 }
 
-impl View for DeviceView {
+impl View for ConfigView {
     fn render(&mut self, f: &mut Frame) {
         let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.area());
         self.render_footer(f, rects[1]);

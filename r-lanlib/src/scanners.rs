@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use serde;
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +32,16 @@ pub struct Device {
     pub mac: String,
     pub status: DeviceStatus,
     pub vendor: String,
+}
+
+// Device with open ports
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceWithPorts {
+    pub ip: String,
+    pub mac: String,
+    pub hostname: String,
+    pub vendor: String,
+    pub open_ports: HashSet<Port>,
 }
 
 // SYN Result from a single device

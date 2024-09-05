@@ -1,26 +1,31 @@
 use clap::Parser;
+use config::{Config, ConfigManager};
 use core::time;
-use itertools::Itertools;
+use directories::ProjectDirs;
 use log::*;
 use pnet::datalink::NetworkInterface;
-use serde::{Deserialize, Serialize};
 use simplelog;
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     error::Error,
+    fs,
     sync::{
         mpsc::{self, Receiver, Sender},
-        Arc, RwLock,
+        Arc, Mutex,
     },
     thread,
 };
+use ui::store::{action::Action, dispatcher::Dispatcher, types::Theme};
 
 use r_lanlib::{
     network, packet,
-    scanners::{arp_scanner, syn_scanner, Device, Port, ScanMessage, Scanner, IDLE_TIMEOUT},
+    scanners::{
+        arp_scanner, syn_scanner, Device, DeviceWithPorts, ScanMessage, Scanner, IDLE_TIMEOUT,
+    },
     targets,
 };
 
+mod config;
 mod ui;
 
 #[derive(Parser, Debug)]
@@ -33,16 +38,6 @@ struct Args {
     /// Comma separated list of ports and port ranges to scan
     #[arg(short, long, default_value = "1-65535", use_value_delimiter = true)]
     ports: Vec<String>,
-}
-
-// Device with open ports
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DeviceWithPorts {
-    pub ip: String,
-    pub mac: String,
-    pub hostname: String,
-    pub vendor: String,
-    pub open_ports: HashSet<Port>,
 }
 
 fn initialize_logger(args: &Args) {
@@ -154,14 +149,17 @@ fn process_syn(
     syn_results
 }
 
-fn monitor_network(ports: Vec<String>, data_set: Arc<RwLock<Vec<ui::app::Data>>>) {
+fn monitor_network(
+    ports: Vec<String>,
+    interface: Arc<NetworkInterface>,
+    cidr: String,
+    dispatcher: Arc<Dispatcher>,
+) {
     info!("starting network monitor");
     thread::spawn(move || {
-        let interface = network::get_default_interface();
-        let cidr = network::get_interface_cidr(Arc::clone(&interface));
         let source_port = network::get_available_port();
         let (tx, rx) = mpsc::channel::<ScanMessage>();
-        let (arp_results, rx) = process_arp(cidr, Arc::clone(&interface), rx, tx.clone());
+        let (arp_results, rx) = process_arp(cidr.clone(), Arc::clone(&interface), rx, tx.clone());
 
         let results = process_syn(
             Arc::clone(&interface),
@@ -172,32 +170,11 @@ fn monitor_network(ports: Vec<String>, data_set: Arc<RwLock<Vec<ui::app::Data>>>
             source_port,
         );
 
-        let mut ui_data: Vec<ui::app::Data> = results
-            .iter()
-            .map(|d| ui::app::Data {
-                hostname: d.hostname.to_owned(),
-                ip: d.ip.to_owned(),
-                mac: d.mac.to_owned(),
-                vendor: d.vendor.to_owned(),
-                ports: d
-                    .open_ports
-                    .iter()
-                    .map(|p| p.id.to_owned())
-                    .sorted()
-                    .join(", "),
-            })
-            .collect();
-
-        ui_data.sort_by_key(|d| d.ip.to_owned());
-
-        {
-            let mut set = data_set.write().unwrap();
-            *set = ui_data;
-        }
+        dispatcher.dispatch(Action::UpdateDevices(results));
 
         info!("network scan completed");
         thread::sleep(time::Duration::from_secs(15));
-        monitor_network(ports, Arc::clone(&data_set));
+        monitor_network(ports, Arc::clone(&interface), cidr, dispatcher);
     });
 }
 
@@ -206,23 +183,44 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     initialize_logger(&args);
 
-    let mut data_set: Vec<ui::app::Data> = Vec::new();
+    let interface = network::get_default_interface();
+    let cidr = network::get_interface_cidr(Arc::clone(&interface));
 
-    data_set.push(ui::app::Data {
-        hostname: "scanning...".to_string(),
-        ip: "".to_string(),
-        mac: "".to_string(),
-        vendor: "".to_string(),
-        ports: "".to_string(),
-    });
+    let project_dir = ProjectDirs::from("", "", "r-lanui").unwrap();
+    let config_dir = project_dir.config_dir();
+    fs::create_dir_all(config_dir).unwrap();
+    let config_path = config_dir.join("config.yml").to_str().unwrap().to_string();
+    let config_manager = Arc::new(Mutex::new(ConfigManager::new(config_path)));
+    let dispatcher = Arc::new(Dispatcher::new(Arc::clone(&config_manager)));
 
-    let thread_safe_data_set = Arc::new(RwLock::new(data_set));
+    {
+        let manager = config_manager.lock().unwrap();
+        let config = manager.get_by_cidr(cidr.clone());
+        drop(manager);
 
-    monitor_network(args.ports, Arc::clone(&thread_safe_data_set));
+        if let Some(target_config) = config {
+            dispatcher.dispatch(Action::SetConfig(target_config.id));
+        } else {
+            let config = Config {
+                id: fakeit::animal::animal().to_lowercase(),
+                cidr: cidr.clone(),
+                ssh_overrides: HashMap::new(),
+                theme: Theme::Blue.to_string(),
+            };
+            dispatcher.dispatch(Action::CreateAndSetConfig(config))
+        }
+    }
+
+    monitor_network(
+        args.ports,
+        Arc::clone(&interface),
+        cidr,
+        Arc::clone(&dispatcher),
+    );
 
     if args.debug {
         loop {}
     }
 
-    ui::app::launch(Arc::clone(&thread_safe_data_set))
+    ui::app::launch(Arc::clone(&dispatcher))
 }
