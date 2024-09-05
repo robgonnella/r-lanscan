@@ -7,7 +7,7 @@ pub enum ViewName {
     Config,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Theme {
     Blue,
     Emerald,
