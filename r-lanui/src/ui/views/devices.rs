@@ -29,10 +29,8 @@ const ELLIPSIS: &str = "…";
 
 const COLUMN_WIDTH: u16 = 50;
 
-const THEMES: [Theme; 4] = [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
-
 const INFO_TEXT: &str =
-    "(Esc) quit | (↑) move up | (↓) move down | (→) next color | (←) previous color | (Enter) view selected device | (c) manage config";
+    "(Esc) quit | (↑) move up | (↓) move down | (Enter) view selected device | (c) manage config";
 
 struct TableColors {
     buffer_bg: Color,
@@ -66,7 +64,6 @@ pub struct DevicesView {
     dispatcher: Arc<Dispatcher>,
     scroll_state: ScrollbarState,
     colors: TableColors,
-    theme_index: usize,
 }
 
 impl DevicesView {
@@ -85,7 +82,6 @@ impl DevicesView {
             table_state: TableState::default().with_selected(0),
             scroll_state: ScrollbarState::new(height),
             colors: TableColors::new(&palette),
-            theme_index: 0,
             dispatcher,
         }
     }
@@ -117,25 +113,13 @@ impl DevicesView {
         };
         self.table_state.select(Some(i));
         self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
-    }
-
-    fn next_color(&mut self) {
-        self.theme_index = (self.theme_index + 1) % THEMES.len();
-    }
-
-    fn previous_color(&mut self) {
-        let count = THEMES.len();
-        self.theme_index = (self.theme_index + count - 1) % count;
+        self.dispatcher.dispatch(Action::UpdateSelectedDevice(i));
     }
 
     fn set_colors(&mut self) {
         let state = self.dispatcher.get_state();
-        self.dispatcher.dispatch(Action::UpdateTheme((
-            state.config.id,
-            THEMES[self.theme_index].clone(),
-        )));
-        let state = self.dispatcher.get_state();
-        self.colors = TableColors::new(&Theme::from_string(&state.config.theme).to_palette());
+        let theme = Theme::from_string(&state.config.theme);
+        self.colors = TableColors::new(&theme.to_palette());
     }
 
     fn render_table(&mut self, f: &mut Frame, area: Rect) {
@@ -247,14 +231,6 @@ impl View for DevicesView {
                 KeyCode::Char('k') | KeyCode::Up => {
                     self.previous();
                     handled = true
-                }
-                KeyCode::Char('l') | KeyCode::Right => {
-                    self.next_color();
-                    handled = true;
-                }
-                KeyCode::Char('h') | KeyCode::Left => {
-                    self.previous_color();
-                    handled = true;
                 }
                 KeyCode::Char('c') => {
                     self.dispatcher
