@@ -1,4 +1,4 @@
-use std::sync;
+use std::sync::Arc;
 
 use super::LazyLooper;
 
@@ -21,12 +21,14 @@ fn loop_ports<F: FnMut(u16)>(list: &Vec<String>, mut cb: F) {
     }
 }
 
-pub fn new(list: Vec<String>) -> sync::Arc<PortTargets> {
-    let mut len = 0;
-    loop_ports(&list, |_| {
-        len += 1;
-    });
-    sync::Arc::new(PortTargets(list, len))
+impl PortTargets {
+    pub fn new(list: Vec<String>) -> Arc<Self> {
+        let mut len = 0;
+        loop_ports(&list, |_| {
+            len += 1;
+        });
+        Arc::new(Self(list, len))
+    }
 }
 
 impl LazyLooper<u16> for PortTargets {
@@ -46,7 +48,7 @@ mod tests {
     #[test]
     fn returns_new_port_targets() {
         let list = vec![String::from("1"), String::from("2"), String::from("3")];
-        let targets = new(list);
+        let targets = PortTargets::new(list);
         assert!(!targets.0.is_empty());
     }
 
@@ -56,7 +58,7 @@ mod tests {
 
         let expected = [1, 2, 3, 4];
 
-        let targets = new(list);
+        let targets = PortTargets::new(list);
 
         let mut idx = 0;
 

@@ -1,68 +1,70 @@
 use log::*;
-use pnet::datalink;
-
-use std::{sync, time::Duration};
-
-use crate::{
-    packet::{PacketReaderFactory, PacketSenderFactory},
-    scanners::{arp_scanner, syn_scanner},
-    targets,
+use std::{
+    sync::{mpsc, Arc},
+    time::Duration,
 };
 
-use super::{Device, ScanMessage, Scanner};
+use crate::{
+    network::NetworkInterface,
+    packet::{PacketReaderFactory, PacketSenderFactory},
+    targets::{ips::IPTargets, ports::PortTargets},
+};
+
+use super::{arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, ScanMessage, Scanner};
 
 // Data structure representing a Full scanner (ARP + SYN)
-pub struct FullScanner {
-    interface: sync::Arc<datalink::NetworkInterface>,
+pub struct FullScanner<'net> {
+    interface: &'net NetworkInterface,
     packet_reader_factory: PacketReaderFactory,
     packet_sender_factory: PacketSenderFactory,
-    targets: sync::Arc<targets::ips::IPTargets>,
-    ports: sync::Arc<targets::ports::PortTargets>,
+    targets: Arc<IPTargets>,
+    ports: Arc<PortTargets>,
     vendor: bool,
     host: bool,
     idle_timeout: Duration,
-    sender: sync::mpsc::Sender<ScanMessage>,
+    sender: mpsc::Sender<ScanMessage>,
     source_port: u16,
 }
 
-// Returns a new instance of ARPScanner
-pub fn new<'targets, 'ports>(
-    interface: sync::Arc<datalink::NetworkInterface>,
-    packet_reader_factory: PacketReaderFactory,
-    packet_sender_factory: PacketSenderFactory,
-    targets: sync::Arc<targets::ips::IPTargets>,
-    ports: sync::Arc<targets::ports::PortTargets>,
-    vendor: bool,
-    host: bool,
-    idle_timeout: Duration,
-    sender: sync::mpsc::Sender<ScanMessage>,
-    source_port: u16,
-) -> FullScanner {
-    FullScanner {
-        interface,
-        packet_reader_factory,
-        packet_sender_factory,
-        targets,
-        ports,
-        vendor,
-        host,
-        idle_timeout,
-        sender,
-        source_port,
+impl<'net> FullScanner<'net> {
+    pub fn new(
+        interface: &'net NetworkInterface,
+        packet_reader_factory: PacketReaderFactory,
+        packet_sender_factory: PacketSenderFactory,
+        targets: Arc<IPTargets>,
+        ports: Arc<PortTargets>,
+        vendor: bool,
+        host: bool,
+        idle_timeout: Duration,
+        sender: mpsc::Sender<ScanMessage>,
+        source_port: u16,
+    ) -> Self {
+        Self {
+            interface,
+            packet_reader_factory,
+            packet_sender_factory,
+            targets,
+            ports,
+            vendor,
+            host,
+            idle_timeout,
+            sender,
+            source_port,
+        }
     }
 }
 
-impl FullScanner {
+impl<'net> FullScanner<'net> {
     fn get_syn_targets_from_arp_scan(&self) -> Vec<Device> {
-        let (tx, rx) = sync::mpsc::channel::<ScanMessage>();
+        let (tx, rx) = mpsc::channel::<ScanMessage>();
 
         let mut syn_targets: Vec<Device> = Vec::new();
 
-        let arp = arp_scanner::new(
-            sync::Arc::clone(&self.interface),
+        let arp = ARPScanner::new(
+            self.interface,
             self.packet_reader_factory,
             self.packet_sender_factory,
-            sync::Arc::clone(&self.targets),
+            Arc::clone(&self.targets),
             self.vendor,
             self.host,
             self.idle_timeout,
@@ -90,15 +92,15 @@ impl FullScanner {
 }
 
 // Implements the Scanner trait for FullScanner
-impl Scanner for FullScanner {
+impl<'net> Scanner for FullScanner<'net> {
     fn scan(&self) {
         let syn_targets = self.get_syn_targets_from_arp_scan();
-        let syn = syn_scanner::new(
-            sync::Arc::clone(&self.interface),
+        let syn = SYNScanner::new(
+            self.interface,
             self.packet_reader_factory,
             self.packet_sender_factory,
-            sync::Arc::new(syn_targets),
-            sync::Arc::clone(&self.ports),
+            syn_targets,
+            Arc::clone(&self.ports),
             self.idle_timeout,
             self.sender.clone(),
             self.source_port,
@@ -108,5 +110,5 @@ impl Scanner for FullScanner {
     }
 }
 
-unsafe impl Sync for FullScanner {}
-unsafe impl Send for FullScanner {}
+unsafe impl<'net> Sync for FullScanner<'net> {}
+unsafe impl<'net> Send for FullScanner<'net> {}

@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use pnet::datalink::{self, DataLinkReceiver, DataLinkSender};
 
-use pnet::datalink::{self, DataLinkReceiver, DataLinkSender, NetworkInterface};
-
-use crate::packet::{Reader, Sender};
+use crate::{
+    network::NetworkInterface,
+    packet::{Reader, Sender},
+};
 
 /**
  * A PNetReader implementation of packet Reader
@@ -44,11 +45,11 @@ impl Sender for PNetSender {
 unsafe impl Send for PNetSender {}
 unsafe impl Sync for PNetSender {}
 
-pub fn new_default_reader(interface: Arc<NetworkInterface>) -> Box<dyn Reader> {
+pub fn new_default_reader(interface: &NetworkInterface) -> Box<dyn Reader> {
     let cfg = pnet::datalink::Config::default();
 
     let channel: (Box<dyn DataLinkSender>, Box<dyn DataLinkReceiver>) =
-        match pnet::datalink::channel(Arc::clone(&interface).as_ref(), cfg) {
+        match pnet::datalink::channel(&interface.into(), cfg) {
             Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => (tx, rx),
             Ok(_) => panic!("Unknown channel type"),
             Err(e) => panic!("Channel error: {e}"),
@@ -59,11 +60,11 @@ pub fn new_default_reader(interface: Arc<NetworkInterface>) -> Box<dyn Reader> {
     })
 }
 
-pub fn new_default_sender(interface: Arc<NetworkInterface>) -> Box<dyn Sender> {
+pub fn new_default_sender(interface: &NetworkInterface) -> Box<dyn Sender> {
     let cfg = pnet::datalink::Config::default();
 
     let channel: (Box<dyn DataLinkSender>, Box<dyn DataLinkReceiver>) =
-        match pnet::datalink::channel(Arc::clone(&interface).as_ref(), cfg) {
+        match pnet::datalink::channel(&interface.into(), cfg) {
             Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => (tx, rx),
             Ok(_) => panic!("Unknown channel type"),
             Err(e) => panic!("Channel error: {e}"),

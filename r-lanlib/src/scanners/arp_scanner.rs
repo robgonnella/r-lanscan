@@ -1,61 +1,68 @@
 use log::*;
 use pnet::{
-    datalink,
     packet::{arp, ethernet, Packet},
+    util::MacAddr,
 };
 
 use core::time;
-use std::{net, str::FromStr, sync, thread, time::Duration};
+use std::{
+    net,
+    str::FromStr,
+    sync::{self, Arc},
+    thread,
+    time::Duration,
+};
 
 use crate::{
-    packet::{self, PacketReaderFactory, PacketSenderFactory},
+    network::NetworkInterface,
+    packet::{arp::ARPPacket, PacketReaderFactory, PacketSenderFactory},
     scanners::Device,
-    targets::{self, LazyLooper},
+    targets::{ips::IPTargets, LazyLooper},
 };
 
 use super::{DeviceStatus, ScanMessage, Scanner};
 
 // Data structure representing an ARP scanner
-pub struct ARPScanner {
-    interface: sync::Arc<datalink::NetworkInterface>,
+pub struct ARPScanner<'net> {
+    interface: &'net NetworkInterface,
     packet_reader_factory: PacketReaderFactory,
     packet_sender_factory: PacketSenderFactory,
-    targets: sync::Arc<targets::ips::IPTargets>,
+    targets: Arc<IPTargets>,
     include_vendor: bool,
     include_host_names: bool,
     idle_timeout: Duration,
     sender: sync::mpsc::Sender<ScanMessage>,
 }
 
-// Returns a new instance of ARPScanner
-pub fn new(
-    interface: sync::Arc<datalink::NetworkInterface>,
-    packet_reader_factory: PacketReaderFactory,
-    packet_sender_factory: PacketSenderFactory,
-    targets: sync::Arc<targets::ips::IPTargets>,
-    vendor: bool,
-    host: bool,
-    idle_timeout: Duration,
-    sender: sync::mpsc::Sender<ScanMessage>,
-) -> ARPScanner {
-    ARPScanner {
-        interface,
-        packet_reader_factory,
-        packet_sender_factory,
-        targets,
-        include_vendor: vendor,
-        include_host_names: host,
-        idle_timeout,
-        sender,
+impl<'net> ARPScanner<'net> {
+    pub fn new(
+        interface: &'net NetworkInterface,
+        packet_reader_factory: PacketReaderFactory,
+        packet_sender_factory: PacketSenderFactory,
+        targets: Arc<IPTargets>,
+        vendor: bool,
+        host: bool,
+        idle_timeout: Duration,
+        sender: sync::mpsc::Sender<ScanMessage>,
+    ) -> Self {
+        Self {
+            interface,
+            packet_reader_factory,
+            packet_sender_factory,
+            targets,
+            include_vendor: vendor,
+            include_host_names: host,
+            idle_timeout,
+            sender,
+        }
     }
 }
 
-impl ARPScanner {
+impl<'net> ARPScanner<'net> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self, done: sync::mpsc::Receiver<()>) {
-        let interface = sync::Arc::clone(&self.interface);
-        let mut packet_reader = (self.packet_reader_factory)(sync::Arc::clone(&self.interface));
+    fn read_packets(&self, done: sync::mpsc::Receiver<()>, source_mac: MacAddr) {
+        let mut packet_reader = (self.packet_reader_factory)(&self.interface);
         let include_host_names = self.include_host_names.clone();
         let include_vendor = self.include_vendor.clone();
         let sender = self.sender.clone();
@@ -74,9 +81,8 @@ impl ARPScanner {
 
                     if let Some(header) = header {
                         let op = header.get_operation();
-                        let this_mac = interface.mac.unwrap();
 
-                        if op == arp::ArpOperations::Reply && eth.get_source() != this_mac {
+                        if op == arp::ArpOperations::Reply && eth.get_source() != source_mac {
                             let sender = sender.clone();
                             let ip4 = header.get_sender_proto_addr();
                             let mac = eth.get_source().to_string();
@@ -102,7 +108,7 @@ impl ARPScanner {
                                         status: DeviceStatus::Online,
                                         vendor,
                                     }))
-                                    .unwrap();
+                                    .expect("failed to send ScanMessage::ARPScanResult");
                             });
                         }
                     }
@@ -113,36 +119,29 @@ impl ARPScanner {
 }
 
 // Implements the Scanner trait for ARPScanner
-impl Scanner for ARPScanner {
+impl<'net> Scanner for ARPScanner<'net> {
     fn scan(&self) {
         debug!("performing ARP scan on targets: {:?}", self.targets);
         debug!("include_vendor: {}", self.include_vendor);
         debug!("include_host_names: {}", self.include_host_names);
         debug!("starting arp packet reader");
         let (done_tx, done_rx) = sync::mpsc::channel::<()>();
-        let mut packet_sender = (self.packet_sender_factory)(sync::Arc::clone(&self.interface));
+        let mut packet_sender = (self.packet_sender_factory)(&self.interface);
         let msg_sender = self.sender.clone();
-        let interface = sync::Arc::clone(&self.interface);
-        let targets = sync::Arc::clone(&self.targets);
-        let idle_timeout = self.idle_timeout.to_owned();
+        let idle_timeout = self.idle_timeout;
+        let source_ipv4 = self.interface.ipv4;
+        let source_mac = self.interface.mac;
+        let targets = Arc::clone(&self.targets);
 
-        self.read_packets(done_rx);
+        self.read_packets(done_rx, source_mac.clone());
 
+        // prevent blocking thread so messages can be freely sent to consumer
         thread::spawn(move || {
             let process_target = |t: String| {
                 thread::sleep(time::Duration::from_micros(100));
                 debug!("scanning ARP target: {}", t);
-                let target_ipv4 = net::Ipv4Addr::from_str(&t).unwrap();
-                let source_ipv4 = interface
-                    .ips
-                    .iter()
-                    .find_map(|ip| match ip.ip() {
-                        net::IpAddr::V4(addr) => Some(addr),
-                        net::IpAddr::V6(_) => None,
-                    })
-                    .unwrap();
-
-                let pkt_buf = packet::arp::new(source_ipv4, interface.mac.unwrap(), target_ipv4);
+                let target_ipv4 = net::Ipv4Addr::from_str(&t).expect("failed to parse ip target");
+                let pkt_buf = ARPPacket::new(source_ipv4, source_mac, target_ipv4);
                 // Send to the broadcast address
                 packet_sender.send(&pkt_buf).unwrap();
             };
@@ -156,5 +155,5 @@ impl Scanner for ARPScanner {
     }
 }
 
-unsafe impl Sync for ARPScanner {}
-unsafe impl Send for ARPScanner {}
+unsafe impl<'net> Sync for ARPScanner<'net> {}
+unsafe impl<'net> Send for ARPScanner<'net> {}

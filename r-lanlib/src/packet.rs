@@ -1,6 +1,4 @@
-use std::sync;
-
-use pnet::datalink;
+use crate::network::NetworkInterface;
 
 pub mod arp;
 pub mod syn;
@@ -14,5 +12,5 @@ pub trait Sender: Send + Sync {
     fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
 }
 
-pub type PacketReaderFactory = fn(sync::Arc<datalink::NetworkInterface>) -> Box<dyn Reader>;
-pub type PacketSenderFactory = fn(sync::Arc<datalink::NetworkInterface>) -> Box<dyn Sender>;
+pub type PacketReaderFactory = fn(&NetworkInterface) -> Box<dyn Reader>;
+pub type PacketSenderFactory = fn(&NetworkInterface) -> Box<dyn Sender>;
