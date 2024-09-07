@@ -1,41 +1,83 @@
-use std::{net::TcpListener, sync};
+use pnet::{
+    datalink::NetworkInterface as PNetNetworkInterface, ipnetwork::IpNetwork, util::MacAddr,
+};
+use std::{
+    error::Error,
+    io,
+    net::{Ipv4Addr, TcpListener},
+    str::FromStr,
+};
 
-use pnet::datalink::NetworkInterface;
-
-pub fn get_interface(name: &str) -> sync::Arc<NetworkInterface> {
-    sync::Arc::new(
-        pnet::datalink::interfaces()
-            .iter()
-            .find(|i| i.name == name)
-            .unwrap()
-            .to_owned(),
-    )
+pub struct NetworkInterface {
+    pub name: String,
+    pub description: String,
+    pub cidr: String,
+    pub ipv4: Ipv4Addr,
+    pub ips: Vec<IpNetwork>,
+    pub mac: MacAddr,
+    pub flags: u32,
+    pub index: u32,
 }
 
-pub fn get_default_interface<'a>() -> sync::Arc<NetworkInterface> {
-    sync::Arc::new(
-        pnet::datalink::interfaces()
-            .iter()
-            .find(|e| e.is_up() && !e.is_loopback() && e.ips.iter().find(|i| i.is_ipv4()).is_some())
-            .unwrap()
-            .to_owned(),
-    )
+impl TryFrom<PNetNetworkInterface> for NetworkInterface {
+    type Error = Box<dyn Error>;
+
+    fn try_from(value: PNetNetworkInterface) -> Result<Self, Self::Error> {
+        let mac = value.mac.ok_or("failed to get mac address for interface")?;
+        let (ip, cidr) =
+            get_interface_ipv4_and_cidr(&value).ok_or("failed to get ip and cidr for interface")?;
+        let ipv4 = Ipv4Addr::from_str(ip.as_str())?;
+
+        Ok(Self {
+            name: value.name,
+            description: value.description,
+            flags: value.flags,
+            index: value.index,
+            mac,
+            ips: value.ips,
+            cidr,
+            ipv4,
+        })
+    }
 }
 
-pub fn get_interface_ipv4(interface: sync::Arc<NetworkInterface>) -> String {
-    let ipnet = interface.ips.iter().find(|i| i.is_ipv4()).unwrap();
-    ipnet.ip().to_string()
+impl From<&NetworkInterface> for PNetNetworkInterface {
+    fn from(value: &NetworkInterface) -> Self {
+        Self {
+            name: value.name.clone(),
+            flags: value.flags.clone(),
+            description: value.description.clone(),
+            index: value.index.clone(),
+            ips: value.ips.clone(),
+            mac: Some(value.mac.clone()),
+        }
+    }
 }
 
-pub fn get_interface_cidr(interface: sync::Arc<NetworkInterface>) -> String {
-    let ipnet = interface.ips.iter().find(|i| i.is_ipv4()).unwrap();
+pub fn get_interface(name: &str) -> Option<NetworkInterface> {
+    let iface = pnet::datalink::interfaces()
+        .into_iter()
+        .find(|i| i.name == name)?;
+    NetworkInterface::try_from(iface).ok()
+}
+
+pub fn get_default_interface<'a>() -> Option<NetworkInterface> {
+    let iface = pnet::datalink::interfaces()
+        .into_iter()
+        .find(|e| e.is_up() && !e.is_loopback() && e.ips.iter().find(|i| i.is_ipv4()).is_some())?;
+    NetworkInterface::try_from(iface).ok()
+}
+
+pub fn get_available_port() -> Result<u16, io::Error> {
+    let listener = TcpListener::bind(("127.0.0.1", 0))?;
+    let addr = listener.local_addr()?;
+    Ok(addr.port())
+}
+
+fn get_interface_ipv4_and_cidr(interface: &PNetNetworkInterface) -> Option<(String, String)> {
+    let ipnet = interface.ips.iter().find(|i| i.is_ipv4())?;
     let ip = ipnet.ip().to_string();
     let prefix = ipnet.prefix().to_string();
-    String::from(format!("{ip}/{prefix}"))
-}
-
-pub fn get_available_port() -> u16 {
-    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let addr = listener.local_addr().unwrap();
-    addr.port()
+    let cidr = String::from(format!("{ip}/{prefix}"));
+    Some((ip, cidr))
 }

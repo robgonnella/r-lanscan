@@ -3,7 +3,6 @@ use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
 use log::*;
-use pnet::datalink::NetworkInterface;
 use simplelog;
 use std::{
     collections::{HashMap, HashSet},
@@ -18,11 +17,13 @@ use std::{
 use ui::store::{action::Action, dispatcher::Dispatcher, types::Theme};
 
 use r_lanlib::{
-    network, packet,
+    network::{self, NetworkInterface},
+    packet,
     scanners::{
-        arp_scanner, syn_scanner, Device, DeviceWithPorts, ScanMessage, Scanner, IDLE_TIMEOUT,
+        arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, DeviceWithPorts, ScanMessage,
+        Scanner, IDLE_TIMEOUT,
     },
-    targets,
+    targets::{ips::IPTargets, ports::PortTargets},
 };
 
 mod config;
@@ -70,17 +71,17 @@ fn get_project_config_path() -> String {
 
 fn process_arp(
     cidr: String,
-    interface: Arc<NetworkInterface>,
+    interface: &NetworkInterface,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
 ) -> (Vec<Device>, Receiver<ScanMessage>) {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
-    let scanner = arp_scanner::new(
+    let scanner = ARPScanner::new(
         interface,
         packet::wire::new_default_reader,
         packet::wire::new_default_sender,
-        targets::ips::new(vec![cidr]),
+        IPTargets::new(vec![cidr]),
         true,
         true,
         time::Duration::from_millis(IDLE_TIMEOUT.into()),
@@ -107,7 +108,7 @@ fn process_arp(
 }
 
 fn process_syn(
-    interface: Arc<NetworkInterface>,
+    interface: &NetworkInterface,
     devices: Vec<Device>,
     ports: Vec<String>,
     rx: Receiver<ScanMessage>,
@@ -126,12 +127,12 @@ fn process_syn(
         })
     }
 
-    let scanner = syn_scanner::new(
+    let scanner = SYNScanner::new(
         interface,
         packet::wire::new_default_reader,
         packet::wire::new_default_sender,
-        Arc::new(devices),
-        targets::ports::new(ports),
+        devices,
+        PortTargets::new(ports),
         time::Duration::from_millis(IDLE_TIMEOUT.into()),
         tx,
         source_port,
@@ -164,17 +165,16 @@ fn process_syn(
 fn monitor_network(
     config: Arc<Config>,
     interface: Arc<NetworkInterface>,
-    cidr: String,
     dispatcher: Arc<Dispatcher>,
 ) {
     info!("starting network monitor");
     thread::spawn(move || {
-        let source_port = network::get_available_port();
+        let source_port = network::get_available_port().expect("unable to find available port");
         let (tx, rx) = mpsc::channel::<ScanMessage>();
-        let (arp_results, rx) = process_arp(cidr.clone(), Arc::clone(&interface), rx, tx.clone());
+        let (arp_results, rx) = process_arp(interface.cidr.clone(), &interface, rx, tx.clone());
 
         let results = process_syn(
-            Arc::clone(&interface),
+            &interface,
             arp_results,
             config.ports.clone(),
             rx,
@@ -186,7 +186,7 @@ fn monitor_network(
 
         info!("network scan completed");
         thread::sleep(time::Duration::from_secs(15));
-        monitor_network(config, interface, cidr, dispatcher);
+        monitor_network(config, interface, dispatcher);
     });
 }
 
@@ -195,15 +195,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     initialize_logger(&args);
 
-    let interface = network::get_default_interface();
-    let cidr = network::get_interface_cidr(Arc::clone(&interface));
+    let interface = network::get_default_interface().expect("could not get default interface");
     let config_path = get_project_config_path();
     let config_manager = Arc::new(Mutex::new(ConfigManager::new(config_path)));
     let dispatcher = Arc::new(Dispatcher::new(Arc::clone(&config_manager)));
 
     let manager = config_manager.lock().unwrap();
     let config: Config;
-    let conf_opt = manager.get_by_cidr(&cidr);
+    let conf_opt = manager.get_by_cidr(&interface.cidr);
     // free up manager lock so dispatches can acquire lock as needed
     drop(manager);
 
@@ -213,7 +212,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         config = Config {
             id: fakeit::animal::animal().to_lowercase(),
-            cidr: cidr.clone(),
+            cidr: interface.cidr.clone(),
             ssh_overrides: HashMap::new(),
             ports: args.ports.clone(),
             theme: Theme::Blue.to_string(),
@@ -223,8 +222,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     monitor_network(
         Arc::new(config),
-        Arc::clone(&interface),
-        cidr,
+        Arc::new(interface),
         Arc::clone(&dispatcher),
     );
 

@@ -2,22 +2,20 @@ use clap::Parser;
 use core::time;
 use itertools::Itertools;
 use log::*;
-use pnet::datalink::NetworkInterface;
 use prettytable;
 use r_lanlib::{
-    network, packet,
+    network::{self, NetworkInterface},
+    packet,
     scanners::{
-        arp_scanner, syn_scanner, Device, DeviceWithPorts, ScanMessage, Scanner, IDLE_TIMEOUT,
+        arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, DeviceWithPorts, ScanMessage,
+        Scanner, IDLE_TIMEOUT,
     },
-    targets,
+    targets::{ips::IPTargets, ports::PortTargets},
 };
 use simplelog;
 use std::{
     collections::HashSet,
-    sync::{
-        mpsc::{self, Receiver, Sender},
-        Arc,
-    },
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 /// Local Area Network ARP and SYN scanning
@@ -57,11 +55,11 @@ struct Args {
     idle_timeout_ms: u16,
 
     /// Choose a specific network interface for the scan
-    #[arg(short, long, default_value_t = network::get_default_interface().name.to_string())]
+    #[arg(short, long, default_value_t = network::get_default_interface().expect("cannot find default interface").name.to_string())]
     interface: String,
 
     /// Sets the port for outgoing / incoming packets
-    #[arg(long, default_value_t = network::get_available_port())]
+    #[arg(long, default_value_t = network::get_available_port().expect("cannot find open port"))]
     source_port: u16,
 }
 
@@ -115,17 +113,17 @@ fn print_args(args: &Args) {
 
 fn process_arp(
     args: &Args,
-    interface: Arc<NetworkInterface>,
+    interface: &NetworkInterface,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
 ) -> (Vec<Device>, Receiver<ScanMessage>) {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
-    let scanner = arp_scanner::new(
+    let scanner = ARPScanner::new(
         interface,
         packet::wire::new_default_reader,
         packet::wire::new_default_sender,
-        targets::ips::new(args.targets.to_owned()),
+        IPTargets::new(args.targets.clone()),
         args.vendor,
         args.dns,
         time::Duration::from_millis(args.idle_timeout_ms.into()),
@@ -176,7 +174,7 @@ fn print_arp(args: &Args, devices: &Vec<Device>) {
 
 fn process_syn(
     args: &Args,
-    interface: Arc<NetworkInterface>,
+    interface: &NetworkInterface,
     devices: Vec<Device>,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
@@ -193,12 +191,12 @@ fn process_syn(
         })
     }
 
-    let scanner = syn_scanner::new(
+    let scanner = SYNScanner::new(
         interface,
         packet::wire::new_default_reader,
         packet::wire::new_default_sender,
-        Arc::new(devices),
-        targets::ports::new(args.ports.to_owned()),
+        devices,
+        PortTargets::new(args.ports.clone()),
         time::Duration::from_millis(args.idle_timeout_ms.into()),
         tx,
         args.source_port,
@@ -269,19 +267,19 @@ fn main() {
 
     initialize_logger(&args);
 
-    let interface = network::get_interface(&args.interface);
+    let interface = network::get_interface(&args.interface).expect("cannot find interface");
 
-    args.interface = interface.name.to_owned();
+    args.interface = interface.name.clone();
 
     if args.targets.len() == 0 {
-        args.targets = vec![network::get_interface_cidr(Arc::clone(&interface))]
+        args.targets = vec![interface.cidr.clone()]
     }
 
     print_args(&args);
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let (arp_results, rx) = process_arp(&args, Arc::clone(&interface), rx, tx.clone());
+    let (arp_results, rx) = process_arp(&args, &interface, rx, tx.clone());
 
     print_arp(&args, &arp_results);
 
@@ -289,6 +287,6 @@ fn main() {
         return;
     }
 
-    let final_results = process_syn(&args, Arc::clone(&interface), arp_results, rx, tx.clone());
+    let final_results = process_syn(&args, &interface, arp_results, rx, tx.clone());
     print_syn(&args, &final_results);
 }

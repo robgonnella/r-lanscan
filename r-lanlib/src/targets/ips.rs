@@ -1,4 +1,4 @@
-use std::{net, str::FromStr, sync};
+use std::{net, str::FromStr, sync::Arc};
 
 use super::LazyLooper;
 
@@ -32,14 +32,16 @@ fn loop_ips<F: FnMut(String)>(list: &Vec<String>, mut cb: F) {
     }
 }
 
-pub fn new(list: Vec<String>) -> sync::Arc<IPTargets> {
-    let mut len = 0;
+impl IPTargets {
+    pub fn new(list: Vec<String>) -> Arc<Self> {
+        let mut len = 0;
 
-    loop_ips(&list, |_| {
-        len += 1;
-    });
+        loop_ips(&list, |_| {
+            len += 1;
+        });
 
-    sync::Arc::new(IPTargets(list, len))
+        Arc::new(Self(list, len))
+    }
 }
 
 impl LazyLooper<String> for IPTargets {
@@ -60,7 +62,7 @@ mod tests {
     #[test]
     fn returns_new_ip_targets() {
         let list = vec![String::from("1"), String::from("2"), String::from("3")];
-        let targets = new(list);
+        let targets = IPTargets::new(list);
         assert!(!targets.0.is_empty());
     }
 
@@ -81,7 +83,7 @@ mod tests {
             String::from("192.128.30.2"),
         ];
 
-        let targets = new(list);
+        let targets = IPTargets::new(list);
 
         let mut idx = 0;
 
