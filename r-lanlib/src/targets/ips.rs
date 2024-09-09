@@ -1,35 +1,75 @@
-use std::{net, str::FromStr, sync::Arc};
+use crate::scanners::ScanError;
 
 use super::LazyLooper;
+use std::{net, str::FromStr, sync::Arc};
 
 #[derive(Debug)]
 pub struct IPTargets(Vec<String>, usize);
 
-fn loop_ips<F: FnMut(String)>(list: &Vec<String>, mut cb: F) {
+fn loop_ips<F: FnMut(String) -> Result<(), ScanError>>(
+    list: &Vec<String>,
+    mut cb: F,
+) -> Result<(), ScanError> {
     for target in list.iter() {
         if target.contains("-") {
             // target is range
             let parts: Vec<&str> = target.split("-").collect();
-            let begin = net::Ipv4Addr::from_str(parts[0]).unwrap();
-            let end = net::Ipv4Addr::from_str(parts[1]).unwrap();
+
+            let begin = net::Ipv4Addr::from_str(parts[0]).or_else(|e| {
+                Err(ScanError {
+                    ip: target.to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
+            let end = net::Ipv4Addr::from_str(parts[1]).or_else(|e| {
+                Err(ScanError {
+                    ip: target.to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
             let subnet = ipnet::Ipv4Subnets::new(begin, end, 32);
+
             for (_, ip_net) in subnet.enumerate() {
                 for ip in ip_net.hosts() {
-                    cb(ip.to_string())
+                    if let Err(err) = cb(ip.to_string()) {
+                        return Err(err);
+                    }
                 }
             }
         } else if target.contains("/") {
             // target is cidr block
-            let ip_net = ipnet::Ipv4Net::from_str(&target).unwrap();
+            let ip_net = ipnet::Ipv4Net::from_str(&target).or_else(|e| {
+                Err(ScanError {
+                    ip: target.to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
             for ip in ip_net.hosts() {
-                cb(ip.to_string());
+                if let Err(err) = cb(ip.to_string()) {
+                    return Err(err);
+                }
             }
         } else {
             // target is ip
-            let ip: net::Ipv4Addr = net::Ipv4Addr::from_str(&target).unwrap();
-            cb(ip.to_string());
+            let ip: net::Ipv4Addr = net::Ipv4Addr::from_str(&target).or_else(|e| {
+                Err(ScanError {
+                    ip: target.to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+            if let Err(err) = cb(ip.to_string()) {
+                return Err(err);
+            }
         }
     }
+    Ok(())
 }
 
 impl IPTargets {
@@ -38,7 +78,9 @@ impl IPTargets {
 
         loop_ips(&list, |_| {
             len += 1;
-        });
+            Ok(())
+        })
+        .unwrap();
 
         Arc::new(Self(list, len))
     }
@@ -49,7 +91,7 @@ impl LazyLooper<String> for IPTargets {
         self.1
     }
 
-    fn lazy_loop<F: FnMut(String)>(&self, cb: F) {
+    fn lazy_loop<F: FnMut(String) -> Result<(), ScanError>>(&self, cb: F) -> Result<(), ScanError> {
         loop_ips(&self.0, cb)
     }
 }
@@ -61,7 +103,11 @@ mod tests {
 
     #[test]
     fn returns_new_ip_targets() {
-        let list = vec![String::from("1"), String::from("2"), String::from("3")];
+        let list = vec![
+            String::from("192.128.28.1"),
+            String::from("192.128.28.2"),
+            String::from("192.128.28.3"),
+        ];
         let targets = IPTargets::new(list);
         assert!(!targets.0.is_empty());
     }
@@ -90,8 +136,9 @@ mod tests {
         let assert_ips = |ip: String| {
             assert_eq!(ip, expected[idx]);
             idx += 1;
+            Ok(())
         };
 
-        targets.lazy_loop(assert_ips);
+        targets.lazy_loop(assert_ips).unwrap();
     }
 }

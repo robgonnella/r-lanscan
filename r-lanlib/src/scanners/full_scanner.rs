@@ -1,6 +1,7 @@
 use log::*;
 use std::{
     sync::{mpsc, Arc},
+    thread::JoinHandle,
     time::Duration,
 };
 
@@ -10,7 +11,9 @@ use crate::{
     targets::{ips::IPTargets, ports::PortTargets},
 };
 
-use super::{arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, ScanMessage, Scanner};
+use super::{
+    arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, ScanError, ScanMessage, Scanner,
+};
 
 // Data structure representing a Full scanner (ARP + SYN)
 pub struct FullScanner<'net> {
@@ -75,14 +78,15 @@ impl<'net> FullScanner<'net> {
 
         loop {
             if let Ok(msg) = rx.recv() {
-                if let Some(_msg) = msg.is_done() {
-                    debug!("arp sending complete");
-                    break;
-                }
-
-                if let Some(device) = msg.is_arp_message() {
-                    debug!("received arp message: {:?}", msg);
-                    syn_targets.push(device.to_owned());
+                match msg {
+                    ScanMessage::Done(_) => {
+                        debug!("arp sending complete");
+                        break;
+                    }
+                    ScanMessage::ARPScanResult(device) => {
+                        syn_targets.push(device.to_owned());
+                    }
+                    _ => {}
                 }
             }
         }
@@ -93,7 +97,7 @@ impl<'net> FullScanner<'net> {
 
 // Implements the Scanner trait for FullScanner
 impl<'net> Scanner for FullScanner<'net> {
-    fn scan(&self) {
+    fn scan(&self) -> JoinHandle<Result<(), ScanError>> {
         let syn_targets = self.get_syn_targets_from_arp_scan();
         let syn = SYNScanner::new(
             self.interface,

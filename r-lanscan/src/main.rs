@@ -7,8 +7,8 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, DeviceWithPorts, ScanMessage,
-        Scanner, IDLE_TIMEOUT,
+        arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, DeviceWithPorts, ScanError,
+        ScanMessage, Scanner, IDLE_TIMEOUT,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
@@ -116,7 +116,7 @@ fn process_arp(
     interface: &NetworkInterface,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
-) -> (Vec<Device>, Receiver<ScanMessage>) {
+) -> Result<(Vec<Device>, Receiver<ScanMessage>), ScanError> {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
     let scanner = ARPScanner::new(
@@ -130,23 +130,28 @@ fn process_arp(
         tx,
     );
 
-    scanner.scan();
+    let handle = scanner.scan();
 
     while let Ok(msg) = rx.recv() {
-        if let Some(_done) = msg.is_done() {
-            debug!("scanning complete");
-            break;
-        }
-        if let Some(m) = msg.is_arp_message() {
-            debug!("received scanning message: {:?}", msg);
-            arp_results.insert(m.to_owned());
+        match msg {
+            ScanMessage::Done(_) => {
+                debug!("scanning complete");
+                break;
+            }
+            ScanMessage::ARPScanResult(m) => {
+                debug!("received scanning message: {:?}", m);
+                arp_results.insert(m.to_owned());
+            }
+            _ => {}
         }
     }
+
+    handle.join().unwrap()?;
 
     let mut items: Vec<Device> = arp_results.into_iter().collect();
     items.sort_by_key(|i| i.ip.to_owned());
 
-    (items, rx)
+    Ok((items, rx))
 }
 
 fn print_arp(args: &Args, devices: &Vec<Device>) {
@@ -178,7 +183,7 @@ fn process_syn(
     devices: Vec<Device>,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
-) -> Vec<DeviceWithPorts> {
+) -> Result<Vec<DeviceWithPorts>, ScanError> {
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
     for d in devices.iter() {
@@ -202,28 +207,33 @@ fn process_syn(
         args.source_port,
     );
 
-    scanner.scan();
+    let handle = scanner.scan();
 
     while let Ok(msg) = rx.recv() {
-        if let Some(_done) = msg.is_done() {
-            debug!("scanning complete");
-            break;
-        }
-        if let Some(m) = msg.is_syn_message() {
-            debug!("received scanning message: {:?}", msg);
-            let device = syn_results.iter_mut().find(|d| d.mac == m.device.mac);
-            match device {
-                Some(d) => {
-                    d.open_ports.insert(m.open_port.to_owned());
-                }
-                None => {
-                    warn!("received syn result for unknown device: {:?}", m);
+        match msg {
+            ScanMessage::Done(_) => {
+                debug!("scanning complete");
+                break;
+            }
+            ScanMessage::SYNScanResult(m) => {
+                debug!("received scanning message: {:?}", m);
+                let device = syn_results.iter_mut().find(|d| d.mac == m.device.mac);
+                match device {
+                    Some(d) => {
+                        d.open_ports.insert(m.open_port.to_owned());
+                    }
+                    None => {
+                        warn!("received syn result for unknown device: {:?}", m);
+                    }
                 }
             }
+            _ => {}
         }
     }
 
-    syn_results
+    handle.join().unwrap()?;
+
+    Ok(syn_results)
 }
 
 fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
@@ -262,7 +272,7 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
     }
 }
 
-fn main() {
+fn main() -> Result<(), ScanError> {
     let mut args = Args::parse();
 
     initialize_logger(&args);
@@ -279,14 +289,16 @@ fn main() {
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let (arp_results, rx) = process_arp(&args, &interface, rx, tx.clone());
+    let (arp_results, rx) = process_arp(&args, &interface, rx, tx.clone())?;
 
     print_arp(&args, &arp_results);
 
     if args.arp_only {
-        return;
+        return Ok(());
     }
 
-    let final_results = process_syn(&args, &interface, arp_results, rx, tx.clone());
+    let final_results = process_syn(&args, &interface, arp_results, rx, tx.clone())?;
     print_syn(&args, &final_results);
+
+    Ok(())
 }

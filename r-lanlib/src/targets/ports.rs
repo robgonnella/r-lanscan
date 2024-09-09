@@ -1,24 +1,53 @@
 use std::sync::Arc;
 
+use crate::scanners::ScanError;
+
 use super::LazyLooper;
 
 #[derive(Debug)]
 pub struct PortTargets(Vec<String>, usize);
 
-fn loop_ports<F: FnMut(u16)>(list: &Vec<String>, mut cb: F) {
+fn loop_ports<F: FnMut(u16) -> Result<(), ScanError>>(
+    list: &Vec<String>,
+    mut cb: F,
+) -> Result<(), ScanError> {
     for target in list.iter() {
         if target.contains("-") {
             let parts: Vec<&str> = target.split("-").collect();
-            let begin = parts[0].parse::<u16>().unwrap();
-            let end = parts[1].parse::<u16>().unwrap();
+            let begin = parts[0].parse::<u16>().or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: Some(target.to_string()),
+                    msg: e.to_string(),
+                })
+            })?;
+            let end = parts[1].parse::<u16>().or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: Some(target.to_string()),
+                    msg: e.to_string(),
+                })
+            })?;
             for port in begin..end {
-                cb(port)
+                if let Err(err) = cb(port) {
+                    return Err(err);
+                }
             }
         } else {
-            let port = target.parse::<u16>().unwrap();
-            cb(port)
+            let port = target.parse::<u16>().or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: Some(target.to_string()),
+                    msg: e.to_string(),
+                })
+            })?;
+            if let Err(err) = cb(port) {
+                return Err(err);
+            }
         }
     }
+
+    Ok(())
 }
 
 impl PortTargets {
@@ -26,7 +55,9 @@ impl PortTargets {
         let mut len = 0;
         loop_ports(&list, |_| {
             len += 1;
-        });
+            Ok(())
+        })
+        .unwrap();
         Arc::new(Self(list, len))
     }
 }
@@ -36,7 +67,7 @@ impl LazyLooper<u16> for PortTargets {
         self.1
     }
 
-    fn lazy_loop<F: FnMut(u16)>(&self, cb: F) {
+    fn lazy_loop<F: FnMut(u16) -> Result<(), ScanError>>(&self, cb: F) -> Result<(), ScanError> {
         loop_ports(&self.0, cb)
     }
 }
@@ -65,8 +96,9 @@ mod tests {
         let assert_ports = |port: u16| {
             assert_eq!(port, expected[idx]);
             idx += 1;
+            Ok(())
         };
 
-        targets.lazy_loop(assert_ports);
+        targets.lazy_loop(assert_ports).unwrap();
     }
 }

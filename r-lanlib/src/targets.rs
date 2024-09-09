@@ -1,3 +1,5 @@
+use crate::scanners::ScanError;
+
 /**
  * This is intended to "lazy loop" vectors of strings where syntax like
  * ranges "-" or cidr "/24" might be used to include more values. In these
@@ -6,7 +8,7 @@
  */
 pub trait LazyLooper<T> {
     fn len(&self) -> usize;
-    fn lazy_loop<F: FnMut(T)>(&self, cb: F);
+    fn lazy_loop<F: FnMut(T) -> Result<(), ScanError>>(&self, cb: F) -> Result<(), ScanError>;
 }
 
 pub mod ips;
