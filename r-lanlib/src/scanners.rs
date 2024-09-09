@@ -1,4 +1,7 @@
 use std::collections::HashSet;
+use std::error::Error;
+use std::fmt;
+use std::thread::JoinHandle;
 
 use serde;
 use serde::{Deserialize, Serialize};
@@ -44,6 +47,38 @@ pub struct DeviceWithPorts {
     pub open_ports: HashSet<Port>,
 }
 
+#[derive(Debug)]
+pub struct Scanning {
+    pub ip: String,
+    pub port: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct ScanError {
+    pub ip: String,
+    pub port: Option<String>,
+    pub msg: String,
+}
+
+impl fmt::Display for ScanError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut msg = format!("failed to scan target: {0}", self.ip);
+
+        if self.port.is_some() {
+            let port = self.port.as_ref().expect("should have port");
+            msg = format!("{msg}:{port}");
+        }
+
+        msg = format!("{msg}: {0}", self.msg);
+
+        write!(f, "{msg}")
+    }
+}
+
+impl Error for ScanError {}
+unsafe impl Send for ScanError {}
+unsafe impl Sync for ScanError {}
+
 // SYN Result from a single device
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SYNScanResult {
@@ -54,38 +89,43 @@ pub struct SYNScanResult {
 #[derive(Debug)]
 pub enum ScanMessage {
     Done(()),
+    Info(Scanning),
     ARPScanResult(Device),
     SYNScanResult(SYNScanResult),
 }
 
 impl ScanMessage {
-    pub fn is_arp_message(&self) -> Option<&Device> {
+    pub fn arp_message(&self) -> Option<&Device> {
         match self {
-            ScanMessage::Done(_msg) => None,
-            ScanMessage::SYNScanResult(_msg) => None,
             ScanMessage::ARPScanResult(msg) => Some(msg),
+            _ => None,
         }
     }
 
-    pub fn is_syn_message(&self) -> Option<&SYNScanResult> {
+    pub fn syn_message(&self) -> Option<&SYNScanResult> {
         match self {
-            ScanMessage::Done(_msg) => None,
             ScanMessage::SYNScanResult(msg) => Some(msg),
-            ScanMessage::ARPScanResult(_msg) => None,
+            _ => None,
         }
     }
 
-    pub fn is_done(&self) -> Option<()> {
+    pub fn info(&self) -> Option<&Scanning> {
+        match self {
+            ScanMessage::Info(msg) => Some(msg),
+            _ => None,
+        }
+    }
+
+    pub fn done(&self) -> Option<()> {
         match self {
             ScanMessage::Done(_msg) => Some(()),
-            ScanMessage::SYNScanResult(_msg) => None,
-            ScanMessage::ARPScanResult(_msg) => None,
+            _ => None,
         }
     }
 }
 
 pub trait Scanner: Sync + Send {
-    fn scan(&self);
+    fn scan(&self) -> JoinHandle<Result<(), ScanError>>;
 }
 
 pub mod arp_scanner;

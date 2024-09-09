@@ -3,19 +3,18 @@ use pnet::{
     packet::{ethernet, ip, ipv4, tcp, Packet},
     util,
 };
-
-use core::time;
 use std::{
     net,
     str::FromStr,
     sync::{mpsc, Arc},
-    thread,
+    thread::{self, JoinHandle},
     time::Duration,
 };
 
 use crate::{
     network::NetworkInterface,
-    packet::{syn::SYNPacket, PacketReaderFactory, PacketSenderFactory},
+    packet::{self, syn::SYNPacket, PacketReaderFactory, PacketSenderFactory},
+    scanners::{ScanError, Scanning},
     targets::{ports::PortTargets, LazyLooper},
 };
 
@@ -60,13 +59,13 @@ impl<'net> SYNScanner<'net> {
 impl<'net> SYNScanner<'net> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self, done_rx: mpsc::Receiver<()>) {
+    fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
         let mut packet_reader = (self.packet_reader_factory)(&self.interface);
         let devices = self.targets.to_owned();
         let sender = self.sender.clone();
         let source_port = self.source_port.to_owned();
 
-        thread::spawn(move || {
+        thread::spawn(move || -> Result<(), ScanError> {
             while let Ok(pkt) = packet_reader.next_packet() {
                 if let Ok(_) = done_rx.try_recv() {
                     debug!("exiting syn packet reader");
@@ -122,24 +121,40 @@ impl<'net> SYNScanner<'net> {
 
                 let device = device.unwrap();
 
+                let port = u16::from_str(&tcp_packet.get_source().to_string());
+
+                if port.is_err() {
+                    continue;
+                }
+
+                let port = port.unwrap();
+
                 sender
                     .send(ScanMessage::SYNScanResult(SYNScanResult {
                         device: device.to_owned(),
                         open_port: Port {
-                            id: u16::from_str(&tcp_packet.get_source().to_string()).unwrap(),
+                            id: port,
                             service: String::from(""),
                             status: PortStatus::Open,
                         },
                     }))
-                    .unwrap();
+                    .or_else(|e| {
+                        Err(ScanError {
+                            ip: device.ip.clone(),
+                            port: Some(port.to_string()),
+                            msg: e.to_string(),
+                        })
+                    })?;
             }
-        });
+
+            Ok(())
+        })
     }
 }
 
 // Implements the Scanner trait for SYNScanner
 impl<'net> Scanner for SYNScanner<'net> {
-    fn scan(&self) {
+    fn scan(&self) -> JoinHandle<Result<(), ScanError>> {
         debug!("performing SYN scan on targets: {:?}", self.targets);
 
         debug!("starting syn packet reader");
@@ -155,39 +170,98 @@ impl<'net> Scanner for SYNScanner<'net> {
         let idle_timeout = self.idle_timeout.to_owned();
         let source_port = self.source_port.to_owned();
 
-        self.read_packets(done_rx);
+        let read_handle = self.read_packets(done_rx);
 
         // prevent blocking thread so messages can be freely sent to consumer
-        thread::spawn(move || {
+        thread::spawn(move || -> Result<(), ScanError> {
             for device in targets.iter() {
-                let process_port = |port: u16| {
-                    thread::sleep(time::Duration::from_micros(100));
+                let process_port = |port: u16| -> Result<(), ScanError> {
+                    // throttle packet sending to prevent packet loss
+                    thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
                     debug!("scanning SYN target: {}:{}", device.ip, port);
 
-                    let ipv4_destination = net::Ipv4Addr::from_str(&device.ip);
+                    let dest_ipv4 = net::Ipv4Addr::from_str(&device.ip).or_else(|e| {
+                        Err(ScanError {
+                            ip: device.ip.clone(),
+                            port: Some(port.to_string()),
+                            msg: e.to_string(),
+                        })
+                    })?;
 
-                    if ipv4_destination.is_ok() {
-                        let dest_ipv4 = ipv4_destination.unwrap();
-                        let dest_mac = util::MacAddr::from_str(&device.mac).unwrap();
-                        let pkt_buf = SYNPacket::new(
-                            source_mac,
-                            source_ipv4,
-                            source_port,
-                            dest_ipv4,
-                            dest_mac,
-                            port,
-                        );
-                        packet_sender.send(&pkt_buf).unwrap();
-                    }
+                    let dest_mac = util::MacAddr::from_str(&device.mac).or_else(|e| {
+                        Err(ScanError {
+                            ip: device.ip.clone(),
+                            port: Some(port.to_string()),
+                            msg: e.to_string(),
+                        })
+                    })?;
+
+                    let pkt_buf = SYNPacket::new(
+                        source_mac,
+                        source_ipv4,
+                        source_port,
+                        dest_ipv4,
+                        dest_mac,
+                        port,
+                    );
+
+                    // send info message to consumer
+                    msg_sender
+                        .send(ScanMessage::Info(Scanning {
+                            ip: device.ip.clone(),
+                            port: Some(port.to_string()),
+                        }))
+                        .or_else(|e| {
+                            Err(ScanError {
+                                ip: device.ip.clone(),
+                                port: Some(port.to_string()),
+                                msg: e.to_string(),
+                            })
+                        })?;
+
+                    // scan device @ port
+                    packet_sender.send(&pkt_buf).or_else(|e| {
+                        Err(ScanError {
+                            ip: device.ip.clone(),
+                            port: Some(port.to_string()),
+                            msg: e.to_string(),
+                        })
+                    })?;
+
+                    Ok(())
                 };
 
-                ports.lazy_loop(process_port)
+                ports.lazy_loop(process_port)?;
             }
 
             thread::sleep(idle_timeout);
-            done_tx.send(()).unwrap();
-            msg_sender.send(ScanMessage::Done(())).unwrap();
-        });
+
+            done_tx.send(()).or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
+            msg_sender.send(ScanMessage::Done(())).or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
+            let read_result = read_handle.join().or_else(|_| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: None,
+                    msg: "encounterd error during syn packet reading".to_string(),
+                })
+            })?;
+
+            read_result
+        })
     }
 }
 

@@ -12,7 +12,7 @@ use std::{
         mpsc::{self, Receiver, Sender},
         Arc, Mutex,
     },
-    thread,
+    thread::{self, JoinHandle},
 };
 use ui::store::{action::Action, dispatcher::Dispatcher, types::Theme};
 
@@ -20,8 +20,8 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, DeviceWithPorts, ScanMessage,
-        Scanner, IDLE_TIMEOUT,
+        arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, DeviceWithPorts, ScanError,
+        ScanMessage, Scanner, IDLE_TIMEOUT,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
@@ -74,7 +74,7 @@ fn process_arp(
     interface: &NetworkInterface,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
-) -> (Vec<Device>, Receiver<ScanMessage>) {
+) -> Result<(Vec<Device>, Receiver<ScanMessage>), ScanError> {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
     let scanner = ARPScanner::new(
@@ -88,23 +88,25 @@ fn process_arp(
         tx,
     );
 
-    scanner.scan();
+    let handle = scanner.scan();
 
     while let Ok(msg) = rx.recv() {
-        if let Some(_done) = msg.is_done() {
+        if let Some(_done) = msg.done() {
             debug!("scanning complete");
             break;
         }
-        if let Some(m) = msg.is_arp_message() {
+        if let Some(m) = msg.arp_message() {
             debug!("received scanning message: {:?}", msg);
             arp_results.insert(m.to_owned());
         }
     }
 
+    handle.join().unwrap()?;
+
     let mut items: Vec<Device> = arp_results.into_iter().collect();
     items.sort_by_key(|i| i.ip.to_owned());
 
-    (items, rx)
+    Ok((items, rx))
 }
 
 fn process_syn(
@@ -114,7 +116,7 @@ fn process_syn(
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
     source_port: u16,
-) -> Vec<DeviceWithPorts> {
+) -> Result<Vec<DeviceWithPorts>, ScanError> {
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
     for d in devices.iter() {
@@ -138,40 +140,53 @@ fn process_syn(
         source_port,
     );
 
-    scanner.scan();
+    let handle = scanner.scan();
 
     while let Ok(msg) = rx.recv() {
-        if let Some(_done) = msg.is_done() {
-            debug!("scanning complete");
-            break;
-        }
-        if let Some(m) = msg.is_syn_message() {
-            debug!("received scanning message: {:?}", msg);
-            let device = syn_results.iter_mut().find(|d| d.mac == m.device.mac);
-            match device {
-                Some(d) => {
-                    d.open_ports.insert(m.open_port.to_owned());
-                }
-                None => {
-                    warn!("received syn result for unknown device: {:?}", m);
+        match msg {
+            ScanMessage::Done(_) => {
+                debug!("scanning complete");
+                break;
+            }
+            ScanMessage::SYNScanResult(m) => {
+                debug!("received scanning message: {:?}", m);
+                let device = syn_results.iter_mut().find(|d| d.mac == m.device.mac);
+                match device {
+                    Some(d) => {
+                        d.open_ports.insert(m.open_port.to_owned());
+                    }
+                    None => {
+                        warn!("received syn result for unknown device: {:?}", m);
+                    }
                 }
             }
+            _ => {}
         }
     }
 
-    syn_results
+    handle.join().unwrap()?;
+
+    Ok(syn_results)
 }
 
 fn monitor_network(
     config: Arc<Config>,
     interface: Arc<NetworkInterface>,
     dispatcher: Arc<Dispatcher>,
-) {
+) -> JoinHandle<Result<(), ScanError>> {
     info!("starting network monitor");
-    thread::spawn(move || {
-        let source_port = network::get_available_port().expect("unable to find available port");
+    thread::spawn(move || -> Result<(), ScanError> {
+        let source_port = network::get_available_port().or_else(|e| {
+            Err(ScanError {
+                ip: "".to_string(),
+                port: None,
+                msg: e.to_string(),
+            })
+        })?;
+
         let (tx, rx) = mpsc::channel::<ScanMessage>();
-        let (arp_results, rx) = process_arp(interface.cidr.clone(), &interface, rx, tx.clone());
+
+        let (arp_results, rx) = process_arp(interface.cidr.clone(), &interface, rx, tx.clone())?;
 
         let results = process_syn(
             &interface,
@@ -180,14 +195,16 @@ fn monitor_network(
             rx,
             tx.clone(),
             source_port,
-        );
+        )?;
 
         dispatcher.dispatch(Action::UpdateDevices(&results));
 
         info!("network scan completed");
+
         thread::sleep(time::Duration::from_secs(15));
-        monitor_network(config, interface, dispatcher);
-    });
+        let handle = monitor_network(config, interface, dispatcher);
+        handle.join().unwrap()
+    })
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -220,6 +237,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         dispatcher.dispatch(Action::CreateAndSetConfig(&config))
     }
 
+    // don't do anything with handle here as this call is recursive
+    // so if we join our main process will never exit
     monitor_network(
         Arc::new(config),
         Arc::new(interface),

@@ -3,20 +3,18 @@ use pnet::{
     packet::{arp, ethernet, Packet},
     util::MacAddr,
 };
-
-use core::time;
 use std::{
     net,
     str::FromStr,
     sync::{self, Arc},
-    thread,
+    thread::{self, JoinHandle},
     time::Duration,
 };
 
 use crate::{
     network::NetworkInterface,
-    packet::{arp::ARPPacket, PacketReaderFactory, PacketSenderFactory},
-    scanners::Device,
+    packet::{self, arp::ARPPacket, PacketReaderFactory, PacketSenderFactory},
+    scanners::{Device, ScanError, Scanning},
     targets::{ips::IPTargets, LazyLooper},
 };
 
@@ -61,13 +59,17 @@ impl<'net> ARPScanner<'net> {
 impl<'net> ARPScanner<'net> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self, done: sync::mpsc::Receiver<()>, source_mac: MacAddr) {
+    fn read_packets(
+        &self,
+        done: sync::mpsc::Receiver<()>,
+        source_mac: MacAddr,
+    ) -> JoinHandle<Result<(), ScanError>> {
         let mut packet_reader = (self.packet_reader_factory)(&self.interface);
         let include_host_names = self.include_host_names.clone();
         let include_vendor = self.include_vendor.clone();
         let sender = self.sender.clone();
 
-        thread::spawn(move || {
+        thread::spawn(move || -> Result<(), ScanError> {
             while let Ok(pkt) = packet_reader.next_packet() {
                 if let Ok(_) = done.try_recv() {
                     debug!("exiting arp packet reader");
@@ -76,51 +78,72 @@ impl<'net> ARPScanner<'net> {
 
                 let eth = &ethernet::EthernetPacket::new(pkt);
 
-                if let Some(eth) = eth {
-                    let header = arp::ArpPacket::new(eth.payload());
+                if eth.is_none() {
+                    continue;
+                }
 
-                    if let Some(header) = header {
-                        let op = header.get_operation();
+                let eth = eth.as_ref().unwrap();
 
-                        if op == arp::ArpOperations::Reply && eth.get_source() != source_mac {
-                            let sender = sender.clone();
-                            let ip4 = header.get_sender_proto_addr();
-                            let mac = eth.get_source().to_string();
-                            thread::spawn(move || {
-                                let mut hostname = String::from("");
-                                if include_host_names {
-                                    debug!("looking up hostname for {}", ip4.to_string());
-                                    if let Ok(host) = dns_lookup::lookup_addr(&ip4.into()) {
-                                        hostname = host;
-                                    }
-                                }
-                                let mut vendor = String::from("");
-                                if include_vendor {
-                                    if let Some(vendor_data) = oui_data::lookup(&mac) {
-                                        vendor = vendor_data.organization().to_owned();
-                                    }
-                                }
-                                sender
-                                    .send(ScanMessage::ARPScanResult(Device {
-                                        hostname,
-                                        ip: ip4.to_string(),
-                                        mac,
-                                        status: DeviceStatus::Online,
-                                        vendor,
-                                    }))
-                                    .expect("failed to send ScanMessage::ARPScanResult");
-                            });
-                        }
+                let header = arp::ArpPacket::new(eth.payload());
+
+                if header.is_none() {
+                    continue;
+                }
+
+                let header = header.unwrap();
+
+                let op = header.get_operation();
+
+                let is_expected_arp_packet =
+                    op == arp::ArpOperations::Reply && eth.get_source() != source_mac;
+
+                if !is_expected_arp_packet {
+                    continue;
+                }
+
+                let ip4 = header.get_sender_proto_addr();
+                let mac = eth.get_source().to_string();
+
+                let mut hostname: String = String::from("");
+                if include_host_names {
+                    debug!("looking up hostname for {}", ip4.to_string());
+                    if let Ok(host) = dns_lookup::lookup_addr(&ip4.into()) {
+                        hostname = host;
                     }
                 }
+
+                let mut vendor = String::from("");
+                if include_vendor {
+                    if let Some(vendor_data) = oui_data::lookup(&mac) {
+                        vendor = vendor_data.organization().to_owned();
+                    }
+                }
+
+                sender
+                    .send(ScanMessage::ARPScanResult(Device {
+                        hostname,
+                        ip: ip4.to_string(),
+                        mac,
+                        status: DeviceStatus::Online,
+                        vendor,
+                    }))
+                    .or_else(|e| {
+                        Err(ScanError {
+                            ip: ip4.to_string(),
+                            port: None,
+                            msg: e.to_string(),
+                        })
+                    })?;
             }
-        });
+
+            Ok(())
+        })
     }
 }
 
 // Implements the Scanner trait for ARPScanner
 impl<'net> Scanner for ARPScanner<'net> {
-    fn scan(&self) {
+    fn scan(&self) -> JoinHandle<Result<(), ScanError>> {
         debug!("performing ARP scan on targets: {:?}", self.targets);
         debug!("include_vendor: {}", self.include_vendor);
         debug!("include_host_names: {}", self.include_host_names);
@@ -133,25 +156,82 @@ impl<'net> Scanner for ARPScanner<'net> {
         let source_mac = self.interface.mac;
         let targets = Arc::clone(&self.targets);
 
-        self.read_packets(done_rx, source_mac.clone());
+        let read_handle = self.read_packets(done_rx, source_mac.clone());
 
         // prevent blocking thread so messages can be freely sent to consumer
-        thread::spawn(move || {
+        thread::spawn(move || -> Result<(), ScanError> {
             let process_target = |t: String| {
-                thread::sleep(time::Duration::from_micros(100));
+                // throttle packet sending to prevent packet loss
+                thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
                 debug!("scanning ARP target: {}", t);
-                let target_ipv4 = net::Ipv4Addr::from_str(&t).expect("failed to parse ip target");
+                let target_ipv4 = net::Ipv4Addr::from_str(&t).or_else(|e| {
+                    Err(ScanError {
+                        ip: t.to_string(),
+                        port: None,
+                        msg: e.to_string(),
+                    })
+                })?;
+
                 let pkt_buf = ARPPacket::new(source_ipv4, source_mac, target_ipv4);
+
+                // inform consumer we are scanning this target (ignore error on fail to send)
+                msg_sender
+                    .send(ScanMessage::Info(Scanning {
+                        ip: t.to_string(),
+                        port: None,
+                    }))
+                    .or_else(|e| {
+                        Err(ScanError {
+                            ip: t.to_string(),
+                            port: None,
+                            msg: e.to_string(),
+                        })
+                    })?;
+
                 // Send to the broadcast address
-                packet_sender.send(&pkt_buf).unwrap();
+                packet_sender.send(&pkt_buf).or_else(|e| {
+                    Err(ScanError {
+                        ip: t.to_string(),
+                        port: None,
+                        msg: e.to_string(),
+                    })
+                })?;
+
+                Ok(())
             };
 
-            targets.lazy_loop(process_target);
+            if let Err(err) = targets.lazy_loop(process_target) {
+                return Err(err);
+            }
 
             thread::sleep(idle_timeout);
-            done_tx.send(()).unwrap();
-            msg_sender.send(ScanMessage::Done(())).unwrap();
-        });
+
+            done_tx.send(()).or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
+            msg_sender.send(ScanMessage::Done(())).or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
+            let read_result = read_handle.join().or_else(|_| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: None,
+                    msg: "error encountered in arp packet reading thread".to_string(),
+                })
+            })?;
+
+            read_result
+        })
     }
 }
 
