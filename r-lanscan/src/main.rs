@@ -15,7 +15,10 @@ use r_lanlib::{
 use simplelog;
 use std::{
     collections::HashSet,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex,
+    },
 };
 
 /// Local Area Network ARP and SYN scanning
@@ -114,6 +117,8 @@ fn print_args(args: &Args) {
 fn process_arp(
     args: &Args,
     interface: &NetworkInterface,
+    packet_reader: Arc<Mutex<dyn packet::Reader>>,
+    packet_sender: Arc<Mutex<dyn packet::Sender>>,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
 ) -> Result<(Vec<Device>, Receiver<ScanMessage>), ScanError> {
@@ -121,8 +126,8 @@ fn process_arp(
 
     let scanner = ARPScanner::new(
         interface,
-        packet::wire::new_default_reader,
-        packet::wire::new_default_sender,
+        packet_reader,
+        packet_sender,
         IPTargets::new(args.targets.clone()),
         args.vendor,
         args.dns,
@@ -180,6 +185,8 @@ fn print_arp(args: &Args, devices: &Vec<Device>) {
 fn process_syn(
     args: &Args,
     interface: &NetworkInterface,
+    packet_reader: Arc<Mutex<dyn packet::Reader>>,
+    packet_sender: Arc<Mutex<dyn packet::Sender>>,
     devices: Vec<Device>,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
@@ -198,8 +205,8 @@ fn process_syn(
 
     let scanner = SYNScanner::new(
         interface,
-        packet::wire::new_default_reader,
-        packet::wire::new_default_sender,
+        packet_reader,
+        packet_sender,
         devices,
         PortTargets::new(args.ports.clone()),
         time::Duration::from_millis(args.idle_timeout_ms.into()),
@@ -289,7 +296,30 @@ fn main() -> Result<(), ScanError> {
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let (arp_results, rx) = process_arp(&args, &interface, rx, tx.clone())?;
+    let packet_reader = packet::wire::new_default_reader(&interface).or_else(|e| {
+        Err(ScanError {
+            ip: "".to_string(),
+            port: None,
+            msg: e.to_string(),
+        })
+    })?;
+
+    let packet_sender = packet::wire::new_default_sender(&interface).or_else(|e| {
+        Err(ScanError {
+            ip: "".to_string(),
+            port: None,
+            msg: e.to_string(),
+        })
+    })?;
+
+    let (arp_results, rx) = process_arp(
+        &args,
+        &interface,
+        Arc::clone(&packet_reader),
+        Arc::clone(&packet_sender),
+        rx,
+        tx.clone(),
+    )?;
 
     print_arp(&args, &arp_results);
 
@@ -297,7 +327,15 @@ fn main() -> Result<(), ScanError> {
         return Ok(());
     }
 
-    let final_results = process_syn(&args, &interface, arp_results, rx, tx.clone())?;
+    let final_results = process_syn(
+        &args,
+        &interface,
+        Arc::clone(&packet_reader),
+        Arc::clone(&packet_sender),
+        arp_results,
+        rx,
+        tx.clone(),
+    )?;
     print_syn(&args, &final_results);
 
     Ok(())

@@ -6,14 +6,14 @@ use pnet::{
 use std::{
     net,
     str::FromStr,
-    sync::{self, Arc},
+    sync::{self, Arc, Mutex},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
 use crate::{
     network::NetworkInterface,
-    packet::{self, arp::ARPPacket, PacketReaderFactory, PacketSenderFactory},
+    packet::{self, arp::ARPPacket, Reader, Sender},
     scanners::{Device, ScanError, Scanning},
     targets::{ips::IPTargets, LazyLooper},
 };
@@ -23,8 +23,8 @@ use super::{DeviceStatus, ScanMessage, Scanner};
 // Data structure representing an ARP scanner
 pub struct ARPScanner<'net> {
     interface: &'net NetworkInterface,
-    packet_reader_factory: PacketReaderFactory,
-    packet_sender_factory: PacketSenderFactory,
+    packet_reader: Arc<Mutex<dyn Reader>>,
+    packet_sender: Arc<Mutex<dyn Sender>>,
     targets: Arc<IPTargets>,
     include_vendor: bool,
     include_host_names: bool,
@@ -35,8 +35,8 @@ pub struct ARPScanner<'net> {
 impl<'net> ARPScanner<'net> {
     pub fn new(
         interface: &'net NetworkInterface,
-        packet_reader_factory: PacketReaderFactory,
-        packet_sender_factory: PacketSenderFactory,
+        packet_reader: Arc<Mutex<dyn Reader>>,
+        packet_sender: Arc<Mutex<dyn Sender>>,
         targets: Arc<IPTargets>,
         vendor: bool,
         host: bool,
@@ -45,8 +45,8 @@ impl<'net> ARPScanner<'net> {
     ) -> Self {
         Self {
             interface,
-            packet_reader_factory,
-            packet_sender_factory,
+            packet_reader,
+            packet_sender,
             targets,
             include_vendor: vendor,
             include_host_names: host,
@@ -64,13 +64,21 @@ impl<'net> ARPScanner<'net> {
         done: sync::mpsc::Receiver<()>,
         source_mac: MacAddr,
     ) -> JoinHandle<Result<(), ScanError>> {
-        let mut packet_reader = (self.packet_reader_factory)(&self.interface);
+        let packet_reader = Arc::clone(&self.packet_reader);
         let include_host_names = self.include_host_names.clone();
         let include_vendor = self.include_vendor.clone();
         let sender = self.sender.clone();
 
         thread::spawn(move || -> Result<(), ScanError> {
-            while let Ok(pkt) = packet_reader.next_packet() {
+            let mut reader = packet_reader.lock().or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
+            while let Ok(pkt) = reader.next_packet() {
                 if let Ok(_) = done.try_recv() {
                     debug!("exiting arp packet reader");
                     break;
@@ -149,7 +157,7 @@ impl<'net> Scanner for ARPScanner<'net> {
         debug!("include_host_names: {}", self.include_host_names);
         debug!("starting arp packet reader");
         let (done_tx, done_rx) = sync::mpsc::channel::<()>();
-        let mut packet_sender = (self.packet_sender_factory)(&self.interface);
+        let packet_sender = Arc::clone(&self.packet_sender);
         let msg_sender = self.sender.clone();
         let idle_timeout = self.idle_timeout;
         let source_ipv4 = self.interface.ipv4;
@@ -188,8 +196,16 @@ impl<'net> Scanner for ARPScanner<'net> {
                         })
                     })?;
 
+                let mut sender = packet_sender.lock().or_else(|e| {
+                    Err(ScanError {
+                        ip: "".to_string(),
+                        port: None,
+                        msg: e.to_string(),
+                    })
+                })?;
+
                 // Send to the broadcast address
-                packet_sender.send(&pkt_buf).or_else(|e| {
+                sender.send(&pkt_buf).or_else(|e| {
                     Err(ScanError {
                         ip: t.to_string(),
                         port: None,

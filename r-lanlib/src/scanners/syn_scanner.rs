@@ -6,14 +6,14 @@ use pnet::{
 use std::{
     net,
     str::FromStr,
-    sync::{mpsc, Arc},
+    sync::{mpsc, Arc, Mutex},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
 use crate::{
     network::NetworkInterface,
-    packet::{self, syn::SYNPacket, PacketReaderFactory, PacketSenderFactory},
+    packet::{self, syn::SYNPacket, Reader, Sender},
     scanners::{ScanError, Scanning},
     targets::{ports::PortTargets, LazyLooper},
 };
@@ -23,8 +23,8 @@ use super::{Device, Port, PortStatus, SYNScanResult, ScanMessage, Scanner};
 // Data structure representing an ARP scanner
 pub struct SYNScanner<'net> {
     interface: &'net NetworkInterface,
-    packet_reader_factory: PacketReaderFactory,
-    packet_sender_factory: PacketSenderFactory,
+    packet_reader: Arc<Mutex<dyn Reader>>,
+    packet_sender: Arc<Mutex<dyn Sender>>,
     targets: Vec<Device>,
     ports: Arc<PortTargets>,
     idle_timeout: Duration,
@@ -35,8 +35,8 @@ pub struct SYNScanner<'net> {
 impl<'net> SYNScanner<'net> {
     pub fn new(
         interface: &'net NetworkInterface,
-        packet_reader_factory: PacketReaderFactory,
-        packet_sender_factory: PacketSenderFactory,
+        packet_reader: Arc<Mutex<dyn Reader>>,
+        packet_sender: Arc<Mutex<dyn Sender>>,
         targets: Vec<Device>,
         ports: Arc<PortTargets>,
         idle_timeout: Duration,
@@ -45,8 +45,8 @@ impl<'net> SYNScanner<'net> {
     ) -> Self {
         Self {
             interface,
-            packet_reader_factory,
-            packet_sender_factory,
+            packet_reader,
+            packet_sender,
             targets,
             ports,
             idle_timeout,
@@ -60,13 +60,21 @@ impl<'net> SYNScanner<'net> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
-        let mut packet_reader = (self.packet_reader_factory)(&self.interface);
+        let packet_reader = Arc::clone(&self.packet_reader);
         let devices = self.targets.to_owned();
         let sender = self.sender.clone();
         let source_port = self.source_port.to_owned();
 
         thread::spawn(move || -> Result<(), ScanError> {
-            while let Ok(pkt) = packet_reader.next_packet() {
+            let mut reader = packet_reader.lock().or_else(|e| {
+                Err(ScanError {
+                    ip: "".to_string(),
+                    port: None,
+                    msg: e.to_string(),
+                })
+            })?;
+
+            while let Ok(pkt) = reader.next_packet() {
                 if let Ok(_) = done_rx.try_recv() {
                     debug!("exiting syn packet reader");
                     break;
@@ -161,7 +169,7 @@ impl<'net> Scanner for SYNScanner<'net> {
 
         let (done_tx, done_rx) = mpsc::channel::<()>();
         let msg_sender = self.sender.clone();
-        let mut packet_sender = (self.packet_sender_factory)(&self.interface);
+        let packet_sender = Arc::clone(&self.packet_sender);
         let targets = self.targets.clone();
         let interface = self.interface;
         let source_ipv4 = interface.ipv4;
@@ -219,8 +227,16 @@ impl<'net> Scanner for SYNScanner<'net> {
                             })
                         })?;
 
+                    let mut sender = packet_sender.lock().or_else(|e| {
+                        Err(ScanError {
+                            ip: "".to_string(),
+                            port: None,
+                            msg: e.to_string(),
+                        })
+                    })?;
+
                     // scan device @ port
-                    packet_sender.send(&pkt_buf).or_else(|e| {
+                    sender.send(&pkt_buf).or_else(|e| {
                         Err(ScanError {
                             ip: device.ip.clone(),
                             port: Some(port.to_string()),

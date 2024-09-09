@@ -1,13 +1,13 @@
 use log::*;
 use std::{
-    sync::{mpsc, Arc},
+    sync::{mpsc, Arc, Mutex},
     thread::JoinHandle,
     time::Duration,
 };
 
 use crate::{
     network::NetworkInterface,
-    packet::{PacketReaderFactory, PacketSenderFactory},
+    packet::{Reader, Sender},
     targets::{ips::IPTargets, ports::PortTargets},
 };
 
@@ -18,8 +18,8 @@ use super::{
 // Data structure representing a Full scanner (ARP + SYN)
 pub struct FullScanner<'net> {
     interface: &'net NetworkInterface,
-    packet_reader_factory: PacketReaderFactory,
-    packet_sender_factory: PacketSenderFactory,
+    packet_reader: Arc<Mutex<dyn Reader>>,
+    packet_sender: Arc<Mutex<dyn Sender>>,
     targets: Arc<IPTargets>,
     ports: Arc<PortTargets>,
     vendor: bool,
@@ -32,8 +32,8 @@ pub struct FullScanner<'net> {
 impl<'net> FullScanner<'net> {
     pub fn new(
         interface: &'net NetworkInterface,
-        packet_reader_factory: PacketReaderFactory,
-        packet_sender_factory: PacketSenderFactory,
+        packet_reader: Arc<Mutex<dyn Reader>>,
+        packet_sender: Arc<Mutex<dyn Sender>>,
         targets: Arc<IPTargets>,
         ports: Arc<PortTargets>,
         vendor: bool,
@@ -44,8 +44,8 @@ impl<'net> FullScanner<'net> {
     ) -> Self {
         Self {
             interface,
-            packet_reader_factory,
-            packet_sender_factory,
+            packet_reader,
+            packet_sender,
             targets,
             ports,
             vendor,
@@ -65,8 +65,8 @@ impl<'net> FullScanner<'net> {
 
         let arp = ARPScanner::new(
             self.interface,
-            self.packet_reader_factory,
-            self.packet_sender_factory,
+            Arc::clone(&self.packet_reader),
+            Arc::clone(&self.packet_sender),
             Arc::clone(&self.targets),
             self.vendor,
             self.host,
@@ -101,8 +101,8 @@ impl<'net> Scanner for FullScanner<'net> {
         let syn_targets = self.get_syn_targets_from_arp_scan();
         let syn = SYNScanner::new(
             self.interface,
-            self.packet_reader_factory,
-            self.packet_sender_factory,
+            Arc::clone(&self.packet_reader),
+            Arc::clone(&self.packet_sender),
             syn_targets,
             Arc::clone(&self.ports),
             self.idle_timeout,

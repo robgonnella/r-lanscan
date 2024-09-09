@@ -1,4 +1,9 @@
-use pnet::datalink::{self, DataLinkReceiver, DataLinkSender};
+use std::{
+    error::Error,
+    sync::{Arc, Mutex},
+};
+
+use pnet::datalink;
 
 use crate::{
     network::NetworkInterface,
@@ -33,7 +38,7 @@ impl Sender for PNetSender {
     fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error> {
         let opt = self.sender.send_to(packet, None);
         match opt {
-            Some(_res) => Ok(()),
+            Some(res) => res,
             None => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "failed to send packet",
@@ -45,30 +50,38 @@ impl Sender for PNetSender {
 unsafe impl Send for PNetSender {}
 unsafe impl Sync for PNetSender {}
 
-pub fn new_default_reader(interface: &NetworkInterface) -> Box<dyn Reader> {
+pub fn new_default_reader(
+    interface: &NetworkInterface,
+) -> Result<Arc<Mutex<dyn Reader>>, Box<dyn Error>> {
     let cfg = pnet::datalink::Config::default();
 
-    let channel: (Box<dyn DataLinkSender>, Box<dyn DataLinkReceiver>) =
-        match pnet::datalink::channel(&interface.into(), cfg) {
-            Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => (tx, rx),
-            Ok(_) => panic!("Unknown channel type"),
-            Err(e) => panic!("Channel error: {e}"),
-        };
+    let channel = match pnet::datalink::channel(&interface.into(), cfg) {
+        Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
+        Ok(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "failed to create packet reader",
+        )),
+        Err(e) => Err(e),
+    }?;
 
-    Box::new(PNetReader {
+    Ok(Arc::new(Mutex::new(PNetReader {
         receiver: channel.1,
-    })
+    })))
 }
 
-pub fn new_default_sender(interface: &NetworkInterface) -> Box<dyn Sender> {
+pub fn new_default_sender(
+    interface: &NetworkInterface,
+) -> Result<Arc<Mutex<dyn Sender>>, Box<dyn Error>> {
     let cfg = pnet::datalink::Config::default();
 
-    let channel: (Box<dyn DataLinkSender>, Box<dyn DataLinkReceiver>) =
-        match pnet::datalink::channel(&interface.into(), cfg) {
-            Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => (tx, rx),
-            Ok(_) => panic!("Unknown channel type"),
-            Err(e) => panic!("Channel error: {e}"),
-        };
+    let channel = match pnet::datalink::channel(&interface.into(), cfg) {
+        Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
+        Ok(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "failed to create packet sender",
+        )),
+        Err(e) => Err(e),
+    }?;
 
-    Box::new(PNetSender { sender: channel.0 })
+    Ok(Arc::new(Mutex::new(PNetSender { sender: channel.0 })))
 }

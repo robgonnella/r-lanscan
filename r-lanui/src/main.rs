@@ -70,6 +70,8 @@ fn get_project_config_path() -> String {
 }
 
 fn process_arp(
+    packet_reader: Arc<Mutex<dyn packet::Reader>>,
+    packet_sender: Arc<Mutex<dyn packet::Sender>>,
     cidr: String,
     interface: &NetworkInterface,
     rx: Receiver<ScanMessage>,
@@ -79,8 +81,8 @@ fn process_arp(
 
     let scanner = ARPScanner::new(
         interface,
-        packet::wire::new_default_reader,
-        packet::wire::new_default_sender,
+        packet_reader,
+        packet_sender,
         IPTargets::new(vec![cidr]),
         true,
         true,
@@ -110,6 +112,8 @@ fn process_arp(
 }
 
 fn process_syn(
+    packet_reader: Arc<Mutex<dyn packet::Reader>>,
+    packet_sender: Arc<Mutex<dyn packet::Sender>>,
     interface: &NetworkInterface,
     devices: Vec<Device>,
     ports: Vec<String>,
@@ -131,8 +135,8 @@ fn process_syn(
 
     let scanner = SYNScanner::new(
         interface,
-        packet::wire::new_default_reader,
-        packet::wire::new_default_sender,
+        packet_reader,
+        packet_sender,
         devices,
         PortTargets::new(ports),
         time::Duration::from_millis(IDLE_TIMEOUT.into()),
@@ -186,9 +190,34 @@ fn monitor_network(
 
         let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-        let (arp_results, rx) = process_arp(interface.cidr.clone(), &interface, rx, tx.clone())?;
+        let packet_reader = packet::wire::new_default_reader(&interface).or_else(|e| {
+            Err(ScanError {
+                ip: "".to_string(),
+                port: None,
+                msg: e.to_string(),
+            })
+        })?;
+
+        let packet_sender = packet::wire::new_default_sender(&interface).or_else(|e| {
+            Err(ScanError {
+                ip: "".to_string(),
+                port: None,
+                msg: e.to_string(),
+            })
+        })?;
+
+        let (arp_results, rx) = process_arp(
+            Arc::clone(&packet_reader),
+            Arc::clone(&packet_sender),
+            interface.cidr.clone(),
+            &interface,
+            rx,
+            tx.clone(),
+        )?;
 
         let results = process_syn(
+            Arc::clone(&packet_reader),
+            Arc::clone(&packet_sender),
             &interface,
             arp_results,
             config.ports.clone(),

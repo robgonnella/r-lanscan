@@ -1,7 +1,5 @@
 use core::time;
 
-use crate::network::NetworkInterface;
-
 pub mod arp;
 pub mod syn;
 pub mod wire;
@@ -16,6 +14,3 @@ pub trait Reader: Send + Sync {
 pub trait Sender: Send + Sync {
     fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
 }
-
-pub type PacketReaderFactory = fn(&NetworkInterface) -> Box<dyn Reader>;
-pub type PacketSenderFactory = fn(&NetworkInterface) -> Box<dyn Sender>;
