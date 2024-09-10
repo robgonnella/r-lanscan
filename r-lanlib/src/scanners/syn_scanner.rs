@@ -4,6 +4,7 @@ use pnet::{
     util,
 };
 use std::{
+    io::{Error as IOError, ErrorKind},
     net,
     str::FromStr,
     sync::{mpsc, Arc, Mutex},
@@ -15,7 +16,7 @@ use crate::{
     network::NetworkInterface,
     packet::{self, syn::SYNPacket, Reader, Sender},
     scanners::{ScanError, Scanning},
-    targets::{ports::PortTargets, LazyLooper},
+    targets::ports::PortTargets,
 };
 
 use super::{Device, Port, PortStatus, SYNScanResult, ScanMessage, Scanner};
@@ -27,9 +28,9 @@ pub struct SYNScanner<'net> {
     packet_sender: Arc<Mutex<dyn Sender>>,
     targets: Vec<Device>,
     ports: Arc<PortTargets>,
+    source_port: u16,
     idle_timeout: Duration,
     sender: mpsc::Sender<ScanMessage>,
-    source_port: u16,
 }
 
 impl<'net> SYNScanner<'net> {
@@ -39,9 +40,9 @@ impl<'net> SYNScanner<'net> {
         packet_sender: Arc<Mutex<dyn Sender>>,
         targets: Vec<Device>,
         ports: Arc<PortTargets>,
+        source_port: u16,
         idle_timeout: Duration,
         sender: mpsc::Sender<ScanMessage>,
-        source_port: u16,
     ) -> Self {
         Self {
             interface,
@@ -49,9 +50,9 @@ impl<'net> SYNScanner<'net> {
             packet_sender,
             targets,
             ports,
+            source_port,
             idle_timeout,
             sender,
-            source_port,
         }
     }
 }
@@ -68,9 +69,9 @@ impl<'net> SYNScanner<'net> {
         thread::spawn(move || -> Result<(), ScanError> {
             let mut reader = packet_reader.lock().or_else(|e| {
                 Err(ScanError {
-                    ip: "".to_string(),
+                    ip: None,
                     port: None,
-                    msg: e.to_string(),
+                    error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
                 })
             })?;
 
@@ -148,9 +149,9 @@ impl<'net> SYNScanner<'net> {
                     }))
                     .or_else(|e| {
                         Err(ScanError {
-                            ip: device.ip.clone(),
+                            ip: Some(device.ip.clone()),
                             port: Some(port.to_string()),
-                            msg: e.to_string(),
+                            error: Box::from(e),
                         })
                     })?;
             }
@@ -190,17 +191,17 @@ impl<'net> Scanner for SYNScanner<'net> {
 
                     let dest_ipv4 = net::Ipv4Addr::from_str(&device.ip).or_else(|e| {
                         Err(ScanError {
-                            ip: device.ip.clone(),
+                            ip: Some(device.ip.clone()),
                             port: Some(port.to_string()),
-                            msg: e.to_string(),
+                            error: Box::from(e),
                         })
                     })?;
 
                     let dest_mac = util::MacAddr::from_str(&device.mac).or_else(|e| {
                         Err(ScanError {
-                            ip: device.ip.clone(),
+                            ip: Some(device.ip.clone()),
                             port: Some(port.to_string()),
-                            msg: e.to_string(),
+                            error: Box::from(e),
                         })
                     })?;
 
@@ -221,26 +222,26 @@ impl<'net> Scanner for SYNScanner<'net> {
                         }))
                         .or_else(|e| {
                             Err(ScanError {
-                                ip: device.ip.clone(),
+                                ip: Some(device.ip.clone()),
                                 port: Some(port.to_string()),
-                                msg: e.to_string(),
+                                error: Box::from(e),
                             })
                         })?;
 
                     let mut sender = packet_sender.lock().or_else(|e| {
                         Err(ScanError {
-                            ip: "".to_string(),
+                            ip: None,
                             port: None,
-                            msg: e.to_string(),
+                            error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
                         })
                     })?;
 
                     // scan device @ port
                     sender.send(&pkt_buf).or_else(|e| {
                         Err(ScanError {
-                            ip: device.ip.clone(),
+                            ip: Some(device.ip.clone()),
                             port: Some(port.to_string()),
-                            msg: e.to_string(),
+                            error: Box::from(e),
                         })
                     })?;
 
@@ -254,25 +255,28 @@ impl<'net> Scanner for SYNScanner<'net> {
 
             done_tx.send(()).or_else(|e| {
                 Err(ScanError {
-                    ip: "".to_string(),
+                    ip: None,
                     port: None,
-                    msg: e.to_string(),
+                    error: Box::from(e),
                 })
             })?;
 
             msg_sender.send(ScanMessage::Done(())).or_else(|e| {
                 Err(ScanError {
-                    ip: "".to_string(),
+                    ip: None,
                     port: None,
-                    msg: e.to_string(),
+                    error: Box::from(e),
                 })
             })?;
 
             let read_result = read_handle.join().or_else(|_| {
                 Err(ScanError {
-                    ip: "".to_string(),
+                    ip: None,
                     port: None,
-                    msg: "encounterd error during syn packet reading".to_string(),
+                    error: Box::from(IOError::new(
+                        ErrorKind::Other,
+                        "encounterd error during syn packet reading",
+                    )),
                 })
             })?;
 
