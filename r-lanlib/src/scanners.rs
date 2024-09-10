@@ -55,22 +55,19 @@ pub struct Scanning {
 
 #[derive(Debug)]
 pub struct ScanError {
-    pub ip: String,
+    pub ip: Option<String>,
     pub port: Option<String>,
-    pub msg: String,
+    pub error: Box<dyn Error>,
 }
 
 impl fmt::Display for ScanError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut msg = format!("failed to scan target: {0}", self.ip);
-
-        if self.port.is_some() {
-            let port = self.port.as_ref().expect("should have port");
-            msg = format!("{msg}:{port}");
-        }
-
-        msg = format!("{msg}: {0}", self.msg);
-
+        let ip = self.ip.clone().unwrap_or(String::from(""));
+        let port = self.port.clone().unwrap_or(String::from(""));
+        let msg = format!(
+            "scanning error: ip {ip}, port: {port}, msg: {0}",
+            self.error
+        );
         write!(f, "{msg}")
     }
 }

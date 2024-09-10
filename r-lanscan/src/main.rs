@@ -1,4 +1,5 @@
 use clap::Parser;
+use color_eyre::eyre::{eyre, Report, Result};
 use core::time;
 use itertools::Itertools;
 use log::*;
@@ -15,6 +16,7 @@ use r_lanlib::{
 use simplelog;
 use std::{
     collections::HashSet,
+    env,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc, Mutex,
@@ -64,29 +66,17 @@ struct Args {
     /// Sets the port for outgoing / incoming packets
     #[arg(long, default_value_t = network::get_available_port().expect("cannot find open port"))]
     source_port: u16,
+
+    /// Prints debug logs including those from r-lanlib
+    #[arg(long, default_value_t = false)]
+    debug: bool,
 }
 
-#[cfg(feature = "debug_logs")]
 fn initialize_logger(args: &Args) {
     let filter = if args.quiet {
         simplelog::LevelFilter::Error
-    } else {
-        simplelog::LevelFilter::max()
-    };
-
-    simplelog::TermLogger::init(
-        filter,
-        simplelog::Config::default(),
-        simplelog::TerminalMode::Mixed,
-        simplelog::ColorChoice::Auto,
-    )
-    .unwrap();
-}
-
-#[cfg(not(feature = "debug_logs"))]
-fn initialize_logger(args: &Args) {
-    let filter = if args.quiet {
-        simplelog::LevelFilter::Error
+    } else if args.debug {
+        simplelog::LevelFilter::Debug
     } else {
         simplelog::LevelFilter::Info
     };
@@ -209,9 +199,9 @@ fn process_syn(
         packet_sender,
         devices,
         PortTargets::new(args.ports.clone()),
+        args.source_port,
         time::Duration::from_millis(args.idle_timeout_ms.into()),
         tx,
-        args.source_port,
     );
 
     let handle = scanner.scan();
@@ -279,10 +269,23 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
     }
 }
 
-fn main() -> Result<(), ScanError> {
+fn is_root() -> bool {
+    match env::var("USER") {
+        Ok(val) => val == "root",
+        Err(_e) => false,
+    }
+}
+
+fn main() -> Result<(), Report> {
+    color_eyre::install()?;
+
     let mut args = Args::parse();
 
     initialize_logger(&args);
+
+    if !is_root() {
+        return Err(eyre!("permission denied: must run with root privileges"));
+    }
 
     let interface = network::get_interface(&args.interface).expect("cannot find interface");
 
@@ -298,17 +301,17 @@ fn main() -> Result<(), ScanError> {
 
     let packet_reader = packet::wire::new_default_reader(&interface).or_else(|e| {
         Err(ScanError {
-            ip: "".to_string(),
+            ip: None,
             port: None,
-            msg: e.to_string(),
+            error: Box::from(e),
         })
     })?;
 
     let packet_sender = packet::wire::new_default_sender(&interface).or_else(|e| {
         Err(ScanError {
-            ip: "".to_string(),
+            ip: None,
             port: None,
-            msg: e.to_string(),
+            error: Box::from(e),
         })
     })?;
 

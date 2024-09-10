@@ -1,19 +1,17 @@
+use color_eyre::eyre::Report;
 use core::time;
 use log::*;
-use std::{collections::HashMap, error::Error, io, sync::Arc};
-
 use ratatui::{
     backend::Backend,
     crossterm::event::{self, Event, KeyCode},
     Terminal,
 };
+use std::{collections::HashMap, io, sync::Arc};
 
 use super::{
     store::{dispatcher::Dispatcher, types::ViewName},
-    views::{config::ConfigView, device::DeviceView, devices::DevicesView},
+    views::{config::ConfigView, device::DeviceView, devices::DevicesView, View},
 };
-
-use super::views::View;
 
 struct App {
     dispatcher: Arc<Dispatcher>,
@@ -43,9 +41,7 @@ impl App {
     }
 }
 
-pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Box<dyn Error>> {
-    color_eyre::install()?;
-
+pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Report> {
     // setup terminal
     let mut terminal = ratatui::init();
     let app = App::new(dispatcher);

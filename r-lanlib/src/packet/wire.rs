@@ -17,7 +17,7 @@ pub struct PNetReader {
     receiver: Box<dyn datalink::DataLinkReceiver>,
 }
 
-// Implements the PacketReader trait for our BPF implementation
+// Implements the Reader trait for our PNet implementation
 impl Reader for PNetReader {
     fn next_packet(&mut self) -> Result<&[u8], std::io::Error> {
         self.receiver.next()
@@ -34,6 +34,7 @@ pub struct PNetSender {
     sender: Box<dyn datalink::DataLinkSender>,
 }
 
+// Implements the Sender trait for our PNet implementation
 impl Sender for PNetSender {
     fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error> {
         let opt = self.sender.send_to(packet, None);
@@ -84,4 +85,39 @@ pub fn new_default_sender(
     }?;
 
     Ok(Arc::new(Mutex::new(PNetSender { sender: channel.0 })))
+}
+
+#[cfg(test)]
+mod tests {
+    use datalink::MacAddr;
+    use std::{net::Ipv4Addr, str::FromStr};
+
+    use super::*;
+
+    fn get_default_interface() -> NetworkInterface {
+        NetworkInterface {
+            cidr: "172.17.0.1/24".to_string(),
+            description: "description".to_string(),
+            flags: 0,
+            index: 1,
+            ips: Vec::new(),
+            ipv4: Ipv4Addr::from_str("172.17.0.1").unwrap(),
+            mac: MacAddr::from_str("00:00:00:00:00:00").unwrap(),
+            name: "en0".to_string(),
+        }
+    }
+
+    #[test]
+    fn creates_default_reader() {
+        let interface = get_default_interface();
+        let reader = new_default_reader(&interface);
+        assert!(reader.is_ok())
+    }
+
+    #[test]
+    fn creates_default_sender() {
+        let interface = get_default_interface();
+        let sender = new_default_sender(&interface);
+        assert!(sender.is_ok())
+    }
 }

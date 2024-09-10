@@ -4,8 +4,8 @@ use pnet::{
     util::MacAddr,
 };
 use std::{
+    io::{Error as IOError, ErrorKind},
     net,
-    str::FromStr,
     sync::{self, Arc, Mutex},
     thread::{self, JoinHandle},
     time::Duration,
@@ -15,7 +15,7 @@ use crate::{
     network::NetworkInterface,
     packet::{self, arp::ARPPacket, Reader, Sender},
     scanners::{Device, ScanError, Scanning},
-    targets::{ips::IPTargets, LazyLooper},
+    targets::ips::IPTargets,
 };
 
 use super::{DeviceStatus, ScanMessage, Scanner};
@@ -72,9 +72,9 @@ impl<'net> ARPScanner<'net> {
         thread::spawn(move || -> Result<(), ScanError> {
             let mut reader = packet_reader.lock().or_else(|e| {
                 Err(ScanError {
-                    ip: "".to_string(),
+                    ip: None,
                     port: None,
-                    msg: e.to_string(),
+                    error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
                 })
             })?;
 
@@ -137,9 +137,9 @@ impl<'net> ARPScanner<'net> {
                     }))
                     .or_else(|e| {
                         Err(ScanError {
-                            ip: ip4.to_string(),
+                            ip: Some(ip4.to_string()),
                             port: None,
-                            msg: e.to_string(),
+                            error: Box::from(e),
                         })
                     })?;
             }
@@ -168,48 +168,42 @@ impl<'net> Scanner for ARPScanner<'net> {
 
         // prevent blocking thread so messages can be freely sent to consumer
         thread::spawn(move || -> Result<(), ScanError> {
-            let process_target = |t: String| {
+            let process_target = |target_ipv4: net::Ipv4Addr| {
                 // throttle packet sending to prevent packet loss
                 thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
-                debug!("scanning ARP target: {}", t);
-                let target_ipv4 = net::Ipv4Addr::from_str(&t).or_else(|e| {
-                    Err(ScanError {
-                        ip: t.to_string(),
-                        port: None,
-                        msg: e.to_string(),
-                    })
-                })?;
+
+                debug!("scanning ARP target: {}", target_ipv4);
 
                 let pkt_buf = ARPPacket::new(source_ipv4, source_mac, target_ipv4);
 
                 // inform consumer we are scanning this target (ignore error on fail to send)
                 msg_sender
                     .send(ScanMessage::Info(Scanning {
-                        ip: t.to_string(),
+                        ip: target_ipv4.to_string(),
                         port: None,
                     }))
                     .or_else(|e| {
                         Err(ScanError {
-                            ip: t.to_string(),
+                            ip: Some(target_ipv4.to_string()),
                             port: None,
-                            msg: e.to_string(),
+                            error: Box::from(e),
                         })
                     })?;
 
                 let mut sender = packet_sender.lock().or_else(|e| {
                     Err(ScanError {
-                        ip: "".to_string(),
+                        ip: Some(target_ipv4.to_string()),
                         port: None,
-                        msg: e.to_string(),
+                        error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
                     })
                 })?;
 
                 // Send to the broadcast address
                 sender.send(&pkt_buf).or_else(|e| {
                     Err(ScanError {
-                        ip: t.to_string(),
+                        ip: Some(target_ipv4.to_string()),
                         port: None,
-                        msg: e.to_string(),
+                        error: Box::from(e),
                     })
                 })?;
 
@@ -224,25 +218,28 @@ impl<'net> Scanner for ARPScanner<'net> {
 
             done_tx.send(()).or_else(|e| {
                 Err(ScanError {
-                    ip: "".to_string(),
+                    ip: None,
                     port: None,
-                    msg: e.to_string(),
+                    error: Box::from(e),
                 })
             })?;
 
             msg_sender.send(ScanMessage::Done(())).or_else(|e| {
                 Err(ScanError {
-                    ip: "".to_string(),
+                    ip: None,
                     port: None,
-                    msg: e.to_string(),
+                    error: Box::from(e),
                 })
             })?;
 
             let read_result = read_handle.join().or_else(|_| {
                 Err(ScanError {
-                    ip: "".to_string(),
+                    ip: None,
                     port: None,
-                    msg: "error encountered in arp packet reading thread".to_string(),
+                    error: Box::from(IOError::new(
+                        ErrorKind::Other,
+                        "error encountered in arp packet reading thread",
+                    )),
                 })
             })?;
 

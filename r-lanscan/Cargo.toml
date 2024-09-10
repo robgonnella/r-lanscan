@@ -3,14 +3,12 @@ name = "r-lanscan"
 version = "0.1.0"
 edition = "2021"
 
-[features]
-debug_logs = []
-
 [dependencies]
 clap = { version = "^4.4", features = ["derive"] }
 pnet = "^0.35"
 itertools = "0.13.0"
 prettytable-rs = "^0.10"
+color-eyre = "0.6.3"
 log = "^0.4"
 paris = { version = "^1.5", features = ["timestamps"] }
 simplelog = { version = "^0.12", features = ["paris"] }

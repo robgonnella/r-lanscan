@@ -1,4 +1,5 @@
 use clap::Parser;
+use color_eyre::eyre::{eyre, Report};
 use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
@@ -6,8 +7,7 @@ use log::*;
 use simplelog;
 use std::{
     collections::{HashMap, HashSet},
-    error::Error,
-    fs,
+    env, fs,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc, Mutex,
@@ -72,8 +72,8 @@ fn get_project_config_path() -> String {
 fn process_arp(
     packet_reader: Arc<Mutex<dyn packet::Reader>>,
     packet_sender: Arc<Mutex<dyn packet::Sender>>,
-    cidr: String,
     interface: &NetworkInterface,
+    cidr: String,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
 ) -> Result<(Vec<Device>, Receiver<ScanMessage>), ScanError> {
@@ -139,9 +139,9 @@ fn process_syn(
         packet_sender,
         devices,
         PortTargets::new(ports),
+        source_port,
         time::Duration::from_millis(IDLE_TIMEOUT.into()),
         tx,
-        source_port,
     );
 
     let handle = scanner.scan();
@@ -182,9 +182,9 @@ fn monitor_network(
     thread::spawn(move || -> Result<(), ScanError> {
         let source_port = network::get_available_port().or_else(|e| {
             Err(ScanError {
-                ip: "".to_string(),
+                ip: None,
                 port: None,
-                msg: e.to_string(),
+                error: Box::from(e),
             })
         })?;
 
@@ -192,25 +192,25 @@ fn monitor_network(
 
         let packet_reader = packet::wire::new_default_reader(&interface).or_else(|e| {
             Err(ScanError {
-                ip: "".to_string(),
+                ip: None,
                 port: None,
-                msg: e.to_string(),
+                error: Box::from(e),
             })
         })?;
 
         let packet_sender = packet::wire::new_default_sender(&interface).or_else(|e| {
             Err(ScanError {
-                ip: "".to_string(),
+                ip: None,
                 port: None,
-                msg: e.to_string(),
+                error: Box::from(e),
             })
         })?;
 
         let (arp_results, rx) = process_arp(
             Arc::clone(&packet_reader),
             Arc::clone(&packet_sender),
-            interface.cidr.clone(),
             &interface,
+            interface.cidr.clone(),
             rx,
             tx.clone(),
         )?;
@@ -236,12 +236,7 @@ fn monitor_network(
     })
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let args = Args::parse();
-
-    initialize_logger(&args);
-
-    let interface = network::get_default_interface().expect("could not get default interface");
+fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) {
     let config_path = get_project_config_path();
     let config_manager = Arc::new(Mutex::new(ConfigManager::new(config_path)));
     let dispatcher = Arc::new(Dispatcher::new(Arc::clone(&config_manager)));
@@ -265,6 +260,30 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
         dispatcher.dispatch(Action::CreateAndSetConfig(&config))
     }
+
+    (config, dispatcher)
+}
+
+fn is_root() -> bool {
+    match env::var("USER") {
+        Ok(val) => val == "root",
+        Err(_e) => false,
+    }
+}
+
+fn main() -> Result<(), Report> {
+    color_eyre::install()?;
+
+    let args = Args::parse();
+
+    initialize_logger(&args);
+
+    if !is_root() {
+        return Err(eyre!("permission denied: must run with root privileges"));
+    }
+
+    let interface = network::get_default_interface().expect("could not get default interface");
+    let (config, dispatcher) = init(&args, &interface);
 
     // don't do anything with handle here as this call is recursive
     // so if we join our main process will never exit

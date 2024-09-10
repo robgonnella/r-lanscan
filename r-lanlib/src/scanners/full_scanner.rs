@@ -105,9 +105,9 @@ impl<'net> Scanner for FullScanner<'net> {
             Arc::clone(&self.packet_sender),
             syn_targets,
             Arc::clone(&self.ports),
+            self.source_port,
             self.idle_timeout,
             self.sender.clone(),
-            self.source_port,
         );
 
         syn.scan()
