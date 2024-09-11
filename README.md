@@ -5,13 +5,13 @@ rust version of [go-lanscan]
 - [Packages](#packages)
 - [Testing](#testing)
 
-## Packages
+### Packages
 
 - [r-lanlib](./r-lanlib/README.md)
 - [r-lanscan](./r-lanscan/README.md)
 - [r-lanui](./r-lanui/README.md)
 
-## Testing
+### Testing
 
 Prerequisites
 
