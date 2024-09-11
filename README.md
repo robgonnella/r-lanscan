@@ -1,20 +1,17 @@
-# R-LANSCAN/
-
-An ARP and SYN network scanning library, cli, and ui written in rust! This is the
+ARP and SYN network scanning library, cli, and ui written in rust! This is the
 rust version of [go-lanscan]
 
 **Table of contents**
-- [R-LANSCAN/](#r-lanscan)
-- [Projects](#projects)
+- [Packages](#packages)
 - [Testing](#testing)
 
-# Projects
+## Packages
 
 - [r-lanlib](./r-lanlib/README.md)
 - [r-lanscan](./r-lanscan/README.md)
 - [r-lanui](./r-lanui/README.md)
 
-# Testing
+## Testing
 
 Prerequisites
 
