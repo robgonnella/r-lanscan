@@ -1,7 +1,4 @@
-use std::{
-    collections::HashSet,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::style::{palette::tailwind, Color};
@@ -70,13 +67,7 @@ impl Store {
             state: State {
                 view: ViewName::Devices,
                 config,
-                devices: vec![DeviceWithPorts {
-                    hostname: "Scanning…".to_string(),
-                    ip: "".to_string(),
-                    mac: "".to_string(),
-                    vendor: "".to_string(),
-                    open_ports: HashSet::new(),
-                }],
+                devices: Vec::new(),
                 selected_device: 0,
                 colors,
             },

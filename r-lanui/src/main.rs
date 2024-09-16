@@ -8,6 +8,8 @@ use simplelog;
 use std::{
     collections::{HashMap, HashSet},
     env, fs,
+    net::Ipv4Addr,
+    str::FromStr,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc, Mutex,
@@ -106,7 +108,7 @@ fn process_arp(
     handle.join().unwrap()?;
 
     let mut items: Vec<Device> = arp_results.into_iter().collect();
-    items.sort_by_key(|i| i.ip.to_owned());
+    items.sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
 
     Ok((items, rx))
 }
@@ -177,6 +179,7 @@ fn monitor_network(
     config: Arc<Config>,
     interface: Arc<NetworkInterface>,
     dispatcher: Arc<Dispatcher>,
+    first_run: bool,
 ) -> JoinHandle<Result<(), ScanError>> {
     info!("starting network monitor");
     thread::spawn(move || -> Result<(), ScanError> {
@@ -215,6 +218,23 @@ fn monitor_network(
             tx.clone(),
         )?;
 
+        if first_run {
+            // update view on first run to make results appear faster
+            // we'll fill in ports once syn scanning finishes
+            let with_ports = arp_results
+                .iter()
+                .map(|d| DeviceWithPorts {
+                    hostname: d.hostname.clone(),
+                    ip: d.ip.clone(),
+                    mac: d.mac.clone(),
+                    vendor: d.vendor.clone(),
+                    open_ports: HashSet::new(),
+                })
+                .collect::<Vec<DeviceWithPorts>>();
+
+            dispatcher.dispatch(Action::UpdateDevices(&with_ports));
+        }
+
         let results = process_syn(
             Arc::clone(&packet_reader),
             Arc::clone(&packet_sender),
@@ -231,7 +251,7 @@ fn monitor_network(
         info!("network scan completed");
 
         thread::sleep(time::Duration::from_secs(15));
-        let handle = monitor_network(config, interface, dispatcher);
+        let handle = monitor_network(config, interface, dispatcher, false);
         handle.join().unwrap()
     })
 }
@@ -291,6 +311,7 @@ fn main() -> Result<(), Report> {
         Arc::new(config),
         Arc::new(interface),
         Arc::clone(&dispatcher),
+        true,
     );
 
     if args.debug {
