@@ -3,7 +3,9 @@ use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    widgets::{ScrollbarState, TableState},
+    style::Style,
+    text::Line,
+    widgets::{Block, BorderType, Paragraph, ScrollbarState, TableState},
     Frame,
 };
 use std::sync::Arc;
@@ -80,6 +82,22 @@ impl DevicesView {
         self.dispatcher.dispatch(Action::UpdateSelectedDevice(&i));
     }
 
+    fn render_info(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {
+        let state = self.dispatcher.get_state();
+        let cidr = state.config.cidr;
+        let ports = state.config.ports.join(", ");
+        let content = format!("Scanning: CIDR: {cidr}, Ports: {ports}");
+        let info = Paragraph::new(Line::from(content))
+            .style(Style::new().fg(colors.row_fg).bg(colors.buffer_bg))
+            .centered()
+            .block(
+                Block::bordered()
+                    .border_type(BorderType::Double)
+                    .border_style(Style::new().fg(colors.footer_border_color)),
+            );
+        f.render_widget(info, area);
+    }
+
     fn render_table(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {
         let state = self.dispatcher.get_state();
         let items = state
@@ -108,11 +126,17 @@ impl DevicesView {
 
 impl View for DevicesView {
     fn render(&mut self, f: &mut Frame) {
-        let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.area());
+        let rects = Layout::vertical([
+            Constraint::Length(3),
+            Constraint::Min(5),
+            Constraint::Length(3),
+        ])
+        .split(f.area());
         let colors = self.dispatcher.get_state().colors;
-        self.render_table(f, rects[0], &colors);
-        self.render_scrollbar(f, rects[0], &colors);
-        self.render_footer(f, rects[1], &colors);
+        self.render_info(f, rects[0], &colors);
+        self.render_table(f, rects[1], &colors);
+        self.render_scrollbar(f, rects[1], &colors);
+        self.render_footer(f, rects[2], &colors);
     }
 
     fn process_event(&mut self, evt: &Event) -> bool {
