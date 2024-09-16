@@ -61,7 +61,7 @@ pub fn get_interface(name: &str) -> Option<NetworkInterface> {
     NetworkInterface::try_from(iface).ok()
 }
 
-pub fn get_default_interface<'a>() -> Option<NetworkInterface> {
+pub fn get_default_interface() -> Option<NetworkInterface> {
     let iface = pnet::datalink::interfaces()
         .into_iter()
         .find(|e| e.is_up() && !e.is_loopback() && e.ips.iter().find(|i| i.is_ipv4()).is_some())?;
