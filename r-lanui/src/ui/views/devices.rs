@@ -28,7 +28,6 @@ const INFO_TEXT: &str =
     "(Esc) quit | (↑) move up | (↓) move down | (Enter) view selected device | (c) manage config";
 
 pub struct DevicesView {
-    pub id: ViewName,
     dispatcher: Arc<Dispatcher>,
     table_state: TableState,
     scroll_state: ScrollbarState,
@@ -45,7 +44,6 @@ impl DevicesView {
         }
 
         Self {
-            id: ViewName::Devices,
             table_state: TableState::default().with_selected(0),
             scroll_state: ScrollbarState::new(height),
             dispatcher,

@@ -15,16 +15,12 @@ use crate::ui::components::Component;
 const INFO_TEXT: &str = "(Esc) back to main view";
 
 pub struct DeviceView {
-    pub id: ViewName,
     dispatcher: Arc<Dispatcher>,
 }
 
 impl DeviceView {
     pub fn new(dispatcher: Arc<Dispatcher>) -> Self {
-        Self {
-            id: ViewName::Device,
-            dispatcher,
-        }
+        Self { dispatcher }
     }
 
     fn render_footer(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {

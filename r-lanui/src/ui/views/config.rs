@@ -22,7 +22,6 @@ const INFO_TEXT: &str =
 const THEMES: [Theme; 4] = [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
 
 pub struct ConfigView {
-    pub id: ViewName,
     dispatcher: Arc<Dispatcher>,
     theme_index: usize,
 }
@@ -37,7 +36,6 @@ impl ConfigView {
             .find(|(_, t)| **t == theme)
             .unwrap();
         Self {
-            id: ViewName::Config,
             dispatcher,
             theme_index: idx,
         }
