@@ -8,8 +8,6 @@ use simplelog;
 use std::{
     collections::{HashMap, HashSet},
     env, fs,
-    net::Ipv4Addr,
-    str::FromStr,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc, Mutex,
@@ -78,6 +76,7 @@ fn process_arp(
     cidr: String,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
+    dispatcher: Arc<Dispatcher>,
 ) -> Result<(Vec<Device>, Receiver<ScanMessage>), ScanError> {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
@@ -102,13 +101,19 @@ fn process_arp(
         if let Some(m) = msg.arp_message() {
             debug!("received scanning message: {:?}", msg);
             arp_results.insert(m.to_owned());
+            dispatcher.dispatch(Action::AddDevice(&DeviceWithPorts {
+                hostname: m.hostname.clone(),
+                ip: m.ip.clone(),
+                mac: m.mac.clone(),
+                open_ports: HashSet::new(),
+                vendor: m.vendor.clone(),
+            }));
         }
     }
 
     handle.join().unwrap()?;
 
-    let mut items: Vec<Device> = arp_results.into_iter().collect();
-    items.sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
+    let items: Vec<Device> = arp_results.into_iter().collect();
 
     Ok((items, rx))
 }
@@ -122,6 +127,7 @@ fn process_syn(
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
     source_port: u16,
+    dispatcher: Arc<Dispatcher>,
 ) -> Result<Vec<DeviceWithPorts>, ScanError> {
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
@@ -160,6 +166,7 @@ fn process_syn(
                 match device {
                     Some(d) => {
                         d.open_ports.insert(m.open_port.to_owned());
+                        dispatcher.dispatch(Action::AddDevice(d));
                     }
                     None => {
                         warn!("received syn result for unknown device: {:?}", m);
@@ -179,7 +186,6 @@ fn monitor_network(
     config: Arc<Config>,
     interface: Arc<NetworkInterface>,
     dispatcher: Arc<Dispatcher>,
-    first_run: bool,
 ) -> JoinHandle<Result<(), ScanError>> {
     info!("starting network monitor");
     thread::spawn(move || -> Result<(), ScanError> {
@@ -216,24 +222,8 @@ fn monitor_network(
             interface.cidr.clone(),
             rx,
             tx.clone(),
+            Arc::clone(&dispatcher),
         )?;
-
-        if first_run {
-            // update view on first run to make results appear faster
-            // we'll fill in ports once syn scanning finishes
-            let with_ports = arp_results
-                .iter()
-                .map(|d| DeviceWithPorts {
-                    hostname: d.hostname.clone(),
-                    ip: d.ip.clone(),
-                    mac: d.mac.clone(),
-                    vendor: d.vendor.clone(),
-                    open_ports: HashSet::new(),
-                })
-                .collect::<Vec<DeviceWithPorts>>();
-
-            dispatcher.dispatch(Action::UpdateDevices(&with_ports));
-        }
 
         let results = process_syn(
             Arc::clone(&packet_reader),
@@ -244,14 +234,15 @@ fn monitor_network(
             rx,
             tx.clone(),
             source_port,
+            Arc::clone(&dispatcher),
         )?;
 
-        dispatcher.dispatch(Action::UpdateDevices(&results));
+        dispatcher.dispatch(Action::UpdateAllDevices(&results));
 
         info!("network scan completed");
 
         thread::sleep(time::Duration::from_secs(15));
-        let handle = monitor_network(config, interface, dispatcher, false);
+        let handle = monitor_network(config, interface, dispatcher);
         handle.join().unwrap()
     })
 }
@@ -274,7 +265,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) 
         config = Config {
             id: fakeit::animal::animal().to_lowercase(),
             cidr: interface.cidr.clone(),
-            ssh_overrides: HashMap::new(),
+            device_configs: HashMap::new(),
             ports: args.ports.clone(),
             theme: Theme::Blue.to_string(),
         };
@@ -311,7 +302,6 @@ fn main() -> Result<(), Report> {
         Arc::new(config),
         Arc::new(interface),
         Arc::clone(&dispatcher),
-        true,
     );
 
     if args.debug {

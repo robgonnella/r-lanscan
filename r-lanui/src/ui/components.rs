@@ -2,8 +2,8 @@ use ratatui::{layout::Rect, Frame};
 
 use super::store::store::Colors;
 
+pub mod field;
 pub mod footer;
-pub mod input;
 pub mod scrollbar;
 pub mod table;
 
