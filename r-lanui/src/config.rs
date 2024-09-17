@@ -8,18 +8,12 @@ pub const DEFAULT_CONFIG_ID: &str = "default";
 pub const DEFAULT_PORTS_STR: &str = "22,80,443,2000-9999";
 pub const DEFAULT_PORTS: [&str; 4] = ["22", "80", "443", "2000-9999"];
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub enum SshID {
-    Ip(String),
-    Mac(String),
-}
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SshOverride {
-    pub id: SshID,
-    pub port: u16,
-    pub identity_file: String,
-    pub user: String,
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DeviceConfig {
+    pub id: String,
+    pub ssh_port: u16,
+    pub ssh_identity_file: String,
+    pub ssh_user: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -28,7 +22,7 @@ pub struct Config {
     pub cidr: String,
     pub theme: String,
     pub ports: Vec<String>,
-    pub ssh_overrides: HashMap<SshID, SshOverride>,
+    pub device_configs: HashMap<String, DeviceConfig>,
 }
 
 pub fn get_default_ports() -> Vec<String> {
@@ -45,7 +39,7 @@ impl Config {
             theme: Theme::Blue.to_string(),
             cidr: "unknown".to_string(),
             ports: get_default_ports(),
-            ssh_overrides: HashMap::new(),
+            device_configs: HashMap::new(),
         }
     }
 }

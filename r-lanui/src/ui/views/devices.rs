@@ -51,33 +51,41 @@ impl DevicesView {
     }
 
     fn next(&mut self) {
-        let data = self.dispatcher.get_state().devices;
+        let devices = self.dispatcher.get_state().devices;
 
         let i = match self.table_state.selected() {
-            Some(i) => (i + 1) % data.len(),
+            Some(i) => (i + 1) % devices.len(),
             None => 0,
         };
+
         self.table_state.select(Some(i));
         self.scroll_state = self.scroll_state.position(i * table::ITEM_HEIGHT);
-        self.dispatcher.dispatch(Action::UpdateSelectedDevice(&i));
+        self.set_store_selected(devices, i);
     }
 
     fn previous(&mut self) {
-        let data = self.dispatcher.get_state().devices;
-
+        let devices = self.dispatcher.get_state().devices;
         let i = match self.table_state.selected() {
             Some(i) => {
                 if i == 0 {
-                    data.len() - 1
+                    devices.len() - 1
                 } else {
                     i - 1
                 }
             }
             None => 0,
         };
+
         self.table_state.select(Some(i));
         self.scroll_state = self.scroll_state.position(i * table::ITEM_HEIGHT);
-        self.dispatcher.dispatch(Action::UpdateSelectedDevice(&i));
+        self.set_store_selected(devices, i);
+    }
+
+    fn set_store_selected(&mut self, devices: Vec<DeviceWithPorts>, i: usize) {
+        if devices.len() > 0 {
+            let mac = devices[i].mac.clone();
+            self.dispatcher.dispatch(Action::UpdateSelectedDevice(&mac));
+        }
     }
 
     fn render_info(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {
@@ -124,6 +132,12 @@ impl DevicesView {
 
 impl View for DevicesView {
     fn render(&mut self, f: &mut Frame) {
+        let devices = self.dispatcher.get_state().devices;
+
+        if let Some(selected_idx) = self.table_state.selected() {
+            self.set_store_selected(devices, selected_idx);
+        }
+
         let rects = Layout::vertical([
             Constraint::Length(3),
             Constraint::Min(5),
@@ -139,6 +153,7 @@ impl View for DevicesView {
 
     fn process_event(&mut self, evt: &Event) -> bool {
         let mut handled = false;
+
         match evt {
             Event::FocusGained => {}
             Event::FocusLost => {}
@@ -162,9 +177,11 @@ impl View for DevicesView {
                             handled = true;
                         }
                         KeyCode::Enter => {
-                            self.dispatcher
-                                .dispatch(Action::UpdateView(&ViewName::Device));
-                            handled = true;
+                            if let Some(_selected) = self.table_state.selected() {
+                                self.dispatcher
+                                    .dispatch(Action::UpdateView(&ViewName::Device));
+                                handled = true;
+                            }
                         }
                         _ => {}
                     }
