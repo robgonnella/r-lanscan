@@ -1,17 +1,19 @@
-use crate::ui::{
-    components::{field::Field, footer::InfoFooter},
-    store::{action::Action, dispatcher::Dispatcher, store::Colors, types::ViewName},
+use crate::{
+    config::{Config, DeviceConfig},
+    ui::{
+        components::{device_info::DeviceInfo, footer::InfoFooter, header::Header},
+        store::{action::Action, dispatcher::Dispatcher, store::Colors, types::ViewName},
+    },
 };
 use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    Frame,
+    widgets::Widget,
 };
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
 use super::View;
-use crate::ui::components::Component;
 
 const INFO_TEXT: &str = "(Esc) back to main view";
 
@@ -25,43 +27,47 @@ impl DeviceView {
     }
 
     fn render_device_info(
-        &mut self,
-        f: &mut Frame,
+        &self,
         area: Rect,
-        colors: &Colors,
+        buf: &mut ratatui::prelude::Buffer,
         device: &DeviceWithPorts,
+        device_config: &DeviceConfig,
+        config: &Config,
+        colors: &Colors,
     ) {
-        let rects = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Length(2),
-            Constraint::Length(2),
-            Constraint::Length(2),
-        ])
-        .split(area);
+        let section_rects = Layout::horizontal([Constraint::Percentage(50)]).split(area);
 
-        let mut host_field = Field::new("Hostname".to_string(), device.hostname.clone());
-        let mut ip_field = Field::new("IP".to_string(), device.ip.clone());
-        let mut mac_field = Field::new("MAC".to_string(), device.mac.clone());
-        let mut vendor_field = Field::new("Vendor".to_string(), device.vendor.clone());
+        let info_rects =
+            Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).split(section_rects[0]);
 
-        host_field.render(f, rects[0], colors);
-        ip_field.render(f, rects[1], colors);
-        mac_field.render(f, rects[2], colors);
-        vendor_field.render(f, rects[3], colors);
+        let header = Header::new("  Device Info".to_string(), colors);
+
+        let device_info = DeviceInfo::new(
+            device.clone(),
+            device_config.clone(),
+            config.clone(),
+            colors,
+        );
+
+        header.render(info_rects[0], buf);
+        device_info.render(info_rects[1], buf);
     }
 
     // fn render_scanned_ports(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {}
 
     // fn render_open_ports(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {}
 
-    fn render_footer(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {
-        let mut footer = InfoFooter::new(INFO_TEXT.to_string());
-        footer.render(f, area, colors);
+    fn render_footer(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, colors: &Colors) {
+        let footer = InfoFooter::new(INFO_TEXT.to_string(), colors);
+        footer.render(area, buf);
     }
 }
 
 impl View for DeviceView {
-    fn render(&mut self, f: &mut Frame) {
+    fn render_view(&mut self, f: &mut ratatui::Frame)
+    where
+        Self: Sized,
+    {
         let state = self.dispatcher.get_state();
 
         let device = state
@@ -69,33 +75,40 @@ impl View for DeviceView {
             .get(&state.selected_device.unwrap())
             .unwrap();
 
-        // let mut device_config: DeviceConfig;
+        let device_config: DeviceConfig;
 
-        // if state.config.device_configs.contains_key(&device.ip) {
-        //     device_config = state.config.device_configs.get(&device.ip).unwrap().clone();
-        // } else if state.config.device_configs.contains_key(&device.mac) {
-        //     device_config = state
-        //         .config
-        //         .device_configs
-        //         .get(&device.mac)
-        //         .unwrap()
-        //         .clone();
-        // } else {
-        //     device_config = DeviceConfig {
-        //         id: device.mac.clone(),
-        //         ssh_identity_file: "~/.ssh/id_rsa".to_string(),
-        //         ssh_port: 22,
-        //         ssh_user: env::var("USER").unwrap(),
-        //     }
-        // }
+        if state.config.device_configs.contains_key(&device.ip) {
+            device_config = state.config.device_configs.get(&device.ip).unwrap().clone();
+        } else if state.config.device_configs.contains_key(&device.mac) {
+            device_config = state
+                .config
+                .device_configs
+                .get(&device.mac)
+                .unwrap()
+                .clone();
+        } else {
+            device_config = DeviceConfig {
+                id: device.mac.clone(),
+                ssh_identity_file: "~/.ssh/id_rsa".to_string(),
+                ssh_port: 22,
+                ssh_user: env::var("USER").unwrap(),
+            }
+        }
 
-        let colors = self.dispatcher.get_state().colors;
         let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.area());
+        let buf = f.buffer_mut();
 
-        self.render_device_info(f, rects[0], &colors, device);
+        self.render_device_info(
+            rects[0],
+            buf,
+            device,
+            &device_config,
+            &state.config,
+            &state.colors,
+        );
         // self.render_scanned_ports(f, rects[0], &colors);
         // self.render_open_ports(f, rects[0], &colors);
-        self.render_footer(f, rects[1], &colors);
+        self.render_footer(rects[1], buf, &state.colors);
     }
 
     fn process_event(&mut self, evt: &Event) -> bool {

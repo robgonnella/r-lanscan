@@ -1,5 +1,5 @@
 use crate::ui::{
-    components::{footer::InfoFooter, Component},
+    components::footer::InfoFooter,
     store::{
         action::Action,
         dispatcher::Dispatcher,
@@ -10,6 +10,7 @@ use crate::ui::{
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
+    widgets::Widget,
     Frame,
 };
 use std::sync::Arc;
@@ -71,17 +72,20 @@ impl ConfigView {
 
     fn _render_reset(&mut self, _f: &mut Frame, _area: Rect) {}
 
-    fn render_footer(&mut self, f: &mut Frame, area: Rect, colors: &Colors) {
-        let mut footer = InfoFooter::new(INFO_TEXT.to_string());
-        footer.render(f, area, colors);
+    fn render_footer(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+        let colors = self.get_colors();
+        let footer = InfoFooter::new(INFO_TEXT.to_string(), &colors);
+        footer.render(area, buf);
     }
 }
 
 impl View for ConfigView {
-    fn render(&mut self, f: &mut Frame) {
-        let colors: Colors = self.get_colors();
+    fn render_view(&mut self, f: &mut Frame)
+    where
+        Self: Sized,
+    {
         let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.area());
-        self.render_footer(f, rects[1], &colors);
+        self.render_footer(rects[1], f.buffer_mut());
     }
 
     fn process_event(&mut self, evt: &Event) -> bool {

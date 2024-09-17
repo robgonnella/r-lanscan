@@ -1,35 +1,33 @@
 use ratatui::{
     layout::{Margin, Rect},
-    widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState},
-    Frame,
+    widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget},
 };
 
-use crate::ui::store::store::Colors;
+pub struct ScrollBar {}
 
-use super::Component;
-
-pub struct ScrollBar<'s> {
-    scroll_state: &'s mut ScrollbarState,
-}
-
-impl<'s> ScrollBar<'s> {
-    pub fn new(scroll_state: &'s mut ScrollbarState) -> Self {
-        Self { scroll_state }
+impl ScrollBar {
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
-impl<'s> Component for ScrollBar<'s> {
-    fn render(&mut self, f: &mut Frame, area: Rect, _colors: &Colors) {
-        f.render_stateful_widget(
-            Scrollbar::default()
-                .orientation(ScrollbarOrientation::VerticalRight)
-                .begin_symbol(None)
-                .end_symbol(None),
-            area.inner(Margin {
-                vertical: 1,
-                horizontal: 1,
-            }),
-            &mut self.scroll_state,
-        );
+impl StatefulWidget for ScrollBar {
+    type State = ScrollbarState;
+
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &mut Self::State)
+    where
+        Self: Sized,
+    {
+        let scrollbar = Scrollbar::default()
+            .orientation(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(None)
+            .end_symbol(None);
+
+        let scroll_area = area.inner(Margin {
+            vertical: 1,
+            horizontal: 1,
+        });
+
+        scrollbar.render(scroll_area, buf, state)
     }
 }
