@@ -63,7 +63,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
     loop {
         let state = app.dispatcher.get_state();
         let view = app.views.get_mut(&state.view).unwrap();
-        terminal.draw(|f| view.render(f))?;
+
+        terminal.draw(|f| view.render_view(f))?;
 
         // Use poll here so we don't block the thread, this will allow
         // rendering of incoming device data from network as it's received
