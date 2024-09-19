@@ -10,12 +10,12 @@ use crate::ui::{
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    widgets::Widget,
+    widgets::{Widget, WidgetRef},
     Frame,
 };
 use std::sync::Arc;
 
-use super::View;
+use super::{EventHandler, View};
 
 const INFO_TEXT: &str =
     "(Esc) back to main view | | (→) next color | (←) previous color | (Enter) Save";
@@ -79,15 +79,16 @@ impl ConfigView {
     }
 }
 
-impl View for ConfigView {
-    fn render_view(&mut self, f: &mut Frame)
-    where
-        Self: Sized,
-    {
-        let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.area());
-        self.render_footer(rects[1], f.buffer_mut());
-    }
+impl View for ConfigView {}
 
+impl WidgetRef for ConfigView {
+    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+        let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(area);
+        self.render_footer(rects[1], buf);
+    }
+}
+
+impl EventHandler for ConfigView {
     fn process_event(&mut self, evt: &Event) -> bool {
         let mut handled = false;
         match evt {

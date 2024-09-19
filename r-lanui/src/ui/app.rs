@@ -23,31 +23,34 @@ impl App {
         let mut views: HashMap<ViewName, Box<dyn View>> = HashMap::new();
 
         views.insert(
-            ViewName::Devices,
-            Box::new(DevicesView::new(Arc::clone(&dispatcher))),
+            ViewName::Config,
+            Box::new(ConfigView::new(Arc::clone(&dispatcher))),
         );
-
         views.insert(
             ViewName::Device,
             Box::new(DeviceView::new(Arc::clone(&dispatcher))),
         );
-
         views.insert(
-            ViewName::Config,
-            Box::new(ConfigView::new(Arc::clone(&dispatcher))),
+            ViewName::Devices,
+            Box::new(DevicesView::new(Arc::clone(&dispatcher))),
         );
 
         Self { dispatcher, views }
+    }
+
+    fn get_view(&mut self) -> &mut Box<dyn View> {
+        let view_name = self.dispatcher.get_state().view;
+        self.views.get_mut(&view_name).unwrap()
     }
 }
 
 pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Report> {
     // setup terminal
     let mut terminal = ratatui::init();
-    let app = App::new(dispatcher);
+    let mut app = App::new(dispatcher);
 
     // start app loop
-    let res = run_app(&mut terminal, app);
+    let res = run_app(&mut terminal, &mut app);
 
     // restore terminal
     ratatui::restore();
@@ -59,12 +62,11 @@ pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Report> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     loop {
-        let state = app.dispatcher.get_state();
-        let view = app.views.get_mut(&state.view).unwrap();
+        let view = app.get_view();
 
-        terminal.draw(|f| view.render_view(f))?;
+        terminal.draw(|f| view.render_ref(f.area(), f.buffer_mut()))?;
 
         // Use poll here so we don't block the thread, this will allow
         // rendering of incoming device data from network as it's received
@@ -72,6 +74,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
             if has_event {
                 let evt = event::read()?;
                 let handled = view.process_event(&evt);
+
                 if !handled {
                     match evt {
                         Event::Key(key) => match key.code {
