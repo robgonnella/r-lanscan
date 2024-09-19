@@ -5,9 +5,11 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::Style,
     text::Line,
-    widgets::{Block, BorderType, Paragraph, ScrollbarState, StatefulWidget, TableState, Widget},
+    widgets::{
+        Block, BorderType, Paragraph, ScrollbarState, StatefulWidget, TableState, Widget, WidgetRef,
+    },
 };
-use std::sync::Arc;
+use std::{cell::RefCell, sync::Arc};
 
 use crate::ui::{
     components::{
@@ -18,7 +20,7 @@ use crate::ui::{
     store::{action::Action, dispatcher::Dispatcher, store::Colors, types::ViewName},
 };
 
-use super::View;
+use super::{EventHandler, View};
 
 const HEADERS: [&str; 5] = ["Hostname", "IP", "MAC", "Vendor", "Ports"];
 
@@ -27,8 +29,8 @@ const INFO_TEXT: &str =
 
 pub struct DevicesView {
     dispatcher: Arc<Dispatcher>,
-    table_state: TableState,
-    scroll_state: ScrollbarState,
+    table_state: RefCell<TableState>,
+    scroll_state: RefCell<ScrollbarState>,
 }
 
 impl DevicesView {
@@ -42,8 +44,8 @@ impl DevicesView {
         }
 
         Self {
-            table_state: TableState::default().with_selected(0),
-            scroll_state: ScrollbarState::new(height),
+            table_state: RefCell::new(TableState::default().with_selected(0)),
+            scroll_state: RefCell::new(ScrollbarState::new(height)),
             dispatcher,
         }
     }
@@ -51,19 +53,23 @@ impl DevicesView {
     fn next(&mut self) {
         let devices = self.dispatcher.get_state().devices;
 
-        let i = match self.table_state.selected() {
+        let i = match self.table_state.borrow().selected() {
             Some(i) => (i + 1) % devices.len(),
             None => 0,
         };
 
-        self.table_state.select(Some(i));
-        self.scroll_state = self.scroll_state.position(i * table::ITEM_HEIGHT);
+        self.table_state.borrow_mut().select(Some(i));
+
+        let new_scroll_state = self.scroll_state.borrow().position(i * table::ITEM_HEIGHT);
+
+        self.scroll_state = RefCell::new(new_scroll_state);
+
         self.set_store_selected(devices, i);
     }
 
     fn previous(&mut self) {
         let devices = self.dispatcher.get_state().devices;
-        let i = match self.table_state.selected() {
+        let i = match self.table_state.borrow().selected() {
             Some(i) => {
                 if i == 0 {
                     devices.len() - 1
@@ -74,8 +80,12 @@ impl DevicesView {
             None => 0,
         };
 
-        self.table_state.select(Some(i));
-        self.scroll_state = self.scroll_state.position(i * table::ITEM_HEIGHT);
+        self.table_state.borrow_mut().select(Some(i));
+
+        let new_scroll_state = self.scroll_state.borrow().position(i * table::ITEM_HEIGHT);
+
+        self.scroll_state = RefCell::new(new_scroll_state);
+
         self.set_store_selected(devices, i);
     }
 
@@ -102,7 +112,7 @@ impl DevicesView {
         info.render(area, buf);
     }
 
-    fn render_table(&mut self, area: Rect, buf: &mut ratatui::prelude::Buffer, colors: &Colors) {
+    fn render_table(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, colors: &Colors) {
         let state = self.dispatcher.get_state();
         let items = state
             .devices
@@ -114,12 +124,14 @@ impl DevicesView {
             .map(|h| h.to_string())
             .collect::<Vec<String>>();
         let table = Table::new(items, headers, colors);
-        table.render(area, buf, &mut self.table_state);
+        let mut table_state = self.table_state.borrow_mut();
+        table.render(area, buf, &mut table_state);
     }
 
-    fn render_scrollbar(&mut self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+    fn render_scrollbar(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
         let scrollbar = ScrollBar::new();
-        scrollbar.render(area, buf, &mut self.scroll_state);
+        let mut scroll_state = self.scroll_state.borrow_mut();
+        scrollbar.render(area, buf, &mut scroll_state);
     }
 
     fn render_footer(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, colors: &Colors) {
@@ -128,14 +140,13 @@ impl DevicesView {
     }
 }
 
-impl View for DevicesView {
-    fn render_view(&mut self, f: &mut ratatui::Frame)
-    where
-        Self: Sized,
-    {
+impl View for DevicesView {}
+
+impl WidgetRef for DevicesView {
+    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
         let state = self.dispatcher.get_state();
 
-        if let Some(selected_idx) = self.table_state.selected() {
+        if let Some(selected_idx) = self.table_state.borrow().selected() {
             self.set_store_selected(state.devices, selected_idx);
         }
 
@@ -144,16 +155,16 @@ impl View for DevicesView {
             Constraint::Min(5),
             Constraint::Length(3),
         ])
-        .split(f.area());
-
-        let buf = f.buffer_mut();
+        .split(area);
 
         self.render_info(rects[0], buf, &state.colors);
         self.render_table(rects[1], buf, &state.colors);
         self.render_scrollbar(rects[1], buf);
         self.render_footer(rects[2], buf, &state.colors);
     }
+}
 
+impl EventHandler for DevicesView {
     fn process_event(&mut self, evt: &Event) -> bool {
         let mut handled = false;
 
@@ -180,7 +191,7 @@ impl View for DevicesView {
                             handled = true;
                         }
                         KeyCode::Enter => {
-                            if let Some(_selected) = self.table_state.selected() {
+                            if let Some(_selected) = self.table_state.borrow().selected() {
                                 self.dispatcher
                                     .dispatch(Action::UpdateView(&ViewName::Device));
                                 handled = true;
