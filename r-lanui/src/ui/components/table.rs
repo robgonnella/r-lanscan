@@ -1,92 +1,191 @@
+use std::cell::RefCell;
+
 use ratatui::{
-    layout::{Constraint, Rect},
+    layout::{Constraint, Layout, Rect},
     style::{Modifier, Style, Stylize},
-    text::{Line, Text},
-    widgets::{Cell, HighlightSpacing, Row, StatefulWidget, Table as RatatuiTable, TableState},
+    text::Text,
+    widgets::{
+        Cell, HighlightSpacing, Row, ScrollbarState, StatefulWidget, Table as RatatuiTable,
+        TableState,
+    },
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::ui::store::store::Colors;
+use crate::ui::{
+    store::state::State,
+    views::{CustomStatefulWidget, CustomWidgetRef},
+};
 
-pub const ITEM_HEIGHT: usize = 4;
+use super::scrollbar::ScrollBar;
+
+pub const DEFAULT_ITEM_HEIGHT: usize = 3;
 pub const COLUMN_MAX_WIDTH: u16 = 50;
 const ELLIPSIS: &str = "…";
 
-pub struct Table<'c> {
-    headers: Vec<String>,
+pub struct Table {
+    headers: Option<Vec<String>>,
     items: Vec<Vec<String>>,
-    colors: &'c Colors,
+    item_height: usize,
+    column_size: usize,
+    table_state: RefCell<TableState>,
+    scroll_state: RefCell<ScrollbarState>,
 }
 
-impl<'c> Table<'c> {
-    pub fn new(items: Vec<Vec<String>>, headers: Vec<String>, colors: &'c Colors) -> Self {
+impl Table {
+    pub fn new(
+        items: Vec<Vec<String>>,
+        headers: Option<Vec<String>>,
+        column_size: usize,
+        item_height: usize,
+    ) -> Self {
+        let mut scroll_height = item_height;
+
+        if items.len() > 0 {
+            scroll_height = (items.len() - 1) * item_height;
+        }
+
         Self {
             headers,
+            column_size,
             items,
-            colors,
+            item_height,
+            table_state: RefCell::new(TableState::new()),
+            scroll_state: RefCell::new(ScrollbarState::new(scroll_height)),
         }
+    }
+
+    pub fn update_items(&mut self, items: Vec<Vec<String>>) -> Option<usize> {
+        let mut selected: Option<usize> = None;
+        let selection_opt = self.table_state.borrow().selected();
+
+        if let Some(current_selected) = selection_opt {
+            selected = Some(current_selected);
+
+            if current_selected >= items.len() {
+                let new_idx = items.len() - 1;
+                selected = Some(new_idx);
+                self.table_state.borrow_mut().select(selected);
+                let new_scroll_state = self
+                    .scroll_state
+                    .borrow_mut()
+                    .position(new_idx * self.item_height);
+                self.scroll_state = RefCell::new(new_scroll_state);
+            }
+        }
+
+        self.items = items;
+        selected
+    }
+
+    pub fn selected(&self) -> Option<usize> {
+        self.table_state.borrow().selected()
+    }
+
+    pub fn next(&mut self) -> usize {
+        let i = match self.table_state.borrow().selected() {
+            Some(i) => (i + 1) % self.items.len(),
+            None => 0,
+        };
+
+        self.table_state.borrow_mut().select(Some(i));
+
+        let new_scroll_state = self
+            .scroll_state
+            .borrow_mut()
+            .position(i * self.item_height);
+
+        self.scroll_state = RefCell::new(new_scroll_state);
+
+        i
+    }
+
+    pub fn previous(&mut self) -> usize {
+        let i = match self.table_state.borrow().selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.items.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+
+        self.table_state.borrow_mut().select(Some(i));
+
+        let new_scroll_state = self.scroll_state.borrow().position(i * self.item_height);
+
+        self.scroll_state = RefCell::new(new_scroll_state);
+
+        i
     }
 }
 
-impl<'c> StatefulWidget for Table<'c> {
-    type State = TableState;
+impl CustomWidgetRef for Table {
+    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+        let table_rects =
+            Layout::horizontal([Constraint::Min(5), Constraint::Length(3)]).split(area);
 
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &mut Self::State)
-    where
-        Self: Sized,
-    {
-        let header_style = Style::default()
-            .fg(self.colors.header_fg)
-            .bg(self.colors.header_bg)
-            .add_modifier(Modifier::BOLD);
+        let header = self.headers.as_ref().map(|hs| {
+            let header_style = Style::default()
+                .fg(state.colors.header_fg)
+                .bg(state.colors.header_bg)
+                .add_modifier(Modifier::BOLD);
+
+            hs.iter()
+                .map(|h| Cell::from(h.clone()))
+                .collect::<Row>()
+                .style(header_style)
+                .height(1)
+        });
 
         let selected_style = Style::default()
             .add_modifier(Modifier::REVERSED)
-            .fg(self.colors.selected_style_fg);
+            .fg(state.colors.selected_row_fg);
 
-        let header: Row<'_> = self
-            .headers
-            .iter()
-            .map(|h| Cell::from(h.clone()))
-            .collect::<Row>()
-            .style(header_style)
-            .height(1);
-
-        let rows = self.items.iter().enumerate().map(|(i, data)| {
-            let color = match i % 2 {
-                0 => self.colors.normal_row_color,
-                _ => self.colors.alt_row_color,
-            };
-            let col_width = area.width / self.headers.len() as u16;
+        let rows = self.items.iter().enumerate().map(|(_i, data)| {
+            let col_width = table_rects[0].width / self.column_size as u16;
             let item = fit_to_width(data, col_width as usize);
+
+            // line breaks is my hacky way of centering the text
+            let mut line_break_count = self.item_height / 2;
+            let mut line_breaks = String::from("");
+
+            if line_break_count > 1 && line_break_count % 2 == 0 {
+                line_break_count -= 1;
+            }
+
+            for _ in 0..line_break_count {
+                line_breaks += "\n";
+            }
+
             item.into_iter()
-                .map(|content| Cell::from(Text::from(format!("\n{content}\n"))))
+                .map(|content| Cell::from(Text::from(format!("{line_breaks}{content}"))))
                 .collect::<Row>()
-                .style(Style::new().fg(self.colors.row_fg).bg(color))
-                .height(ITEM_HEIGHT as u16)
+                .style(Style::new().fg(state.colors.row_fg).bg(state.colors.row_bg))
+                .height(self.item_height as u16)
         });
 
-        let spacer = "  ".to_string();
-        let spacers = self
-            .headers
-            .iter()
-            .map(|_| Line::from(spacer.clone()))
-            .collect::<Vec<Line>>();
+        let mut widths: Vec<Constraint> = Vec::new();
 
-        let widths = self
-            .headers
-            .iter()
-            .map(|_| Constraint::Max(COLUMN_MAX_WIDTH))
-            .collect::<Vec<Constraint>>();
+        for _ in 0..self.column_size {
+            widths.push(Constraint::Max(COLUMN_MAX_WIDTH));
+        }
 
-        let t = RatatuiTable::new(rows, widths)
-            .header(header)
+        let mut t = RatatuiTable::new(rows, widths)
             .highlight_style(selected_style)
-            .highlight_symbol(Text::from(spacers))
-            .bg(self.colors.buffer_bg)
+            .bg(state.colors.buffer_bg)
             .highlight_spacing(HighlightSpacing::Always);
 
-        t.render(area, buf, state)
+        if let Some(h) = header {
+            t = t.header(h);
+        }
+
+        t.render(table_rects[0], buf, &mut self.table_state.borrow_mut());
+
+        let scrollbar = ScrollBar::new();
+        let mut scroll_state = self.scroll_state.borrow_mut();
+        scrollbar.render(table_rects[1], buf, &mut scroll_state, state);
     }
 }
 

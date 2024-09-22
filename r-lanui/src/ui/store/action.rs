@@ -1,16 +1,22 @@
+use std::collections::HashMap;
+
 use r_lanlib::scanners::DeviceWithPorts;
+use ratatui::layout::{Position, Rect};
 
 use crate::config::Config;
 
-use super::types::{Theme, ViewName};
+use super::state::{Theme, ViewID};
 
 #[derive(Debug)]
 pub enum Action<'view, 'conf_id, 'theme, 'devices, 'device, 'selected, 'config> {
-    UpdateView(&'view ViewName),
-    UpdateTheme((&'conf_id String, &'theme Theme)),
+    UpdateFocus(&'view ViewID),
+    UpdateLayout(Option<HashMap<ViewID, Rect>>),
+    UpdateMessage(Option<String>),
+    Click(Position),
+    UpdateTheme((&'conf_id str, &'theme Theme)),
     UpdateAllDevices(&'devices Vec<DeviceWithPorts>),
     AddDevice(&'device DeviceWithPorts),
-    UpdateSelectedDevice(&'selected String),
-    SetConfig(&'conf_id String),
+    UpdateSelectedDevice(&'selected str),
+    SetConfig(&'conf_id str),
     CreateAndSetConfig(&'config Config),
 }

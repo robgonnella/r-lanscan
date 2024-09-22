@@ -5,27 +5,25 @@ use ratatui::{
     widgets::{Paragraph, Widget},
 };
 
-use crate::ui::store::store::Colors;
+use crate::ui::{store::state::State, views::CustomWidget};
 
-pub struct Header<'c> {
+pub struct Header {
     title: String,
-    colors: &'c Colors,
 }
 
-impl<'c> Header<'c> {
-    pub fn new(title: String, colors: &'c Colors) -> Self {
-        Self { title, colors }
+impl Header {
+    pub fn new(title: String) -> Self {
+        Self { title }
     }
 }
 
-impl<'c> Widget for Header<'c> {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
+impl CustomWidget for Header {
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State)
     where
         Self: Sized,
     {
         let header_style = Style::default()
-            .fg(self.colors.header_fg)
-            .bg(self.colors.header_bg)
+            .fg(state.colors.border_focused_color)
             .add_modifier(Modifier::BOLD);
 
         let header = Paragraph::new(Line::from(self.title.as_str())).style(header_style);

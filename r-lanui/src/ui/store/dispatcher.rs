@@ -2,10 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::config::ConfigManager;
 
-use super::{
-    action::Action,
-    store::{State, Store},
-};
+use super::{action::Action, state::State, store::Store};
 
 pub struct Dispatcher {
     store: Mutex<Store>,
