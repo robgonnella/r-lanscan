@@ -7,51 +7,13 @@ use std::{
 
 use itertools::Itertools;
 use r_lanlib::scanners::DeviceWithPorts;
-use ratatui::style::{palette::tailwind, Color};
 
-use crate::config::{Config, ConfigManager, DEFAULT_CONFIG_ID};
+use crate::config::{ConfigManager, DEFAULT_CONFIG_ID};
 
 use super::{
     action::Action,
-    types::{Theme, ViewName},
+    state::{Colors, State, Theme, ViewID},
 };
-
-#[derive(Clone, Debug)]
-pub struct Colors {
-    pub buffer_bg: Color,
-    pub header_bg: Color,
-    pub header_fg: Color,
-    pub row_fg: Color,
-    pub selected_style_fg: Color,
-    pub normal_row_color: Color,
-    pub alt_row_color: Color,
-    pub footer_border_color: Color,
-}
-
-impl Colors {
-    pub fn new(color: &tailwind::Palette) -> Self {
-        Self {
-            buffer_bg: tailwind::SLATE.c950,
-            header_bg: color.c900,
-            header_fg: tailwind::SLATE.c200,
-            row_fg: tailwind::SLATE.c200,
-            selected_style_fg: color.c400,
-            normal_row_color: tailwind::SLATE.c950,
-            alt_row_color: tailwind::SLATE.c900,
-            footer_border_color: color.c400,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct State {
-    pub view: ViewName,
-    pub config: Config,
-    pub devices: Vec<DeviceWithPorts>,
-    pub device_map: HashMap<String, DeviceWithPorts>,
-    pub selected_device: Option<String>,
-    pub colors: Colors,
-}
 
 pub struct Store {
     config_manager: Arc<Mutex<ConfigManager>>,
@@ -72,12 +34,14 @@ impl Store {
         Self {
             config_manager,
             state: State {
-                view: ViewName::Devices,
-                config,
+                focused: ViewID::Devices,
+                config: config,
                 devices: Vec::new(),
                 device_map: HashMap::new(),
                 selected_device: None,
-                colors,
+                colors: colors,
+                message: None,
+                layout: None,
             },
         }
     }
@@ -88,9 +52,31 @@ impl Store {
 
     pub fn update(&mut self, action: Action) {
         let new_state = match action {
-            Action::UpdateView(view) => {
+            Action::UpdateFocus(view_id) => {
                 let mut state = self.state.clone();
-                state.view = view.clone();
+                state.focused = view_id.clone();
+                state
+            }
+            Action::UpdateLayout(layout) => {
+                let mut state = self.state.clone();
+                state.layout = layout;
+                state
+            }
+            Action::UpdateMessage(message) => {
+                let mut state = self.state.clone();
+                state.message = message;
+                state
+            }
+            Action::Click(position) => {
+                let mut state = self.state.clone();
+                let layout = state.layout.clone();
+                if let Some(layout) = layout {
+                    layout.iter().for_each(|(id, area)| {
+                        if area.contains(position) {
+                            state.focused = id.clone();
+                        }
+                    });
+                }
                 state
             }
             Action::UpdateTheme((config_id, theme)) => {
@@ -162,7 +148,7 @@ impl Store {
             }
             Action::UpdateSelectedDevice(i) => {
                 let mut state = self.state.clone();
-                state.selected_device = Some(i.clone());
+                state.selected_device = Some(String::from(i));
                 state
             }
         };

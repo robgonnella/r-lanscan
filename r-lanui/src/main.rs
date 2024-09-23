@@ -6,7 +6,7 @@ use directories::ProjectDirs;
 use log::*;
 use simplelog;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     env, fs,
     sync::{
         mpsc::{self, Receiver, Sender},
@@ -14,7 +14,7 @@ use std::{
     },
     thread::{self, JoinHandle},
 };
-use ui::store::{action::Action, dispatcher::Dispatcher, types::Theme};
+use ui::store::{action::Action, dispatcher::Dispatcher};
 
 use r_lanlib::{
     network::{self, NetworkInterface},
@@ -249,7 +249,7 @@ fn monitor_network(
 
 fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) {
     let config_path = get_project_config_path();
-    let config_manager = Arc::new(Mutex::new(ConfigManager::new(config_path)));
+    let config_manager = Arc::new(Mutex::new(ConfigManager::new(&config_path)));
     let dispatcher = Arc::new(Dispatcher::new(Arc::clone(&config_manager)));
 
     let manager = config_manager.lock().unwrap();
@@ -265,9 +265,8 @@ fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) 
         config = Config {
             id: fakeit::animal::animal().to_lowercase(),
             cidr: interface.cidr.clone(),
-            device_configs: HashMap::new(),
             ports: args.ports.clone(),
-            theme: Theme::Blue.to_string(),
+            ..Config::default()
         };
         dispatcher.dispatch(Action::CreateAndSetConfig(&config))
     }

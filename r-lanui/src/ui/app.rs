@@ -3,57 +3,54 @@ use core::time;
 use log::*;
 use ratatui::{
     backend::Backend,
-    crossterm::event::{self, Event, KeyCode},
+    crossterm::{
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+        execute,
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    },
+    prelude::CrosstermBackend,
     Terminal,
 };
-use std::{collections::HashMap, io, sync::Arc};
+use std::{io, sync::Arc};
 
 use super::{
-    store::{dispatcher::Dispatcher, types::ViewName},
-    views::{config::ConfigView, device::DeviceView, devices::DevicesView, View},
+    store::dispatcher::Dispatcher,
+    views::{main::MainView, View},
 };
 
 struct App {
-    dispatcher: Arc<Dispatcher>,
-    views: HashMap<ViewName, Box<dyn View>>,
+    main_view: Box<dyn View>,
 }
 
 impl App {
     fn new(dispatcher: Arc<Dispatcher>) -> Self {
-        let mut views: HashMap<ViewName, Box<dyn View>> = HashMap::new();
-
-        views.insert(
-            ViewName::Config,
-            Box::new(ConfigView::new(Arc::clone(&dispatcher))),
-        );
-        views.insert(
-            ViewName::Device,
-            Box::new(DeviceView::new(Arc::clone(&dispatcher))),
-        );
-        views.insert(
-            ViewName::Devices,
-            Box::new(DevicesView::new(Arc::clone(&dispatcher))),
-        );
-
-        Self { dispatcher, views }
-    }
-
-    fn get_view(&mut self) -> &mut Box<dyn View> {
-        let view_name = self.dispatcher.get_state().view;
-        self.views.get_mut(&view_name).unwrap()
+        Self {
+            main_view: Box::new(MainView::new(dispatcher)),
+        }
     }
 }
 
 pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Report> {
     // setup terminal
-    let mut terminal = ratatui::init();
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
     let mut app = App::new(dispatcher);
 
     // start app loop
     let res = run_app(&mut terminal, &mut app);
 
     // restore terminal
-    ratatui::restore();
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
 
     if let Err(err) = res {
         error!("{err:?}");
@@ -64,16 +61,14 @@ pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Report> {
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     loop {
-        let view = app.get_view();
-
-        terminal.draw(|f| view.render_ref(f.area(), f.buffer_mut()))?;
+        terminal.draw(|f| app.main_view.render_ref(f.area(), f.buffer_mut()))?;
 
         // Use poll here so we don't block the thread, this will allow
         // rendering of incoming device data from network as it's received
-        if let Ok(has_event) = event::poll(time::Duration::from_secs(1)) {
+        if let Ok(has_event) = event::poll(time::Duration::from_millis(60)) {
             if has_event {
                 let evt = event::read()?;
-                let handled = view.process_event(&evt);
+                let handled = app.main_view.process_event(&evt);
 
                 if !handled {
                     match evt {
