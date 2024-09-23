@@ -91,6 +91,10 @@ fn process_arp(
         tx,
     );
 
+    dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
+        "Performing ARP Scan…",
+    ))));
+
     let handle = scanner.scan();
 
     while let Ok(msg) = rx.recv() {
@@ -114,6 +118,8 @@ fn process_arp(
     handle.join().unwrap()?;
 
     let items: Vec<Device> = arp_results.into_iter().collect();
+
+    dispatcher.dispatch(Action::UpdateMessage(None));
 
     Ok((items, rx))
 }
@@ -152,6 +158,10 @@ fn process_syn(
         tx,
     );
 
+    dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
+        "Performing SYN Scan…",
+    ))));
+
     let handle = scanner.scan();
 
     while let Ok(msg) = rx.recv() {
@@ -178,6 +188,8 @@ fn process_syn(
     }
 
     handle.join().unwrap()?;
+
+    dispatcher.dispatch(Action::UpdateMessage(None));
 
     Ok(syn_results)
 }
