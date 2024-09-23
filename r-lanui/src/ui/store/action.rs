@@ -8,8 +8,7 @@ use crate::config::Config;
 use super::state::{Theme, ViewID};
 
 #[derive(Debug)]
-pub enum Action<'view, 'conf_id, 'theme, 'devices, 'device, 'selected, 'config> {
-    UpdateFocus(&'view ViewID),
+pub enum Action<'conf_id, 'theme, 'devices, 'device, 'selected, 'config> {
     UpdateLayout(Option<HashMap<ViewID, Rect>>),
     UpdateMessage(Option<String>),
     Click(Position),

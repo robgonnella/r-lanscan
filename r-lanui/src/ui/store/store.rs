@@ -52,11 +52,6 @@ impl Store {
 
     pub fn update(&mut self, action: Action) {
         let new_state = match action {
-            Action::UpdateFocus(view_id) => {
-                let mut state = self.state.clone();
-                state.focused = view_id.clone();
-                state
-            }
             Action::UpdateLayout(layout) => {
                 let mut state = self.state.clone();
                 state.layout = layout;
