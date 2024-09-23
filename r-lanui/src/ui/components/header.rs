@@ -23,7 +23,7 @@ impl CustomWidget for Header {
         Self: Sized,
     {
         let header_style = Style::default()
-            .fg(state.colors.border_focused_color)
+            .fg(state.colors.label)
             .add_modifier(Modifier::BOLD);
 
         let header = Paragraph::new(Line::from(self.title.as_str())).style(header_style);

@@ -77,9 +77,11 @@ impl MainView {
         logo.render_ref(logo_inner_area, buf);
 
         if let Some(message) = message {
-            let m = Paragraph::new(format!("\n\n{message}"))
-                .style(Style::new().fg(state.colors.border_color));
-            m.render(sections[1], buf);
+            let message_block = Block::default().padding(Padding::uniform(2));
+            let message_inner_area = message_block.inner(sections[1]);
+            let m = Header::new(format!("\n\n{message}"));
+            message_block.render(sections[1], buf);
+            m.render(message_inner_area, buf, state);
         }
 
         let search = Paragraph::new("\nSearch").style(Style::new().fg(state.colors.placeholder));

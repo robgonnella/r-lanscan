@@ -35,6 +35,7 @@ pub struct Colors {
     pub border_color: Color,
     pub border_focused_color: Color,
     pub scroll_bar_fg: Color,
+    pub label: Color,
     pub placeholder: Color,
 }
 
@@ -52,6 +53,7 @@ impl Colors {
             border_focused_color: color.c400,
             scroll_bar_fg: tailwind::SLATE.c800,
             placeholder: tailwind::SLATE.c800,
+            label: color.c400,
         }
     }
 }
