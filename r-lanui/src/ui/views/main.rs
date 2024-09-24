@@ -19,7 +19,6 @@ use super::{
     config::ConfigView, device::DeviceView, devices::DevicesView, CustomWidget, EventHandler, View,
 };
 
-const INFO_TEXT: &str = "(Esc) quit | (c) configure | (t) trace | (s) SSH";
 const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 
 pub struct MainView {
@@ -173,8 +172,20 @@ impl MainView {
         config_view.render_ref(inner_area, buf);
     }
 
-    fn render_footer(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
-        let footer = InfoFooter::new(String::from(INFO_TEXT));
+    fn render_footer(
+        &self,
+        legend: &str,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+    ) {
+        let mut info = String::from("(Esc) quit");
+
+        if legend.len() > 0 {
+            info = format!("{info} | {legend}");
+        }
+
+        let footer = InfoFooter::new(info);
         footer.render(area, buf, state);
     }
 }
@@ -217,6 +228,10 @@ impl WidgetRef for MainView {
 
         self.dispatcher.dispatch(Action::UpdateLayout(Some(layout)));
 
+        let focused_id = self.dispatcher.get_state().focused;
+        let view = self.sub_views.get(&focused_id).unwrap();
+        let legend = view.legend();
+
         self.render_buffer_bg(area, buf, &state);
         self.render_top(page_areas[0], buf, &state, state.message.clone());
         self.render_search(page_areas[2], buf, &state);
@@ -224,7 +239,7 @@ impl WidgetRef for MainView {
         self.render_selected_host(middle_column_sections[0], buf, &state);
         self.render_host_view_port(middle_column_sections[1], buf, &state);
         self.render_config(middle_areas[2], buf, &state);
-        self.render_footer(page_areas[2], buf, &state);
+        self.render_footer(legend, page_areas[2], buf, &state);
     }
 }
 

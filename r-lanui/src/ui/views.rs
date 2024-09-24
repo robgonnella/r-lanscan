@@ -45,4 +45,7 @@ pub trait CustomStatefulWidgetRef {
 
 pub trait View: EventHandler + WidgetRef {
     fn id(&self) -> ViewID;
+    fn legend(&self) -> &str {
+        ""
+    }
 }

@@ -47,6 +47,9 @@ impl View for DeviceView {
     fn id(&self) -> ViewID {
         ViewID::Device
     }
+    fn legend(&self) -> &str {
+        "(c) configure | (t) trace | (s) SSH"
+    }
 }
 
 impl WidgetRef for DeviceView {
