@@ -54,17 +54,7 @@ unsafe impl Sync for PNetSender {}
 pub fn default(
     interface: &NetworkInterface,
 ) -> Result<(Arc<Mutex<dyn Reader>>, Arc<Mutex<dyn Sender>>), Box<dyn Error>> {
-    let cfg = pnet::datalink::Config {
-        bpf_fd_attempts: 1000,
-        channel_type: datalink::ChannelType::Layer2,
-        linux_fanout: None,
-        promiscuous: true,
-        read_buffer_size: 16384,
-        write_buffer_size: 16384,
-        read_timeout: None,
-        write_timeout: None,
-        socket_fd: None,
-    };
+    let cfg = pnet::datalink::Config::default();
 
     let channel = match pnet::datalink::channel(&interface.into(), cfg) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
