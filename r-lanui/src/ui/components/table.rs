@@ -126,6 +126,10 @@ impl CustomWidgetRef for Table {
         let table_rects =
             Layout::horizontal([Constraint::Min(5), Constraint::Length(3)]).split(area);
 
+        if table_rects[0].width < 1 || table_rects[0].height < 1 {
+            return;
+        }
+
         let header = self.headers.as_ref().map(|hs| {
             let header_style = Style::default()
                 .fg(state.colors.header_fg)
@@ -195,7 +199,7 @@ fn fit_to_width(item: &Vec<String>, col_width: usize) -> Vec<String> {
             let width = i.width();
             let mut value = i.clone();
             if width >= col_width {
-                value.truncate(col_width - 10);
+                value.truncate(col_width - ELLIPSIS.width());
                 value.push_str(ELLIPSIS);
             }
             value

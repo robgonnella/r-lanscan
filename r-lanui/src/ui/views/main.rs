@@ -60,9 +60,9 @@ impl MainView {
         message: Option<String>,
     ) {
         let sections = Layout::horizontal([
-            Constraint::Length(50),
-            Constraint::Min(5),
-            Constraint::Length(50),
+            Constraint::Percentage(20),
+            Constraint::Percentage(100),
+            Constraint::Percentage(20),
         ])
         .split(area);
 
@@ -199,9 +199,9 @@ impl WidgetRef for MainView {
 
         // split middle into 3 columns (left, middle, right)
         let middle_areas = Layout::horizontal([
-            Constraint::Length(50),
-            Constraint::Min(5),
-            Constraint::Length(50),
+            Constraint::Percentage(20),
+            Constraint::Percentage(100),
+            Constraint::Percentage(20),
         ])
         .split(page_areas[1]);
 
