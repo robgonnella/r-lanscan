@@ -66,8 +66,6 @@ pub fn default(
         socket_fd: None,
     };
 
-    println!("cfg --> {:?}", cfg);
-
     let channel = match pnet::datalink::channel(&interface.into(), cfg) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
         Ok(_) => Err(std::io::Error::new(
