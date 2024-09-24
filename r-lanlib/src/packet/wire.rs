@@ -51,10 +51,22 @@ impl Sender for PNetSender {
 unsafe impl Send for PNetSender {}
 unsafe impl Sync for PNetSender {}
 
-pub fn new_default_reader(
+pub fn default(
     interface: &NetworkInterface,
-) -> Result<Arc<Mutex<dyn Reader>>, Box<dyn Error>> {
-    let cfg = pnet::datalink::Config::default();
+) -> Result<(Arc<Mutex<dyn Reader>>, Arc<Mutex<dyn Sender>>), Box<dyn Error>> {
+    let cfg = pnet::datalink::Config {
+        bpf_fd_attempts: 1000,
+        channel_type: datalink::ChannelType::Layer2,
+        linux_fanout: None,
+        promiscuous: true,
+        read_buffer_size: 16384,
+        write_buffer_size: 16384,
+        read_timeout: None,
+        write_timeout: None,
+        socket_fd: None,
+    };
+
+    println!("cfg --> {:?}", cfg);
 
     let channel = match pnet::datalink::channel(&interface.into(), cfg) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
@@ -65,26 +77,12 @@ pub fn new_default_reader(
         Err(e) => Err(e),
     }?;
 
-    Ok(Arc::new(Mutex::new(PNetReader {
-        receiver: channel.1,
-    })))
-}
-
-pub fn new_default_sender(
-    interface: &NetworkInterface,
-) -> Result<Arc<Mutex<dyn Sender>>, Box<dyn Error>> {
-    let cfg = pnet::datalink::Config::default();
-
-    let channel = match pnet::datalink::channel(&interface.into(), cfg) {
-        Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
-        Ok(_) => Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "failed to create packet sender",
-        )),
-        Err(e) => Err(e),
-    }?;
-
-    Ok(Arc::new(Mutex::new(PNetSender { sender: channel.0 })))
+    Ok((
+        Arc::new(Mutex::new(PNetReader {
+            receiver: channel.1,
+        })),
+        Arc::new(Mutex::new(PNetSender { sender: channel.0 })),
+    ))
 }
 
 #[cfg(test)]
@@ -108,16 +106,9 @@ mod tests {
     }
 
     #[test]
-    fn creates_default_reader() {
+    fn creates_default_wire() {
         let interface = get_default_interface();
-        let reader = new_default_reader(&interface);
-        assert!(reader.is_ok())
-    }
-
-    #[test]
-    fn creates_default_sender() {
-        let interface = get_default_interface();
-        let sender = new_default_sender(&interface);
-        assert!(sender.is_ok())
+        let wire = default(&interface);
+        assert!(wire.is_ok())
     }
 }

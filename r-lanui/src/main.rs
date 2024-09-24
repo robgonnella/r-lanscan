@@ -211,15 +211,7 @@ fn monitor_network(
 
         let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-        let packet_reader = packet::wire::new_default_reader(&interface).or_else(|e| {
-            Err(ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(e),
-            })
-        })?;
-
-        let packet_sender = packet::wire::new_default_sender(&interface).or_else(|e| {
+        let wire = packet::wire::default(&interface).or_else(|e| {
             Err(ScanError {
                 ip: None,
                 port: None,
@@ -228,8 +220,8 @@ fn monitor_network(
         })?;
 
         let (arp_results, rx) = process_arp(
-            Arc::clone(&packet_reader),
-            Arc::clone(&packet_sender),
+            Arc::clone(&wire.0),
+            Arc::clone(&wire.1),
             &interface,
             interface.cidr.clone(),
             rx,
@@ -238,8 +230,8 @@ fn monitor_network(
         )?;
 
         let results = process_syn(
-            Arc::clone(&packet_reader),
-            Arc::clone(&packet_sender),
+            Arc::clone(&wire.0),
+            Arc::clone(&wire.1),
             &interface,
             arp_results,
             config.ports.clone(),

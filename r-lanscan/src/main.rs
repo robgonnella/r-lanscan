@@ -299,15 +299,7 @@ fn main() -> Result<(), Report> {
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let packet_reader = packet::wire::new_default_reader(&interface).or_else(|e| {
-        Err(ScanError {
-            ip: None,
-            port: None,
-            error: Box::from(e),
-        })
-    })?;
-
-    let packet_sender = packet::wire::new_default_sender(&interface).or_else(|e| {
+    let wire = packet::wire::default(&interface).or_else(|e| {
         Err(ScanError {
             ip: None,
             port: None,
@@ -318,8 +310,8 @@ fn main() -> Result<(), Report> {
     let (arp_results, rx) = process_arp(
         &args,
         &interface,
-        Arc::clone(&packet_reader),
-        Arc::clone(&packet_sender),
+        Arc::clone(&wire.0),
+        Arc::clone(&wire.1),
         rx,
         tx.clone(),
     )?;
@@ -333,8 +325,8 @@ fn main() -> Result<(), Report> {
     let final_results = process_syn(
         &args,
         &interface,
-        Arc::clone(&packet_reader),
-        Arc::clone(&packet_sender),
+        Arc::clone(&wire.0),
+        Arc::clone(&wire.1),
         arp_results,
         rx,
         tx.clone(),
