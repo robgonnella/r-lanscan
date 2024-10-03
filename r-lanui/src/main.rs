@@ -97,21 +97,32 @@ fn process_arp(
 
     let handle = scanner.scan();
 
-    while let Ok(msg) = rx.recv() {
-        if let Some(_done) = msg.done() {
-            debug!("scanning complete");
-            break;
-        }
-        if let Some(m) = msg.arp_message() {
-            debug!("received scanning message: {:?}", msg);
-            arp_results.insert(m.to_owned());
-            dispatcher.dispatch(Action::AddDevice(&DeviceWithPorts {
-                hostname: m.hostname.clone(),
-                ip: m.ip.clone(),
-                mac: m.mac.clone(),
-                open_ports: HashSet::new(),
-                vendor: m.vendor.clone(),
-            }));
+    loop {
+        let msg = rx.recv().or_else(|e| {
+            Err(ScanError {
+                ip: None,
+                port: None,
+                error: Box::new(e),
+            })
+        })?;
+
+        match msg {
+            ScanMessage::Done(_) => {
+                debug!("scanning complete");
+                break;
+            }
+            ScanMessage::ARPScanResult(m) => {
+                debug!("received scanning message: {:?}", m);
+                arp_results.insert(m.to_owned());
+                dispatcher.dispatch(Action::AddDevice(&DeviceWithPorts {
+                    hostname: m.hostname.clone(),
+                    ip: m.ip.clone(),
+                    mac: m.mac.clone(),
+                    open_ports: HashSet::new(),
+                    vendor: m.vendor.clone(),
+                }));
+            }
+            _ => {}
         }
     }
 
@@ -164,7 +175,15 @@ fn process_syn(
 
     let handle = scanner.scan();
 
-    while let Ok(msg) = rx.recv() {
+    loop {
+        let msg = rx.recv().or_else(|e| {
+            Err(ScanError {
+                ip: None,
+                port: None,
+                error: Box::new(e),
+            })
+        })?;
+
         match msg {
             ScanMessage::Done(_) => {
                 debug!("scanning complete");
