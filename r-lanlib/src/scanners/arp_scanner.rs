@@ -78,7 +78,15 @@ impl<'net> ARPScanner<'net> {
                 })
             })?;
 
-            while let Ok(pkt) = reader.next_packet() {
+            loop {
+                let pkt = reader.next_packet().or_else(|e| {
+                    Err(ScanError {
+                        ip: None,
+                        port: None,
+                        error: Box::new(e),
+                    })
+                })?;
+
                 if let Ok(_) = done.try_recv() {
                     debug!("exiting arp packet reader");
                     break;

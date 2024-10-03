@@ -75,7 +75,15 @@ impl<'net> SYNScanner<'net> {
                 })
             })?;
 
-            while let Ok(pkt) = reader.next_packet() {
+            loop {
+                let pkt = reader.next_packet().or_else(|e| {
+                    Err(ScanError {
+                        ip: None,
+                        port: None,
+                        error: Box::new(e),
+                    })
+                })?;
+
                 if let Ok(_) = done_rx.try_recv() {
                     debug!("exiting syn packet reader");
                     break;
@@ -187,6 +195,7 @@ impl<'net> Scanner for SYNScanner<'net> {
                 let process_port = |port: u16| -> Result<(), ScanError> {
                     // throttle packet sending to prevent packet loss
                     thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
+
                     debug!("scanning SYN target: {}:{}", device.ip, port);
 
                     let dest_ipv4 = net::Ipv4Addr::from_str(&device.ip).or_else(|e| {

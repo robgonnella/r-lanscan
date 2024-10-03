@@ -17,6 +17,8 @@ use simplelog;
 use std::{
     collections::HashSet,
     env,
+    net::Ipv4Addr,
+    str::FromStr,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc, Mutex,
@@ -127,7 +129,15 @@ fn process_arp(
 
     let handle = scanner.scan();
 
-    while let Ok(msg) = rx.recv() {
+    loop {
+        let msg = rx.recv().or_else(|e| {
+            Err(ScanError {
+                ip: None,
+                port: None,
+                error: Box::new(e),
+            })
+        })?;
+
         match msg {
             ScanMessage::Done(_) => {
                 debug!("scanning complete");
@@ -144,7 +154,7 @@ fn process_arp(
     handle.join().unwrap()?;
 
     let mut items: Vec<Device> = arp_results.into_iter().collect();
-    items.sort_by_key(|i| i.ip.to_owned());
+    items.sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
 
     Ok((items, rx))
 }
@@ -206,7 +216,15 @@ fn process_syn(
 
     let handle = scanner.scan();
 
-    while let Ok(msg) = rx.recv() {
+    loop {
+        let msg = rx.recv().or_else(|e| {
+            Err(ScanError {
+                ip: None,
+                port: None,
+                error: Box::new(e),
+            })
+        })?;
+
         match msg {
             ScanMessage::Done(_) => {
                 debug!("scanning complete");
