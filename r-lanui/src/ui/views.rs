@@ -31,17 +31,17 @@ pub trait CustomStatefulWidget {
     );
 }
 
-pub trait CustomStatefulWidgetRef {
-    type State;
+// pub trait CustomStatefulWidgetRef {
+//     type State;
 
-    fn render_ref(
-        &self,
-        area: Rect,
-        buf: &mut ratatui::prelude::Buffer,
-        state: &mut Self::State,
-        custom_state: &State,
-    );
-}
+//     fn render_ref(
+//         &self,
+//         area: Rect,
+//         buf: &mut ratatui::prelude::Buffer,
+//         state: &mut Self::State,
+//         custom_state: &State,
+//     );
+// }
 
 pub trait View: EventHandler + WidgetRef {
     fn id(&self) -> ViewID;

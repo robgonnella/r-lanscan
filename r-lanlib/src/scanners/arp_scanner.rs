@@ -1,8 +1,5 @@
 use log::*;
-use pnet::{
-    packet::{arp, ethernet, Packet},
-    util::MacAddr,
-};
+use pnet::packet::{arp, ethernet, Packet};
 use std::{
     io::{Error as IOError, ErrorKind},
     net,
@@ -62,7 +59,6 @@ impl<'net> ARPScanner<'net> {
     fn read_packets(
         &self,
         done: sync::mpsc::Receiver<()>,
-        source_mac: MacAddr,
     ) -> JoinHandle<Result<(), ScanError>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let include_host_names = self.include_host_names.clone();
@@ -92,13 +88,13 @@ impl<'net> ARPScanner<'net> {
                     break;
                 }
 
-                let eth = &ethernet::EthernetPacket::new(pkt);
+                let eth = ethernet::EthernetPacket::new(pkt);
 
                 if eth.is_none() {
                     continue;
                 }
 
-                let eth = eth.as_ref().unwrap();
+                let eth = eth.unwrap();
 
                 let header = arp::ArpPacket::new(eth.payload());
 
@@ -110,8 +106,9 @@ impl<'net> ARPScanner<'net> {
 
                 let op = header.get_operation();
 
-                let is_expected_arp_packet =
-                    op == arp::ArpOperations::Reply && eth.get_source() != source_mac;
+                // Capture ANY ARP reply as it's an indiction that there's a
+                // device on the network
+                let is_expected_arp_packet = op == arp::ArpOperations::Reply;
 
                 if !is_expected_arp_packet {
                     continue;
@@ -172,7 +169,7 @@ impl<'net> Scanner for ARPScanner<'net> {
         let source_mac = self.interface.mac;
         let targets = Arc::clone(&self.targets);
 
-        let read_handle = self.read_packets(done_rx, source_mac.clone());
+        let read_handle = self.read_packets(done_rx);
 
         // prevent blocking thread so messages can be freely sent to consumer
         thread::spawn(move || -> Result<(), ScanError> {

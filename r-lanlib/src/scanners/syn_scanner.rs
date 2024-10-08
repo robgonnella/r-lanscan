@@ -89,13 +89,13 @@ impl<'net> SYNScanner<'net> {
                     break;
                 }
 
-                let eth: &Option<ethernet::EthernetPacket> = &ethernet::EthernetPacket::new(pkt);
+                let eth = ethernet::EthernetPacket::new(pkt);
 
                 if eth.is_none() {
                     continue;
                 }
 
-                let eth = eth.as_ref().unwrap();
+                let eth = eth.unwrap();
                 let header = ipv4::Ipv4Packet::new(eth.payload());
 
                 if header.is_none() {
