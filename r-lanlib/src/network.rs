@@ -76,8 +76,9 @@ pub fn get_available_port() -> Result<u16, io::Error> {
 
 fn get_interface_ipv4_and_cidr(interface: &PNetNetworkInterface) -> Option<(String, String)> {
     let ipnet = interface.ips.iter().find(|i| i.is_ipv4())?;
-    let ip = ipnet.network().to_string();
+    let ip = ipnet.ip().to_string();
+    let base = ipnet.network().to_string();
     let prefix = ipnet.prefix().to_string();
-    let cidr = String::from(format!("{ip}/{prefix}"));
+    let cidr = String::from(format!("{base}/{prefix}"));
     Some((ip, cidr))
 }
