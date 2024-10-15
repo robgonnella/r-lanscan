@@ -55,7 +55,7 @@ struct Args {
 
     /// Perform reverse dns lookups
     #[arg(long, default_value_t = false)]
-    dns: bool,
+    host_names: bool,
 
     /// Set idle timeout in milliseconds for all scanners
     #[arg(long, default_value_t = IDLE_TIMEOUT)]
@@ -92,17 +92,19 @@ fn initialize_logger(args: &Args) {
     .unwrap();
 }
 
-fn print_args(args: &Args) {
+fn print_args(args: &Args, interface: &NetworkInterface) {
     info!("configuration:");
     info!("targets:         {:?}", args.targets);
     info!("ports            {:?}", args.ports);
     info!("json:            {}", args.json);
     info!("arpOnly:         {}", args.arp_only);
     info!("vendor:          {}", args.vendor);
-    info!("dns:             {}", args.dns);
+    info!("host_names:      {}", args.host_names);
     info!("quiet:           {}", args.quiet);
     info!("idle_timeout_ms: {}", args.idle_timeout_ms);
-    info!("interface:       {}", args.interface);
+    info!("interface:       {}", interface.name);
+    info!("cidr:            {}", interface.cidr);
+    info!("user_ip:         {}", interface.ipv4.to_string());
     info!("source_port:     {}", args.source_port);
 }
 
@@ -122,7 +124,7 @@ fn process_arp(
         packet_sender,
         IPTargets::new(args.targets.clone()),
         args.vendor,
-        args.dns,
+        args.host_names,
         time::Duration::from_millis(args.idle_timeout_ms.into()),
         tx,
     );
@@ -313,7 +315,7 @@ fn main() -> Result<(), Report> {
         args.targets = vec![interface.cidr.clone()]
     }
 
-    print_args(&args);
+    print_args(&args, &interface);
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
