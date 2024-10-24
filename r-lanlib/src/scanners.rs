@@ -91,36 +91,6 @@ pub enum ScanMessage {
     SYNScanResult(SYNScanResult),
 }
 
-impl ScanMessage {
-    pub fn arp_message(&self) -> Option<&Device> {
-        match self {
-            ScanMessage::ARPScanResult(msg) => Some(msg),
-            _ => None,
-        }
-    }
-
-    pub fn syn_message(&self) -> Option<&SYNScanResult> {
-        match self {
-            ScanMessage::SYNScanResult(msg) => Some(msg),
-            _ => None,
-        }
-    }
-
-    pub fn info(&self) -> Option<&Scanning> {
-        match self {
-            ScanMessage::Info(msg) => Some(msg),
-            _ => None,
-        }
-    }
-
-    pub fn done(&self) -> Option<()> {
-        match self {
-            ScanMessage::Done(_msg) => Some(()),
-            _ => None,
-        }
-    }
-}
-
 pub trait Scanner: Sync + Send {
     fn scan(&self) -> JoinHandle<Result<(), ScanError>>;
 }
