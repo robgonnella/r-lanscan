@@ -30,7 +30,7 @@ pub struct SYNScanner<'net> {
     ports: Arc<PortTargets>,
     source_port: u16,
     idle_timeout: Duration,
-    sender: mpsc::Sender<ScanMessage>,
+    notifier: mpsc::Sender<ScanMessage>,
 }
 
 impl<'net> SYNScanner<'net> {
@@ -42,7 +42,7 @@ impl<'net> SYNScanner<'net> {
         ports: Arc<PortTargets>,
         source_port: u16,
         idle_timeout: Duration,
-        sender: mpsc::Sender<ScanMessage>,
+        notifier: mpsc::Sender<ScanMessage>,
     ) -> Self {
         Self {
             interface,
@@ -52,7 +52,7 @@ impl<'net> SYNScanner<'net> {
             ports,
             source_port,
             idle_timeout,
-            sender,
+            notifier,
         }
     }
 }
@@ -63,7 +63,7 @@ impl<'net> SYNScanner<'net> {
     fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let devices = self.targets.to_owned();
-        let sender = self.sender.clone();
+        let notifier = self.notifier.clone();
         let source_port = self.source_port.to_owned();
 
         thread::spawn(move || -> Result<(), ScanError> {
@@ -146,7 +146,7 @@ impl<'net> SYNScanner<'net> {
 
                 let port = port.unwrap();
 
-                sender
+                notifier
                     .send(ScanMessage::SYNScanResult(SYNScanResult {
                         device: device.to_owned(),
                         open_port: Port {
@@ -177,7 +177,7 @@ impl<'net> Scanner for SYNScanner<'net> {
         debug!("starting syn packet reader");
 
         let (done_tx, done_rx) = mpsc::channel::<()>();
-        let msg_sender = self.sender.clone();
+        let notifier = self.notifier.clone();
         let packet_sender = Arc::clone(&self.packet_sender);
         let targets = self.targets.clone();
         let interface = self.interface;
@@ -224,7 +224,7 @@ impl<'net> Scanner for SYNScanner<'net> {
                     );
 
                     // send info message to consumer
-                    msg_sender
+                    notifier
                         .send(ScanMessage::Info(Scanning {
                             ip: device.ip.clone(),
                             port: Some(port.to_string()),
@@ -270,7 +270,7 @@ impl<'net> Scanner for SYNScanner<'net> {
                 })
             })?;
 
-            msg_sender.send(ScanMessage::Done(())).or_else(|e| {
+            notifier.send(ScanMessage::Done(())).or_else(|e| {
                 Err(ScanError {
                     ip: None,
                     port: None,

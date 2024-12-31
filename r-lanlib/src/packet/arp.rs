@@ -1,14 +1,13 @@
 use std::net;
 
 use pnet::{
-    packet::{arp, ethernet},
+    packet::{arp, ethernet, MutablePacket},
     util,
 };
 
 // Constants used to help locate our nested packets
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
-const PKT_ARP_OFFSET: usize = PKT_ETH_SIZE;
 const PKT_TOTAL_SIZE: usize = PKT_ETH_SIZE + PKT_ARP_SIZE;
 
 pub struct ARPPacket {}
@@ -21,32 +20,30 @@ impl ARPPacket {
     ) -> [u8; PKT_TOTAL_SIZE] {
         let mut pkt_buf = [0u8; PKT_TOTAL_SIZE];
 
-        // Use scope blocks so we can re-borrow our buffer
-        {
-            // Build our base ethernet frame
-            let mut pkt_eth = ethernet::MutableEthernetPacket::new(&mut pkt_buf)
-                .expect("failed to generate ethernet packet");
+        // Build our base ethernet frame
+        let mut pkt_eth = ethernet::MutableEthernetPacket::new(&mut pkt_buf)
+            .expect("failed to generate ethernet packet");
 
-            pkt_eth.set_destination(util::MacAddr::broadcast());
-            pkt_eth.set_source(source_mac);
-            pkt_eth.set_ethertype(ethernet::EtherTypes::Arp);
-        }
+        let mut arp_buffer = [0u8; PKT_ARP_SIZE];
 
-        {
-            // Build the ARP frame on top of the ethernet frame
-            let mut pkt_arp = arp::MutableArpPacket::new(&mut pkt_buf[PKT_ARP_OFFSET..])
-                .expect("failed to generate arp packet");
+        let mut pkt_arp =
+            arp::MutableArpPacket::new(&mut arp_buffer).expect("failed to generate arp packet");
 
-            pkt_arp.set_hardware_type(arp::ArpHardwareTypes::Ethernet);
-            pkt_arp.set_protocol_type(ethernet::EtherTypes::Ipv4);
-            pkt_arp.set_hw_addr_len(6);
-            pkt_arp.set_proto_addr_len(4);
-            pkt_arp.set_operation(arp::ArpOperations::Request);
-            pkt_arp.set_sender_hw_addr(source_mac);
-            pkt_arp.set_sender_proto_addr(source_ipv4);
-            pkt_arp.set_target_hw_addr(util::MacAddr::zero());
-            pkt_arp.set_target_proto_addr(target_ipv4);
-        }
+        pkt_eth.set_destination(util::MacAddr::broadcast());
+        pkt_eth.set_source(source_mac);
+        pkt_eth.set_ethertype(ethernet::EtherTypes::Arp);
+
+        pkt_arp.set_hardware_type(arp::ArpHardwareTypes::Ethernet);
+        pkt_arp.set_protocol_type(ethernet::EtherTypes::Ipv4);
+        pkt_arp.set_hw_addr_len(6);
+        pkt_arp.set_proto_addr_len(4);
+        pkt_arp.set_operation(arp::ArpOperations::Request);
+        pkt_arp.set_sender_hw_addr(source_mac);
+        pkt_arp.set_sender_proto_addr(source_ipv4);
+        pkt_arp.set_target_hw_addr(util::MacAddr::zero());
+        pkt_arp.set_target_proto_addr(target_ipv4);
+
+        pkt_eth.set_payload(pkt_arp.packet_mut());
 
         pkt_buf
     }

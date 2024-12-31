@@ -25,7 +25,7 @@ pub struct FullScanner<'net> {
     vendor: bool,
     host: bool,
     idle_timeout: Duration,
-    sender: mpsc::Sender<ScanMessage>,
+    notifier: mpsc::Sender<ScanMessage>,
     source_port: u16,
 }
 
@@ -39,7 +39,7 @@ impl<'net> FullScanner<'net> {
         vendor: bool,
         host: bool,
         idle_timeout: Duration,
-        sender: mpsc::Sender<ScanMessage>,
+        notifier: mpsc::Sender<ScanMessage>,
         source_port: u16,
     ) -> Self {
         Self {
@@ -51,7 +51,7 @@ impl<'net> FullScanner<'net> {
             vendor,
             host,
             idle_timeout,
-            sender,
+            notifier,
             source_port,
         }
     }
@@ -107,7 +107,7 @@ impl<'net> Scanner for FullScanner<'net> {
             Arc::clone(&self.ports),
             self.source_port,
             self.idle_timeout,
-            self.sender.clone(),
+            self.notifier.clone(),
         );
 
         syn.scan()
