@@ -26,7 +26,7 @@ pub struct ARPScanner<'net> {
     include_vendor: bool,
     include_host_names: bool,
     idle_timeout: Duration,
-    sender: sync::mpsc::Sender<ScanMessage>,
+    notifier: sync::mpsc::Sender<ScanMessage>,
 }
 
 impl<'net> ARPScanner<'net> {
@@ -38,7 +38,7 @@ impl<'net> ARPScanner<'net> {
         vendor: bool,
         host: bool,
         idle_timeout: Duration,
-        sender: sync::mpsc::Sender<ScanMessage>,
+        notifier: sync::mpsc::Sender<ScanMessage>,
     ) -> Self {
         Self {
             interface,
@@ -48,7 +48,7 @@ impl<'net> ARPScanner<'net> {
             include_vendor: vendor,
             include_host_names: host,
             idle_timeout,
-            sender,
+            notifier,
         }
     }
 }
@@ -56,14 +56,11 @@ impl<'net> ARPScanner<'net> {
 impl<'net> ARPScanner<'net> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(
-        &self,
-        done: sync::mpsc::Receiver<()>,
-    ) -> JoinHandle<Result<(), ScanError>> {
+    fn read_packets(&self, done: sync::mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let include_host_names = self.include_host_names.clone();
         let include_vendor = self.include_vendor.clone();
-        let sender = self.sender.clone();
+        let notifier = self.notifier.clone();
 
         thread::spawn(move || -> Result<(), ScanError> {
             let mut reader = packet_reader.lock().or_else(|e| {
@@ -117,36 +114,34 @@ impl<'net> ARPScanner<'net> {
                 let ip4 = header.get_sender_proto_addr();
                 let mac = eth.get_source().to_string();
 
-                let mut hostname: String = String::from("");
-                if include_host_names {
-                    debug!("looking up hostname for {}", ip4.to_string());
-                    if let Ok(host) = dns_lookup::lookup_addr(&ip4.into()) {
-                        hostname = host;
-                    }
-                }
+                let notification_sender = notifier.clone();
 
-                let mut vendor = String::from("");
-                if include_vendor {
-                    if let Some(vendor_data) = oui_data::lookup(&mac) {
-                        vendor = vendor_data.organization().to_owned();
+                // use a separate thread here so we don't slow down packet
+                // processing
+                thread::spawn(move || {
+                    let mut hostname: String = String::from("");
+                    if include_host_names {
+                        debug!("looking up hostname for {}", ip4.to_string());
+                        if let Ok(host) = dns_lookup::lookup_addr(&ip4.into()) {
+                            hostname = host;
+                        }
                     }
-                }
 
-                sender
-                    .send(ScanMessage::ARPScanResult(Device {
+                    let mut vendor = String::from("");
+                    if include_vendor {
+                        if let Some(vendor_data) = oui_data::lookup(&mac) {
+                            vendor = vendor_data.organization().to_owned();
+                        }
+                    }
+
+                    let _ = notification_sender.send(ScanMessage::ARPScanResult(Device {
                         hostname,
                         ip: ip4.to_string(),
                         mac,
                         status: DeviceStatus::Online,
                         vendor,
-                    }))
-                    .or_else(|e| {
-                        Err(ScanError {
-                            ip: Some(ip4.to_string()),
-                            port: None,
-                            error: Box::from(e),
-                        })
-                    })?;
+                    }));
+                });
             }
 
             Ok(())
@@ -162,8 +157,8 @@ impl<'net> Scanner for ARPScanner<'net> {
         debug!("include_host_names: {}", self.include_host_names);
         debug!("starting arp packet reader");
         let (done_tx, done_rx) = sync::mpsc::channel::<()>();
+        let notifier = self.notifier.clone();
         let packet_sender = Arc::clone(&self.packet_sender);
-        let msg_sender = self.sender.clone();
         let idle_timeout = self.idle_timeout;
         let source_ipv4 = self.interface.ipv4;
         let source_mac = self.interface.mac;
@@ -182,7 +177,7 @@ impl<'net> Scanner for ARPScanner<'net> {
                 let pkt_buf = ARPPacket::new(source_ipv4, source_mac, target_ipv4);
 
                 // inform consumer we are scanning this target (ignore error on fail to send)
-                msg_sender
+                notifier
                     .send(ScanMessage::Info(Scanning {
                         ip: target_ipv4.to_string(),
                         port: None,
@@ -229,7 +224,7 @@ impl<'net> Scanner for ARPScanner<'net> {
                 })
             })?;
 
-            msg_sender.send(ScanMessage::Done(())).or_else(|e| {
+            notifier.send(ScanMessage::Done(())).or_else(|e| {
                 Err(ScanError {
                     ip: None,
                     port: None,
