@@ -26,7 +26,7 @@ pub struct Table {
     headers: Option<Vec<String>>,
     items: Vec<Vec<String>>,
     item_height: usize,
-    column_size: usize,
+    column_sizes: Vec<usize>,
     table_state: RefCell<TableState>,
     scroll_state: RefCell<ScrollbarState>,
 }
@@ -35,7 +35,7 @@ impl Table {
     pub fn new(
         items: Vec<Vec<String>>,
         headers: Option<Vec<String>>,
-        column_size: usize,
+        column_sizes: Vec<usize>,
         item_height: usize,
     ) -> Self {
         let mut scroll_height = item_height;
@@ -46,7 +46,7 @@ impl Table {
 
         Self {
             headers,
-            column_size,
+            column_sizes,
             items,
             item_height,
             table_state: RefCell::new(TableState::new()),
@@ -123,6 +123,7 @@ impl Table {
 
 impl CustomWidgetRef for Table {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+        // main table view + right aligned scrollbar
         let table_rects =
             Layout::horizontal([Constraint::Min(5), Constraint::Length(3)]).split(area);
 
@@ -148,10 +149,9 @@ impl CustomWidgetRef for Table {
             .fg(state.colors.selected_row_fg);
 
         let rows = self.items.iter().enumerate().map(|(_i, data)| {
-            let col_width = table_rects[0].width / self.column_size as u16;
-            let item = fit_to_width(data, col_width as usize);
+            let item = fit_to_width(data, self.column_sizes.clone());
 
-            // line breaks is my hacky way of centering the text
+            // line break - hacky way of centering the text
             let mut line_break_count = self.item_height / 2;
             let mut line_breaks = String::from("");
 
@@ -172,7 +172,7 @@ impl CustomWidgetRef for Table {
 
         let mut widths: Vec<Constraint> = Vec::new();
 
-        for _ in 0..self.column_size {
+        for _ in self.column_sizes.iter() {
             widths.push(Constraint::Max(COLUMN_MAX_WIDTH));
         }
 
@@ -193,11 +193,13 @@ impl CustomWidgetRef for Table {
     }
 }
 
-fn fit_to_width(item: &Vec<String>, col_width: usize) -> Vec<String> {
+fn fit_to_width(item: &Vec<String>, col_widths: Vec<usize>) -> Vec<String> {
     item.iter()
-        .map(|i| {
-            let width = i.width();
-            let mut value = i.clone();
+        .enumerate()
+        .map(|(i, v)| {
+            let width = v.width();
+            let mut value = v.clone();
+            let col_width = col_widths[i];
             if width >= col_width {
                 value.truncate(col_width - ELLIPSIS.width());
                 value.push_str(ELLIPSIS);

@@ -4,7 +4,7 @@ use log::*;
 use ratatui::{
     backend::Backend,
     crossterm::{
-        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
@@ -14,19 +14,26 @@ use ratatui::{
 use std::{io, sync::Arc};
 
 use super::{
-    store::dispatcher::Dispatcher,
+    store::{dispatcher::Dispatcher, state::State},
     views::{main::MainView, View},
 };
 
 struct App {
+    dispatcher: Arc<Dispatcher>,
     main_view: Box<dyn View>,
 }
 
 impl App {
     fn new(dispatcher: Arc<Dispatcher>) -> Self {
+        let dispatcher_clone = Arc::clone(&dispatcher);
         Self {
-            main_view: Box::new(MainView::new(dispatcher)),
+            dispatcher,
+            main_view: Box::new(MainView::new(dispatcher_clone)),
         }
+    }
+
+    pub fn get_state(&self) -> State {
+        self.dispatcher.get_state()
     }
 }
 
@@ -68,19 +75,21 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
         if let Ok(has_event) = event::poll(time::Duration::from_millis(60)) {
             if has_event {
                 let evt = event::read()?;
-                let handled = app.main_view.process_event(&evt);
+                let state = app.get_state();
+                let handled = app.main_view.process_event(&evt, &state);
 
                 if !handled {
                     match evt {
                         Event::Key(key) => match key.code {
-                            KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                            KeyCode::Char('q') => return Ok(()),
+                            KeyCode::Char('c') => {
+                                if key.modifiers == KeyModifiers::CONTROL {
+                                    return Ok(());
+                                }
+                            }
                             _ => {}
                         },
-                        Event::FocusGained => {}
-                        Event::FocusLost => {}
-                        Event::Mouse(_m) => {}
-                        Event::Paste(_p) => {}
-                        Event::Resize(_x, _y) => {}
+                        _ => {}
                     }
                 }
             }
