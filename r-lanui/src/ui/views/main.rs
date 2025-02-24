@@ -36,6 +36,7 @@ impl MainView {
         let devices = Box::new(DevicesView::new(Arc::clone(&dispatcher)));
         let view_select = Box::new(ViewSelect::new(
             vec![ViewID::Devices, ViewID::Config],
+            2,
             Arc::clone(&dispatcher),
         ));
 
@@ -192,6 +193,7 @@ impl WidgetRef for MainView {
             select_block.render(select_area, buf);
 
             Clear.render(select_inner_area, buf);
+            self.render_buffer_bg(select_inner_area, buf, &state);
             self.render_view_select_popover(select_inner_area, buf);
         }
     }

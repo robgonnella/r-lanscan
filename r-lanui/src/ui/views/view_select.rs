@@ -24,17 +24,25 @@ pub struct ViewSelect {
 }
 
 impl ViewSelect {
-    pub fn new(view_ids: Vec<ViewID>, dispatcher: Arc<Dispatcher>) -> Self {
+    pub fn new(view_ids: Vec<ViewID>, padding: usize, dispatcher: Arc<Dispatcher>) -> Self {
+        let mut spacer = String::from("");
+
+        if padding > 0 {
+            for _ in 0..padding {
+                spacer += " ";
+            }
+        }
+
         let table_items = view_ids
             .clone()
             .iter()
-            .map(|v| vec![v.to_string()])
+            .map(|v| vec![format!("{}{}", spacer, v.to_string())])
             .collect_vec();
 
         let mut table_select = Table::new(
             table_items,
             None,
-            vec![8; view_ids.len()],
+            vec![15; view_ids.len()],
             table::DEFAULT_ITEM_HEIGHT,
         );
 
