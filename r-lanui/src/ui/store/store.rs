@@ -34,14 +34,14 @@ impl Store {
         Self {
             config_manager,
             state: State {
-                focused: ViewID::Devices,
-                config: config,
+                render_view_select: false,
+                view_id: ViewID::Devices,
+                config,
                 devices: Vec::new(),
                 device_map: HashMap::new(),
                 selected_device: None,
-                colors: colors,
+                colors,
                 message: None,
-                layout: None,
             },
         }
     }
@@ -52,26 +52,19 @@ impl Store {
 
     pub fn update(&mut self, action: Action) {
         let new_state = match action {
-            Action::UpdateLayout(layout) => {
+            Action::ToggleViewSelect => {
                 let mut state = self.state.clone();
-                state.layout = layout;
+                state.render_view_select = !state.render_view_select;
+                state
+            }
+            Action::UpdateView(id) => {
+                let mut state = self.state.clone();
+                state.view_id = id;
                 state
             }
             Action::UpdateMessage(message) => {
                 let mut state = self.state.clone();
                 state.message = message;
-                state
-            }
-            Action::Click(position) => {
-                let mut state = self.state.clone();
-                let layout = state.layout.clone();
-                if let Some(layout) = layout {
-                    layout.iter().for_each(|(id, area)| {
-                        if area.contains(position) {
-                            state.focused = id.clone();
-                        }
-                    });
-                }
                 state
             }
             Action::UpdateTheme((config_id, theme)) => {

@@ -147,7 +147,11 @@ impl WidgetRef for ConfigView {
 }
 
 impl EventHandler for ConfigView {
-    fn process_event(&mut self, evt: &Event) -> bool {
+    fn process_event(&mut self, evt: &Event, state: &State) -> bool {
+        if state.render_view_select {
+            return false;
+        }
+
         let mut handled = false;
         match evt {
             Event::FocusGained => {}

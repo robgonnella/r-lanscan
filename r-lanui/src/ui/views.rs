@@ -6,9 +6,10 @@ pub mod config;
 pub mod device;
 pub mod devices;
 pub mod main;
+pub mod view_select;
 
 pub trait EventHandler {
-    fn process_event(&mut self, evt: &Event) -> bool;
+    fn process_event(&mut self, evt: &Event, state: &State) -> bool;
 }
 
 pub trait CustomWidget {
@@ -30,18 +31,6 @@ pub trait CustomStatefulWidget {
         custom_state: &State,
     );
 }
-
-// pub trait CustomStatefulWidgetRef {
-//     type State;
-
-//     fn render_ref(
-//         &self,
-//         area: Rect,
-//         buf: &mut ratatui::prelude::Buffer,
-//         state: &mut Self::State,
-//         custom_state: &State,
-//     );
-// }
 
 pub trait View: EventHandler + WidgetRef {
     fn id(&self) -> ViewID;

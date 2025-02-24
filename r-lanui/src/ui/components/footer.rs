@@ -32,7 +32,7 @@ impl CustomWidget for InfoFooter {
             .block(
                 Block::bordered()
                     .border_type(BorderType::Double)
-                    .border_style(Style::new().fg(state.colors.border_focused_color)),
+                    .border_style(Style::new().fg(state.colors.border_color)),
             );
 
         info_footer.render(area, buf)

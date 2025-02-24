@@ -7,10 +7,7 @@ use ratatui::{
 use std::{cell::RefCell, sync::Arc};
 
 use crate::ui::{
-    components::{
-        header::Header,
-        table::{self, Table},
-    },
+    components::table::{self, Table},
     store::{
         action::Action,
         dispatcher::Dispatcher,
@@ -18,7 +15,7 @@ use crate::ui::{
     },
 };
 
-use super::{CustomWidget, CustomWidgetRef, EventHandler, View};
+use super::{CustomWidgetRef, EventHandler, View};
 
 pub struct DevicesView {
     dispatcher: Arc<Dispatcher>,
@@ -32,7 +29,19 @@ impl DevicesView {
         let items = state
             .devices
             .iter()
-            .map(|d| vec![d.ip.clone()])
+            .map(|d| {
+                vec![
+                    d.ip.clone(),
+                    d.hostname.clone(),
+                    d.vendor.clone(),
+                    d.mac.clone(),
+                    d.open_ports
+                        .iter()
+                        .sorted_by_key(|p| p.id)
+                        .map(|p| p.id.to_string())
+                        .join(", "),
+                ]
+            })
             .collect_vec();
 
         let mut height = table::DEFAULT_ITEM_HEIGHT;
@@ -43,7 +52,18 @@ impl DevicesView {
 
         Self {
             dispatcher,
-            table: RefCell::new(Table::new(items, None, 1, height)),
+            table: RefCell::new(Table::new(
+                items,
+                Some(vec![
+                    "IP".to_string(),
+                    "HOSTNAME".to_string(),
+                    "VENDOR".to_string(),
+                    "MAC".to_string(),
+                    "OPEN PORTS".to_string(),
+                ]),
+                vec![15, 20, 20, 17, 30],
+                height,
+            )),
         }
     }
 
@@ -66,16 +86,29 @@ impl DevicesView {
         }
     }
 
-    fn render_label(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
-        let header = Header::new(String::from("Detected Devices"));
-        header.render(area, buf, state);
+    fn handle_device_selection(&self, state: &State) {
+        if state.selected_device.is_some() {
+            self.dispatcher.dispatch(Action::UpdateView(ViewID::Device));
+        }
     }
 
     fn render_table(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
         let items = state
             .devices
             .iter()
-            .map(|d| vec![d.ip.clone()])
+            .map(|d| {
+                vec![
+                    d.ip.clone(),
+                    d.hostname.clone(),
+                    d.vendor.clone(),
+                    d.mac.clone(),
+                    d.open_ports
+                        .iter()
+                        .sorted_by_key(|p| p.id)
+                        .map(|p| p.id.to_string())
+                        .join(", "),
+                ]
+            })
             .collect_vec();
         let selected = self.table.borrow_mut().update_items(items);
         if let Some(selected) = selected {
@@ -101,15 +134,16 @@ impl WidgetRef for DevicesView {
 
         let view_rects = Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).split(area);
 
-        let label_rects = Layout::horizontal([Constraint::Length(20)]).split(view_rects[0]);
-
-        self.render_label(label_rects[0], buf, &state);
         self.render_table(view_rects[1], buf, &state);
     }
 }
 
 impl EventHandler for DevicesView {
-    fn process_event(&mut self, evt: &Event) -> bool {
+    fn process_event(&mut self, evt: &Event, state: &State) -> bool {
+        if state.render_view_select {
+            return false;
+        }
+
         let mut handled = false;
 
         match evt {
@@ -127,7 +161,11 @@ impl EventHandler for DevicesView {
                         }
                         KeyCode::Char('k') | KeyCode::Up => {
                             self.previous();
-                            handled = true
+                            handled = true;
+                        }
+                        KeyCode::Enter => {
+                            self.handle_device_selection(state);
+                            handled = true;
                         }
                         _ => {}
                     }

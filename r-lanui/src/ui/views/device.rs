@@ -3,6 +3,7 @@ use crate::{
     ui::{
         components::{device_info::DeviceInfo, header::Header},
         store::{
+            action::Action,
             dispatcher::Dispatcher,
             state::{State, ViewID},
         },
@@ -10,7 +11,7 @@ use crate::{
 };
 use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
-    crossterm::event::Event,
+    crossterm::event::{Event, KeyCode},
     layout::{Constraint, Layout, Rect},
     widgets::WidgetRef,
 };
@@ -104,15 +105,27 @@ impl WidgetRef for DeviceView {
 }
 
 impl EventHandler for DeviceView {
-    fn process_event(&mut self, evt: &Event) -> bool {
-        let handled = false;
+    fn process_event(&mut self, evt: &Event, state: &State) -> bool {
+        if state.render_view_select {
+            return false;
+        }
+
+        let mut handled = false;
+
         match evt {
             Event::FocusGained => {}
             Event::FocusLost => {}
             Event::Mouse(_m) => {}
             Event::Paste(_s) => {}
             Event::Resize(_x, _y) => {}
-            Event::Key(_key) => {}
+            Event::Key(key) => match key.code {
+                KeyCode::Esc => {
+                    handled = true;
+                    self.dispatcher
+                        .dispatch(Action::UpdateView(ViewID::Devices));
+                }
+                _ => {}
+            },
         }
 
         handled

@@ -2,10 +2,7 @@ use core::fmt;
 use std::collections::HashMap;
 
 use r_lanlib::scanners::DeviceWithPorts;
-use ratatui::{
-    layout::Rect,
-    style::{palette::tailwind, Color},
-};
+use ratatui::style::{palette::tailwind, Color};
 
 use crate::config::Config;
 
@@ -15,6 +12,7 @@ pub enum ViewID {
     Device,
     Devices,
     Config,
+    ViewSelect,
 }
 
 impl fmt::Display for ViewID {
@@ -32,10 +30,8 @@ pub struct Colors {
     pub row_fg: Color,
     pub row_bg: Color,
     pub border_color: Color,
-    pub border_focused_color: Color,
     pub scroll_bar_fg: Color,
     pub label: Color,
-    pub placeholder: Color,
 }
 
 impl Colors {
@@ -47,10 +43,8 @@ impl Colors {
             selected_row_fg: color.c400,
             row_fg: tailwind::SLATE.c200,
             row_bg: tailwind::SLATE.c950,
-            border_color: color.c950,
-            border_focused_color: color.c400,
+            border_color: color.c400,
             scroll_bar_fg: tailwind::SLATE.c800,
-            placeholder: tailwind::SLATE.c800,
             label: color.c400,
         }
     }
@@ -58,14 +52,14 @@ impl Colors {
 
 #[derive(Clone, Debug)]
 pub struct State {
-    pub focused: ViewID,
+    pub render_view_select: bool,
+    pub view_id: ViewID,
     pub config: Config,
     pub devices: Vec<DeviceWithPorts>,
     pub device_map: HashMap<String, DeviceWithPorts>,
     pub selected_device: Option<String>,
     pub colors: Colors,
     pub message: Option<String>,
-    pub layout: Option<HashMap<ViewID, Rect>>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
