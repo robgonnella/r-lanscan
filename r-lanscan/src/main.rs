@@ -123,6 +123,7 @@ fn process_arp(
         packet_reader,
         packet_sender,
         IPTargets::new(args.targets.clone()),
+        args.source_port,
         args.vendor,
         args.host_names,
         time::Duration::from_millis(args.idle_timeout_ms.into()),

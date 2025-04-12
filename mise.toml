@@ -1,0 +1,5 @@
+[env]
+_.file = '.env'
+
+[tools]
+rust = "1.85.1"

@@ -97,4 +97,5 @@ pub trait Scanner: Sync + Send {
 
 pub mod arp_scanner;
 pub mod full_scanner;
+mod heartbeat;
 pub mod syn_scanner;

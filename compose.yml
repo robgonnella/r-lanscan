@@ -1,0 +1,24 @@
+services:
+  openssh-server:
+    image: lscr.io/linuxserver/openssh-server:latest
+    environment:
+      TZ: Etc/UTC
+      PUBLIC_KEY: $PUBLIC_KEY
+      SUDO_ACCESS: false
+      PASSWORD_ACCESS: false
+      LOG_STDOUT: "1"
+    ports:
+      - 2222:2222
+
+  workspace:
+    build: .
+    environment:
+      USER: root
+      LOG_LEVEL: debug
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/24

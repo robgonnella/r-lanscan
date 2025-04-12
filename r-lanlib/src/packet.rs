@@ -1,6 +1,7 @@
 use core::time;
 
 pub mod arp;
+pub mod heartbeat;
 pub mod syn;
 pub mod wire;
 

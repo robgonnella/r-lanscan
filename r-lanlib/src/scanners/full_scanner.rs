@@ -68,6 +68,7 @@ impl<'net> FullScanner<'net> {
             Arc::clone(&self.packet_reader),
             Arc::clone(&self.packet_sender),
             Arc::clone(&self.targets),
+            self.source_port,
             self.vendor,
             self.host,
             self.idle_timeout,

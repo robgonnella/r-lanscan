@@ -7,7 +7,7 @@ use std::{
     io::{Error as IOError, ErrorKind},
     net,
     str::FromStr,
-    sync::{mpsc, Arc, Mutex},
+    sync::{self, mpsc, Arc, Mutex},
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -15,7 +15,7 @@ use std::{
 use crate::{
     network::NetworkInterface,
     packet::{self, syn::SYNPacket, Reader, Sender},
-    scanners::{ScanError, Scanning},
+    scanners::{heartbeat::HeartBeat, ScanError, Scanning},
     targets::ports::PortTargets,
 };
 
@@ -62,9 +62,33 @@ impl<'net> SYNScanner<'net> {
     // receive packets simultaneously
     fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
         let packet_reader = Arc::clone(&self.packet_reader);
+        let packet_sender = Arc::clone(&self.packet_sender);
         let devices = self.targets.to_owned();
         let notifier = self.notifier.clone();
+        let source_ipv4 = self.interface.ipv4;
+        let source_mac = self.interface.mac;
         let source_port = self.source_port.to_owned();
+        let (heartbeat_tx, heartbeat_rx) = sync::mpsc::channel::<()>();
+
+        // since reading packets off the wire is a blocking operation, we
+        // won't be able to detect a "done" signal if no packets are being
+        // received as we'll be blocked on waiting for one to come it. To fix
+        // this we send periodic "heartbeat" packets so we can continue to
+        // check for "done" signals
+        thread::spawn(move || {
+            debug!("starting syn heartbeat thread");
+            let heartbeat = HeartBeat::new(source_mac, source_ipv4, source_port, packet_sender);
+            let interval = Duration::from_secs(1);
+            loop {
+                if let Ok(_) = heartbeat_rx.try_recv() {
+                    debug!("stopping syn heartbeat");
+                    break;
+                }
+                debug!("sending syn heartbeat");
+                heartbeat.beat();
+                thread::sleep(interval);
+            }
+        });
 
         thread::spawn(move || -> Result<(), ScanError> {
             let mut reader = packet_reader.lock().or_else(|e| {
@@ -76,6 +100,15 @@ impl<'net> SYNScanner<'net> {
             })?;
 
             loop {
+                if let Ok(_) = done_rx.try_recv() {
+                    debug!("exiting syn packet reader");
+                    if let Err(e) = heartbeat_tx.send(()) {
+                        error!("failed to stop heartbeat: {}", e.to_string());
+                    }
+
+                    break;
+                }
+
                 let pkt = reader.next_packet().or_else(|e| {
                     Err(ScanError {
                         ip: None,
@@ -83,11 +116,6 @@ impl<'net> SYNScanner<'net> {
                         error: Box::new(e),
                     })
                 })?;
-
-                if let Ok(_) = done_rx.try_recv() {
-                    debug!("exiting syn packet reader");
-                    break;
-                }
 
                 let eth = ethernet::EthernetPacket::new(pkt);
 
@@ -284,7 +312,7 @@ impl<'net> Scanner for SYNScanner<'net> {
                     port: None,
                     error: Box::from(IOError::new(
                         ErrorKind::Other,
-                        "encounterd error during syn packet reading",
+                        "encountered error during syn packet reading",
                     )),
                 })
             })?;

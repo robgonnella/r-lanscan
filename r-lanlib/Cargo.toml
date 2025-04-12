@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ipnet = "^2.9"
+ipnet = "^2.11"
 log = "^0.4"
 paris = { version = "^1.5", features = ["timestamps"] }
 simplelog = { version = "^0.12", features = ["paris"] }
@@ -17,4 +17,4 @@ oui-data = "^0.2"
 dns-lookup = "^2.0"
 
 [dev-dependencies]
-mockall = "0.13.0"
+mockall = "0.13.1"
