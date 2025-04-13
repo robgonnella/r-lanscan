@@ -35,6 +35,7 @@ impl Store {
             config_manager,
             state: State {
                 render_view_select: false,
+                paused: false,
                 view_id: ViewID::Devices,
                 config,
                 devices: Vec::new(),
@@ -52,6 +53,11 @@ impl Store {
 
     pub fn update(&mut self, action: Action) {
         let new_state = match action {
+            Action::TogglePause => {
+                let mut state = self.state.clone();
+                state.paused = !state.paused;
+                state
+            }
             Action::ToggleViewSelect => {
                 let mut state = self.state.clone();
                 state.render_view_select = !state.render_view_select;

@@ -2,7 +2,6 @@ use color_eyre::eyre::Report;
 use core::time;
 use log::*;
 use ratatui::{
-    backend::Backend,
     crossterm::{
         event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
         execute,
@@ -11,10 +10,14 @@ use ratatui::{
     prelude::CrosstermBackend,
     Terminal,
 };
-use std::{io, sync::Arc};
+use std::{
+    io::{self, Stdout},
+    process::Command,
+    sync::Arc,
+};
 
 use super::{
-    store::{dispatcher::Dispatcher, state::State},
+    store::{action::Action, dispatcher::Dispatcher, state::State},
     views::{main::MainView, View},
 };
 
@@ -66,16 +69,60 @@ pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Report> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> io::Result<()> {
+    let mut paused = false;
+
     loop {
+        let state = app.get_state();
+
+        if paused && !state.paused {
+            enable_raw_mode()?;
+            execute!(
+                terminal.backend_mut(),
+                EnterAlternateScreen,
+                EnableMouseCapture
+            )?;
+            terminal.hide_cursor()?;
+            terminal.clear()?;
+
+            paused = false;
+        }
+
+        if paused {
+            continue;
+        }
+
         terminal.draw(|f| app.main_view.render_ref(f.area(), f.buffer_mut()))?;
+
+        if state.paused && !paused {
+            // restore terminal
+            disable_raw_mode()?;
+            execute!(
+                terminal.backend_mut(),
+                LeaveAlternateScreen,
+                DisableMouseCapture
+            )?;
+            terminal.show_cursor()?;
+
+            paused = true;
+
+            let mut handle = Command::new("sh")
+                .spawn()
+                .expect("failed to start shell command");
+            handle.wait().expect("shell command failed");
+            app.dispatcher.dispatch(Action::TogglePause);
+        }
+
+        if paused {
+            continue;
+        }
 
         // Use poll here so we don't block the thread, this will allow
         // rendering of incoming device data from network as it's received
         if let Ok(has_event) = event::poll(time::Duration::from_millis(60)) {
             if has_event {
                 let evt = event::read()?;
-                let state = app.get_state();
+
                 let handled = app.main_view.process_event(&evt, &state);
 
                 if !handled {

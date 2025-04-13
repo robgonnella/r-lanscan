@@ -74,6 +74,7 @@ fn process_arp(
     packet_sender: Arc<Mutex<dyn packet::Sender>>,
     interface: &NetworkInterface,
     cidr: String,
+    source_port: u16,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
     dispatcher: Arc<Dispatcher>,
@@ -85,6 +86,7 @@ fn process_arp(
         packet_reader,
         packet_sender,
         IPTargets::new(vec![cidr]),
+        source_port,
         true,
         true,
         time::Duration::from_millis(IDLE_TIMEOUT.into()),
@@ -126,12 +128,14 @@ fn process_arp(
         }
     }
 
+    debug!("waiting for arp handle to finish");
     handle.join().unwrap()?;
 
     let items: Vec<Device> = arp_results.into_iter().collect();
 
     dispatcher.dispatch(Action::UpdateMessage(None));
 
+    debug!("finished arp scan");
     Ok((items, rx))
 }
 
@@ -169,6 +173,7 @@ fn process_syn(
         tx,
     );
 
+    debug!("starting syn scan");
     dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing SYN Scan…",
     ))));
@@ -243,6 +248,7 @@ fn monitor_network(
             Arc::clone(&wire.1),
             &interface,
             interface.cidr.clone(),
+            source_port,
             rx,
             tx.clone(),
             Arc::clone(&dispatcher),
@@ -262,7 +268,7 @@ fn monitor_network(
 
         dispatcher.dispatch(Action::UpdateAllDevices(&results));
 
-        info!("network scan completed");
+        debug!("network scan completed");
 
         thread::sleep(time::Duration::from_secs(15));
         let handle = monitor_network(config, interface, dispatcher);

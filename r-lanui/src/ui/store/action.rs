@@ -7,6 +7,7 @@ use super::state::{Theme, ViewID};
 #[derive(Debug)]
 pub enum Action<'conf_id, 'theme, 'devices, 'device, 'selected, 'config> {
     ToggleViewSelect,
+    TogglePause,
     UpdateView(ViewID),
     UpdateMessage(Option<String>),
     UpdateTheme((&'conf_id str, &'theme Theme)),

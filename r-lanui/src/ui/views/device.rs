@@ -124,6 +124,12 @@ impl EventHandler for DeviceView {
                     self.dispatcher
                         .dispatch(Action::UpdateView(ViewID::Devices));
                 }
+                KeyCode::Char('s') => {
+                    if !state.paused {
+                        handled = true;
+                        self.dispatcher.dispatch(Action::TogglePause);
+                    }
+                }
                 _ => {}
             },
         }

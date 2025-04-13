@@ -53,6 +53,7 @@ impl Colors {
 #[derive(Clone, Debug)]
 pub struct State {
     pub render_view_select: bool,
+    pub paused: bool,
     pub view_id: ViewID,
     pub config: Config,
     pub devices: Vec<DeviceWithPorts>,
