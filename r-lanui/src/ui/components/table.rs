@@ -177,7 +177,7 @@ impl CustomWidgetRef for Table {
         }
 
         let mut t = RatatuiTable::new(rows, widths)
-            .highlight_style(selected_style)
+            .row_highlight_style(selected_style)
             .bg(state.colors.buffer_bg)
             .highlight_spacing(HighlightSpacing::Always);
 

@@ -88,11 +88,6 @@ impl EventHandler for ViewSelect {
         let mut handled = false;
 
         match evt {
-            Event::FocusGained => {}
-            Event::FocusLost => {}
-            Event::Mouse(_m) => {}
-            Event::Paste(_s) => {}
-            Event::Resize(_x, _y) => {}
             Event::Key(key) => {
                 if key.kind == KeyEventKind::Press {
                     match key.code {
@@ -118,6 +113,7 @@ impl EventHandler for ViewSelect {
                     }
                 }
             }
+            _ => {}
         }
 
         handled
