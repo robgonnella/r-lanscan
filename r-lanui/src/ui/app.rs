@@ -76,6 +76,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> 
         let state = app.get_state();
 
         if paused && !state.paused {
+            // unpause
             enable_raw_mode()?;
             execute!(
                 terminal.backend_mut(),
@@ -92,10 +93,8 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> 
             continue;
         }
 
-        terminal.draw(|f| app.main_view.render_ref(f.area(), f.buffer_mut()))?;
-
         if state.paused && !paused {
-            // restore terminal
+            // pause - restore terminal to user
             disable_raw_mode()?;
             execute!(
                 terminal.backend_mut(),
@@ -111,11 +110,10 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> 
                 .expect("failed to start shell command");
             handle.wait().expect("shell command failed");
             app.dispatcher.dispatch(Action::TogglePause);
-        }
-
-        if paused {
             continue;
         }
+
+        terminal.draw(|f| app.main_view.render_ref(f.area(), f.buffer_mut()))?;
 
         // Use poll here so we don't block the thread, this will allow
         // rendering of incoming device data from network as it's received
