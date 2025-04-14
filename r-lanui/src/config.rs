@@ -118,6 +118,11 @@ impl ConfigManager {
         }
     }
 
+    pub fn update_config(&mut self, new_config: Config) {
+        self.configs.insert(new_config.id.clone(), new_config);
+        self.write();
+    }
+
     fn write(&mut self) {
         let serialized = serde_yaml::to_string(&self.configs).unwrap();
         std::fs::write(&self.path, serialized).unwrap();

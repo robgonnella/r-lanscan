@@ -7,22 +7,15 @@ use ratatui::{
     widgets::{Paragraph, Widget, Wrap},
 };
 
-use crate::{
-    config::DeviceConfig,
-    ui::{store::state::State, views::CustomWidget},
-};
+use crate::ui::{store::state::State, views::CustomWidget};
 
 pub struct DeviceInfo {
     device: DeviceWithPorts,
-    _device_config: DeviceConfig,
 }
 
 impl DeviceInfo {
-    pub fn new(device: DeviceWithPorts, device_config: DeviceConfig) -> Self {
-        Self {
-            device,
-            _device_config: device_config,
-        }
+    pub fn new(device: DeviceWithPorts) -> Self {
+        Self { device }
     }
 }
 
@@ -31,13 +24,13 @@ impl CustomWidget for DeviceInfo {
     where
         Self: Sized,
     {
-        let spacer1 = Line::from("");
+        let spacer1 = "";
 
-        let hostname = Line::from(format!("Hostname: {0}", self.device.hostname));
-        let ip = Line::from(format!("IP: {0}", self.device.ip));
-        let mac = Line::from(format!("MAC: {0}", self.device.mac));
-        let vendor = Line::from(format!("Vendor: {0}", self.device.vendor));
-        let open_ports = Line::from(format!(
+        let hostname = format!("Hostname: {0}", self.device.hostname);
+        let ip = format!("IP: {0}", self.device.ip);
+        let mac = format!("MAC: {0}", self.device.mac);
+        let vendor = format!("Vendor: {0}", self.device.vendor);
+        let open_ports = format!(
             "Open Ports: {0}",
             self.device
                 .open_ports
@@ -46,17 +39,24 @@ impl CustomWidget for DeviceInfo {
                 .map(|p| p.id.to_string())
                 .collect::<Vec<String>>()
                 .join(", ")
-        ));
+        );
 
-        let info = Paragraph::new(vec![spacer1, hostname, ip, mac, vendor, open_ports])
-            .style(
-                Style::new()
-                    .fg(state.colors.row_fg)
-                    .bg(state.colors.buffer_bg),
-            )
-            .wrap(Wrap { trim: true })
-            .left_aligned();
+        let info = Paragraph::new(vec![
+            Line::from(spacer1),
+            Line::from(hostname),
+            Line::from(ip),
+            Line::from(mac),
+            Line::from(vendor),
+            Line::from(open_ports),
+        ])
+        .style(
+            Style::new()
+                .fg(state.colors.row_fg)
+                .bg(state.colors.buffer_bg),
+        )
+        .wrap(Wrap { trim: true })
+        .left_aligned();
 
-        info.render(area, buf)
+        info.render(area, buf);
     }
 }

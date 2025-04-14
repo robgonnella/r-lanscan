@@ -73,18 +73,19 @@ impl Store {
                 state.message = message;
                 state
             }
-            Action::UpdateTheme((config_id, theme)) => {
-                let mut manager = self.config_manager.lock().unwrap();
-                manager.update_theme(config_id, theme);
+            Action::UpdateTheme(theme) => {
                 let mut state = self.state.clone();
-                state.config = manager.get_by_id(config_id).unwrap();
+                let config_id = state.config.id.clone();
+                let mut manager = self.config_manager.lock().unwrap();
+                manager.update_theme(config_id.as_str(), &theme);
+                state.config = manager.get_by_id(config_id.as_str()).unwrap();
                 state.colors = Colors::new(theme.to_palette());
                 state
             }
             Action::UpdateAllDevices(devices) => {
                 let mut state = self.state.clone();
                 let mut new_map: HashMap<String, DeviceWithPorts> = HashMap::new();
-                for d in devices {
+                for d in devices.iter() {
                     new_map.insert(d.mac.clone(), d.clone());
                 }
                 state.devices = devices.clone();
@@ -124,7 +125,12 @@ impl Store {
             }
             Action::SetConfig(config_id) => {
                 let mut state = self.state.clone();
-                if let Some(conf) = self.config_manager.lock().unwrap().get_by_id(config_id) {
+                if let Some(conf) = self
+                    .config_manager
+                    .lock()
+                    .unwrap()
+                    .get_by_id(config_id.as_str())
+                {
                     let theme = Theme::from_string(&conf.theme);
                     state.config = conf;
                     state.colors = Colors::new(theme.to_palette());
@@ -134,7 +140,7 @@ impl Store {
             Action::CreateAndSetConfig(config) => {
                 let mut state = self.state.clone();
                 let mut manager = self.config_manager.lock().unwrap();
-                manager.create(config);
+                manager.create(&config);
                 let theme = Theme::from_string(&config.theme);
                 state.config = config.clone();
                 state.colors = Colors::new(theme.to_palette());
@@ -143,6 +149,17 @@ impl Store {
             Action::UpdateSelectedDevice(i) => {
                 let mut state = self.state.clone();
                 state.selected_device = Some(String::from(i));
+                state
+            }
+            Action::UpdateDeviceConfig(device_config) => {
+                let mut state = self.state.clone();
+                let mut config = state.config.clone();
+                config
+                    .device_configs
+                    .insert(device_config.id.clone(), device_config);
+                let mut manager = self.config_manager.lock().unwrap();
+                manager.update_config(config.clone());
+                state.config = config;
                 state
             }
         };
