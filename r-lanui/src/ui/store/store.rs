@@ -73,13 +73,17 @@ impl Store {
                 state.message = message;
                 state
             }
-            Action::UpdateTheme(theme) => {
+            Action::PreviewTheme(theme) => {
                 let mut state = self.state.clone();
-                let config_id = state.config.id.clone();
-                let mut manager = self.config_manager.lock().unwrap();
-                manager.update_theme(config_id.as_str(), &theme);
-                state.config = manager.get_by_id(config_id.as_str()).unwrap();
                 state.colors = Colors::new(theme.to_palette());
+                state
+            }
+            Action::UpdateConfig(config) => {
+                let mut state = self.state.clone();
+                let mut manager = self.config_manager.lock().unwrap();
+                manager.update_config(config.clone());
+                state.config = manager.get_by_id(config.id.as_str()).unwrap();
+                state.colors = Colors::new(Theme::from_string(&config.theme).to_palette());
                 state
             }
             Action::UpdateAllDevices(devices) => {
