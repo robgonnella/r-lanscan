@@ -111,13 +111,6 @@ impl ConfigManager {
         self.write();
     }
 
-    pub fn update_theme(&mut self, id: &str, theme: &Theme) {
-        if let Some(conf) = self.configs.get_mut(id) {
-            conf.theme = theme.clone().to_string();
-            self.write();
-        }
-    }
-
     pub fn update_config(&mut self, new_config: Config) {
         self.configs.insert(new_config.id.clone(), new_config);
         self.write();
