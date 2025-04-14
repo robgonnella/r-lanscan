@@ -4,7 +4,7 @@ use ratatui::{
     widgets::{Paragraph, Widget, Wrap},
 };
 
-use crate::ui::{store::state::State, views::CustomWidget};
+use crate::ui::{store::state::State, views::traits::CustomWidget};
 
 pub struct Field {
     key: String,

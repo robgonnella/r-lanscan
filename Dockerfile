@@ -1,6 +1,6 @@
 FROM rust:1.85.1-alpine3.21
 
-RUN apk add alpine-sdk openssl-dev openssl-libs-static
+RUN apk add alpine-sdk openssl-dev openssl-libs-static openssh
 
 WORKDIR /workspace
 

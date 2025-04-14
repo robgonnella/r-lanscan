@@ -1,16 +1,13 @@
-use crate::{
-    config::DeviceConfig,
-    ui::{
-        components::{
-            device_info::DeviceInfo,
-            header::Header,
-            input::{Input, InputState},
-        },
-        store::{
-            action::Action,
-            dispatcher::Dispatcher,
-            state::{State, ViewID},
-        },
+use crate::ui::{
+    components::{
+        device_info::DeviceInfo,
+        header::Header,
+        input::{Input, InputState},
+    },
+    store::{
+        action::Action,
+        state::{Command, State, ViewID},
+        store::Store,
     },
 };
 use r_lanlib::scanners::DeviceWithPorts;
@@ -21,7 +18,7 @@ use ratatui::{
 };
 use std::{cell::RefCell, sync::Arc};
 
-use super::{CustomWidget, EventHandler, View};
+use super::traits::{CustomWidget, EventHandler, View};
 
 #[derive(Debug, Clone)]
 enum SSHFocus {
@@ -31,20 +28,20 @@ enum SSHFocus {
 }
 
 pub struct DeviceView {
-    dispatcher: Arc<Dispatcher>,
-    editing: bool,
-    focus: SSHFocus,
+    store: Arc<Store>,
+    editing: RefCell<bool>,
+    focus: RefCell<SSHFocus>,
     ssh_user_state: RefCell<InputState>,
     ssh_port_state: RefCell<InputState>,
     ssh_identity_state: RefCell<InputState>,
 }
 
 impl DeviceView {
-    pub fn new(dispatcher: Arc<Dispatcher>) -> Self {
+    pub fn new(store: Arc<Store>) -> Self {
         Self {
-            dispatcher,
-            editing: false,
-            focus: SSHFocus::User,
+            store,
+            editing: RefCell::new(false),
+            focus: RefCell::new(SSHFocus::User),
             ssh_user_state: RefCell::new(InputState {
                 editing: false,
                 value: String::from(""),
@@ -67,8 +64,8 @@ impl DeviceView {
         device: &DeviceWithPorts,
         state: &State,
     ) {
-        if !self.editing {
-            let device_config = self.get_device_config_from_state(device, state);
+        if !*self.editing.borrow() {
+            let device_config = self.store.get_device_config_from_state(device, state);
             self.ssh_user_state.borrow_mut().value = device_config.ssh_user.clone();
             self.ssh_port_state.borrow_mut().value = device_config.ssh_port.to_string();
             self.ssh_identity_state.borrow_mut().value = device_config.ssh_identity_file.clone();
@@ -101,7 +98,7 @@ impl DeviceView {
     }
 
     fn push_input_char(&self, char: char) {
-        match self.focus {
+        match *self.focus.borrow() {
             SSHFocus::User => self.ssh_user_state.borrow_mut().value.push(char),
             SSHFocus::Port => self.ssh_port_state.borrow_mut().value.push(char),
             SSHFocus::Identity => self.ssh_identity_state.borrow_mut().value.push(char),
@@ -109,7 +106,7 @@ impl DeviceView {
     }
 
     fn pop_input_char(&self) {
-        match self.focus {
+        match *self.focus.borrow() {
             SSHFocus::User => self.ssh_user_state.borrow_mut().value.pop(),
             SSHFocus::Port => self.ssh_port_state.borrow_mut().value.pop(),
             SSHFocus::Identity => self.ssh_identity_state.borrow_mut().value.pop(),
@@ -122,10 +119,10 @@ impl DeviceView {
         self.ssh_identity_state.borrow_mut().editing = false;
     }
 
-    fn focus_next(&mut self) {
-        let next_focus = match self.focus {
+    fn focus_next(&self) {
+        let next_focus = match *self.focus.borrow() {
             SSHFocus::User => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = true;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -133,7 +130,7 @@ impl DeviceView {
                 SSHFocus::Port
             }
             SSHFocus::Port => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = true;
@@ -141,7 +138,7 @@ impl DeviceView {
                 SSHFocus::Identity
             }
             SSHFocus::Identity => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = true;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -150,13 +147,13 @@ impl DeviceView {
             }
         };
 
-        self.focus = next_focus;
+        *self.focus.borrow_mut() = next_focus;
     }
 
-    fn focus_previous(&mut self) {
-        let next_focus = match self.focus {
+    fn focus_previous(&self) {
+        let next_focus = match *self.focus.borrow() {
             SSHFocus::Identity => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_identity_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = true;
                     self.ssh_user_state.borrow_mut().editing = false;
@@ -164,7 +161,7 @@ impl DeviceView {
                 SSHFocus::Port
             }
             SSHFocus::Port => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_identity_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_user_state.borrow_mut().editing = true;
@@ -172,7 +169,7 @@ impl DeviceView {
                 SSHFocus::User
             }
             SSHFocus::User => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_identity_state.borrow_mut().editing = true;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_user_state.borrow_mut().editing = false;
@@ -181,40 +178,7 @@ impl DeviceView {
             }
         };
 
-        self.focus = next_focus;
-    }
-
-    fn get_device_config_from_state(
-        &self,
-        device: &DeviceWithPorts,
-        state: &State,
-    ) -> DeviceConfig {
-        let device_config: DeviceConfig;
-
-        if state.config.device_configs.contains_key(&device.ip) {
-            device_config = state.config.device_configs.get(&device.ip).unwrap().clone();
-        } else if state.config.device_configs.contains_key(&device.mac) {
-            device_config = state
-                .config
-                .device_configs
-                .get(&device.mac)
-                .unwrap()
-                .clone();
-        } else {
-            device_config = DeviceConfig {
-                id: device.mac.clone(),
-                ssh_identity_file: state.config.default_ssh_identity.clone(),
-                ssh_port: state
-                    .config
-                    .default_ssh_port
-                    .clone()
-                    .parse::<u16>()
-                    .unwrap(),
-                ssh_user: state.config.default_ssh_user.clone(),
-            }
-        }
-
-        device_config
+        *self.focus.borrow_mut() = next_focus;
     }
 }
 
@@ -223,7 +187,7 @@ impl View for DeviceView {
         ViewID::Device
     }
     fn legend(&self) -> &str {
-        if self.editing {
+        if *self.editing.borrow() {
             "(esc) exit configuration | (enter) save configuration"
         } else {
             "(esc) back to devices | (c) configure | (s) SSH"
@@ -236,7 +200,7 @@ impl View for DeviceView {
 
 impl WidgetRef for DeviceView {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.dispatcher.get_state();
+        let state = self.store.get_state();
 
         let view_rects = Layout::vertical([
             Constraint::Length(1),
@@ -252,17 +216,15 @@ impl WidgetRef for DeviceView {
 
         header.render(label_rects[0], buf, &state);
 
-        if let Some(selected) = state.selected_device.clone() {
-            if let Some(device) = state.device_map.get(&selected) {
-                self.render_device_ssh_config(view_rects[2], buf, device, &state);
-                self.render_device_info(view_rects[3], buf, device, &state);
-            }
+        if let Some(device) = state.selected_device.clone() {
+            self.render_device_ssh_config(view_rects[2], buf, &device, &state);
+            self.render_device_info(view_rects[3], buf, &device, &state);
         }
     }
 }
 
 impl EventHandler for DeviceView {
-    fn process_event(&mut self, evt: &Event, state: &State) -> bool {
+    fn process_event(&self, evt: &Event, state: &State) -> bool {
         if state.render_view_select {
             return false;
         }
@@ -277,74 +239,71 @@ impl EventHandler for DeviceView {
             Event::Resize(_x, _y) => {}
             Event::Key(key) => match key.code {
                 KeyCode::Esc => {
-                    if self.editing {
+                    if *self.editing.borrow() {
                         self.reset_input_state();
-                        self.focus = SSHFocus::User;
-                        self.editing = false;
+                        *self.focus.borrow_mut() = SSHFocus::User;
+                        *self.editing.borrow_mut() = false;
                     } else {
-                        self.dispatcher
-                            .dispatch(Action::UpdateView(ViewID::Devices));
+                        self.store.dispatch(Action::UpdateView(ViewID::Devices));
                     }
                     handled = true;
                 }
                 KeyCode::Tab => {
-                    if self.editing {
+                    if *self.editing.borrow() {
                         self.focus_next();
                         handled = true;
                     }
                 }
                 KeyCode::BackTab => {
-                    if self.editing {
+                    if *self.editing.borrow() {
                         self.focus_previous();
                         handled = true;
                     }
                 }
                 KeyCode::Enter => {
-                    if self.editing {
+                    if *self.editing.borrow() {
                         // save config
-                        if let Some(selected) = state.selected_device.clone() {
-                            if let Some(device) = state.device_map.get(&selected) {
-                                let mut device_config =
-                                    self.get_device_config_from_state(device, state);
-                                device_config.ssh_user = self.ssh_user_state.borrow().value.clone();
-                                let mut port =
-                                    self.ssh_port_state.borrow().value.clone().parse::<u16>();
-                                if port.is_err() {
-                                    port = Ok(22);
-                                }
-                                device_config.ssh_port = port.unwrap();
-                                device_config.ssh_identity_file =
-                                    self.ssh_identity_state.borrow().value.clone();
-                                self.dispatcher
-                                    .dispatch(Action::UpdateDeviceConfig(device_config));
-                                self.reset_input_state();
-                                self.focus = SSHFocus::User;
-                                self.editing = false;
-                                handled = true;
+                        if let Some(device) = state.selected_device.clone() {
+                            let mut device_config =
+                                self.store.get_device_config_from_state(&device, &state);
+                            device_config.ssh_user = self.ssh_user_state.borrow().value.clone();
+                            let mut port =
+                                self.ssh_port_state.borrow().value.clone().parse::<u16>();
+                            if port.is_err() {
+                                port = Ok(22);
                             }
+                            device_config.ssh_port = port.unwrap();
+                            device_config.ssh_identity_file =
+                                self.ssh_identity_state.borrow().value.clone();
+                            self.store
+                                .dispatch(Action::UpdateDeviceConfig(device_config));
+                            self.reset_input_state();
+                            *self.focus.borrow_mut() = SSHFocus::User;
+                            *self.editing.borrow_mut() = false;
+                            handled = true;
                         }
                     }
                 }
                 KeyCode::Backspace => {
-                    if self.editing {
+                    if *self.editing.borrow() {
                         self.pop_input_char();
                         handled = true;
                     }
                 }
                 KeyCode::Char(c) => {
-                    if self.editing {
+                    if *self.editing.borrow() {
                         // handle value update for focused element
                         self.push_input_char(c);
                         handled = true;
                     } else if c == 'c' {
                         // enter edit mode
-                        self.editing = true;
+                        *self.editing.borrow_mut() = true;
                         self.ssh_user_state.borrow_mut().editing = true;
                         handled = true;
                     } else if c == 's' {
-                        if !state.paused {
+                        if state.execute_cmd.is_none() {
                             handled = true;
-                            self.dispatcher.dispatch(Action::TogglePause);
+                            self.store.dispatch(Action::ExecuteCommand(Command::SSH));
                         }
                     }
                 }
