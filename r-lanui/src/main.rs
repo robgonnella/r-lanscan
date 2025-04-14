@@ -116,7 +116,7 @@ fn process_arp(
             ScanMessage::ARPScanResult(m) => {
                 debug!("received scanning message: {:?}", m);
                 arp_results.insert(m.to_owned());
-                dispatcher.dispatch(Action::AddDevice(&DeviceWithPorts {
+                dispatcher.dispatch(Action::AddDevice(DeviceWithPorts {
                     hostname: m.hostname.clone(),
                     ip: m.ip.clone(),
                     mac: m.mac.clone(),
@@ -200,7 +200,7 @@ fn process_syn(
                 match device {
                     Some(d) => {
                         d.open_ports.insert(m.open_port.to_owned());
-                        dispatcher.dispatch(Action::AddDevice(d));
+                        dispatcher.dispatch(Action::AddDevice(d.clone()));
                     }
                     None => {
                         warn!("received syn result for unknown device: {:?}", m);
@@ -266,7 +266,7 @@ fn monitor_network(
             Arc::clone(&dispatcher),
         )?;
 
-        dispatcher.dispatch(Action::UpdateAllDevices(&results));
+        dispatcher.dispatch(Action::UpdateAllDevices(results));
 
         debug!("network scan completed");
 
@@ -289,7 +289,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) 
 
     if let Some(target_config) = conf_opt {
         config = target_config;
-        dispatcher.dispatch(Action::SetConfig(&config.id));
+        dispatcher.dispatch(Action::SetConfig(config.id.clone()));
     } else {
         config = Config {
             id: fakeit::animal::animal().to_lowercase(),
@@ -297,7 +297,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) 
             ports: args.ports.clone(),
             ..Config::default()
         };
-        dispatcher.dispatch(Action::CreateAndSetConfig(&config))
+        dispatcher.dispatch(Action::CreateAndSetConfig(config.clone()))
     }
 
     (config, dispatcher)

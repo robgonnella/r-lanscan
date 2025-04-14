@@ -37,4 +37,7 @@ pub trait View: EventHandler + WidgetRef {
     fn legend(&self) -> &str {
         ""
     }
+    fn override_main_legend(&self) -> bool {
+        false
+    }
 }

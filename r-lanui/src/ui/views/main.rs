@@ -131,18 +131,24 @@ impl MainView {
     fn render_footer(
         &self,
         legend: &str,
+        override_legend: bool,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         state: &State,
     ) {
-        let mut info = String::from("(q) quit | (v) change view");
+        if override_legend {
+            let footer = InfoFooter::new(legend.to_string());
+            footer.render(area, buf, state);
+        } else {
+            let mut info = String::from("(q) quit | (v) change view");
 
-        if legend.len() > 0 {
-            info = format!("{info} | {legend}");
+            if legend.len() > 0 {
+                info = format!("{info} | {legend}");
+            }
+
+            let footer = InfoFooter::new(info);
+            footer.render(area, buf, state);
         }
-
-        let footer = InfoFooter::new(info);
-        footer.render(area, buf, state);
     }
 }
 
@@ -167,6 +173,7 @@ impl WidgetRef for MainView {
         let view_id = self.dispatcher.get_state().view_id;
         let view = self.sub_views.get(&view_id).unwrap();
         let legend = view.legend();
+        let override_legend = view.override_main_legend();
 
         // render background for entire display
         self.render_buffer_bg(area, buf, &state);
@@ -177,7 +184,7 @@ impl WidgetRef for MainView {
         // view
         self.render_middle_view(view, page_areas[1], buf, &state);
         // legend for current view
-        self.render_footer(legend, page_areas[2], buf, &state);
+        self.render_footer(legend, override_legend, page_areas[2], buf, &state);
 
         // view selection
         if state.render_view_select {

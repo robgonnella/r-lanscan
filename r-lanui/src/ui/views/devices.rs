@@ -82,7 +82,7 @@ impl DevicesView {
 
         if devices.len() > 0 && i < devices.len() {
             let mac = devices[i].mac.clone();
-            self.dispatcher.dispatch(Action::UpdateSelectedDevice(&mac));
+            self.dispatcher.dispatch(Action::UpdateSelectedDevice(mac));
         }
     }
 

@@ -52,11 +52,8 @@ impl ConfigView {
     }
 
     fn set_colors(&mut self) {
-        let state = self.dispatcher.get_state();
-        self.dispatcher.dispatch(Action::UpdateTheme((
-            &state.config.id,
-            &THEMES[self.theme_index],
-        )));
+        self.dispatcher
+            .dispatch(Action::UpdateTheme(THEMES[self.theme_index].clone()));
     }
 
     fn render_label(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
