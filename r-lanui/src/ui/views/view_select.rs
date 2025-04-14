@@ -10,21 +10,21 @@ use crate::ui::{
     components::table::{self, Table},
     store::{
         action::Action,
-        dispatcher::Dispatcher,
         state::{State, ViewID},
+        store::Store,
     },
 };
 
 use super::{CustomWidgetRef, EventHandler, View};
 
 pub struct ViewSelect {
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
     view_ids: Vec<ViewID>,
     table: RefCell<Table>,
 }
 
 impl ViewSelect {
-    pub fn new(view_ids: Vec<ViewID>, padding: usize, dispatcher: Arc<Dispatcher>) -> Self {
+    pub fn new(view_ids: Vec<ViewID>, padding: usize, store: Arc<Store>) -> Self {
         let mut spacer = String::from("");
 
         if padding > 0 {
@@ -49,7 +49,7 @@ impl ViewSelect {
         table_select.next();
 
         Self {
-            dispatcher,
+            store,
             view_ids,
             table: RefCell::new(table_select),
         }
@@ -67,8 +67,8 @@ impl ViewSelect {
         let i = self.table.borrow().selected();
         if let Some(selected) = i {
             let id = self.view_ids[selected].clone();
-            self.dispatcher.dispatch(Action::UpdateView(id));
-            self.dispatcher.dispatch(Action::ToggleViewSelect);
+            self.store.dispatch(Action::UpdateView(id));
+            self.store.dispatch(Action::ToggleViewSelect);
         }
     }
 }
@@ -101,7 +101,7 @@ impl EventHandler for ViewSelect {
                         }
                         KeyCode::Esc => {
                             if state.render_view_select {
-                                self.dispatcher.dispatch(Action::ToggleViewSelect);
+                                self.store.dispatch(Action::ToggleViewSelect);
                                 handled = true;
                             }
                         }
@@ -122,7 +122,7 @@ impl EventHandler for ViewSelect {
 
 impl WidgetRef for ViewSelect {
     fn render_ref(&self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.dispatcher.get_state();
+        let state = self.store.get_state();
         self.table.borrow().render_ref(area, buf, &state);
     }
 }

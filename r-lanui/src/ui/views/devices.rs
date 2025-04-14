@@ -10,21 +10,21 @@ use crate::ui::{
     components::table::{self, Table},
     store::{
         action::Action,
-        dispatcher::Dispatcher,
         state::{State, ViewID},
+        store::Store,
     },
 };
 
 use super::{CustomWidgetRef, EventHandler, View};
 
 pub struct DevicesView {
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
     table: RefCell<Table>,
 }
 
 impl DevicesView {
-    pub fn new(dispatcher: Arc<Dispatcher>) -> Self {
-        let state = dispatcher.get_state();
+    pub fn new(store: Arc<Store>) -> Self {
+        let state = store.get_state();
 
         let items = state
             .devices
@@ -51,7 +51,7 @@ impl DevicesView {
         }
 
         Self {
-            dispatcher,
+            store,
             table: RefCell::new(Table::new(
                 items,
                 Some(vec![
@@ -78,17 +78,17 @@ impl DevicesView {
     }
 
     fn set_store_selected(&self, i: usize) {
-        let devices = self.dispatcher.get_state().devices;
+        let devices = self.store.get_state().devices;
 
         if devices.len() > 0 && i < devices.len() {
             let mac = devices[i].mac.clone();
-            self.dispatcher.dispatch(Action::UpdateSelectedDevice(mac));
+            self.store.dispatch(Action::UpdateSelectedDevice(mac));
         }
     }
 
     fn handle_device_selection(&self, state: &State) {
         if state.selected_device.is_some() {
-            self.dispatcher.dispatch(Action::UpdateView(ViewID::Device));
+            self.store.dispatch(Action::UpdateView(ViewID::Device));
         }
     }
 
@@ -126,7 +126,7 @@ impl View for DevicesView {
 
 impl WidgetRef for DevicesView {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.dispatcher.get_state();
+        let state = self.store.get_state();
 
         if let Some(selected_idx) = self.table.borrow().selected() {
             self.set_store_selected(selected_idx);

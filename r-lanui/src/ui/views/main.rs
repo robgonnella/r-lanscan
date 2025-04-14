@@ -4,8 +4,8 @@ use crate::ui::{
     components::{footer::InfoFooter, header::Header},
     store::{
         action::Action,
-        dispatcher::Dispatcher,
         state::{State, ViewID},
+        store::Store,
     },
 };
 use ratatui::{
@@ -23,21 +23,21 @@ use super::{
 const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 
 pub struct MainView {
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
     sub_views: HashMap<ViewID, Box<dyn View>>,
 }
 
 impl MainView {
-    pub fn new(dispatcher: Arc<Dispatcher>) -> Self {
+    pub fn new(store: Arc<Store>) -> Self {
         let mut sub_views: HashMap<ViewID, Box<dyn View>> = HashMap::new();
 
-        let config = Box::new(ConfigView::new(Arc::clone(&dispatcher)));
-        let device = Box::new(DeviceView::new(Arc::clone(&dispatcher)));
-        let devices = Box::new(DevicesView::new(Arc::clone(&dispatcher)));
+        let config = Box::new(ConfigView::new(Arc::clone(&store)));
+        let device = Box::new(DeviceView::new(Arc::clone(&store)));
+        let devices = Box::new(DevicesView::new(Arc::clone(&store)));
         let view_select = Box::new(ViewSelect::new(
             vec![ViewID::Devices, ViewID::Config],
             2,
-            Arc::clone(&dispatcher),
+            Arc::clone(&store),
         ));
 
         sub_views.insert(config.id(), config);
@@ -46,7 +46,7 @@ impl MainView {
         sub_views.insert(view_select.id(), view_select);
 
         Self {
-            dispatcher: Arc::clone(&dispatcher),
+            store: Arc::clone(&store),
             sub_views,
         }
     }
@@ -160,7 +160,7 @@ impl View for MainView {
 
 impl WidgetRef for MainView {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.dispatcher.get_state();
+        let state = self.store.get_state();
 
         // consists of 3 vertical rectangles (top, middle, bottom)
         let page_areas = Layout::vertical([
@@ -170,7 +170,7 @@ impl WidgetRef for MainView {
         ])
         .split(area);
 
-        let view_id = self.dispatcher.get_state().view_id;
+        let view_id = self.store.get_state().view_id;
         let view = self.sub_views.get(&view_id).unwrap();
         let legend = view.legend();
         let override_legend = view.override_main_legend();
@@ -223,13 +223,13 @@ impl EventHandler for MainView {
                     KeyCode::Char('v') => {
                         if !state.render_view_select {
                             handled = true;
-                            self.dispatcher.dispatch(Action::ToggleViewSelect);
+                            self.store.dispatch(Action::ToggleViewSelect);
                         }
                     }
                     KeyCode::Esc => {
                         if state.render_view_select {
                             handled = true;
-                            self.dispatcher.dispatch(Action::ToggleViewSelect);
+                            self.store.dispatch(Action::ToggleViewSelect);
                         }
                     }
                     _ => {}

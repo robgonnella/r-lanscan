@@ -6,8 +6,8 @@ use crate::ui::{
     },
     store::{
         action::Action,
-        dispatcher::Dispatcher,
         state::{State, Theme, ViewID},
+        store::Store,
     },
 };
 use itertools::Itertools;
@@ -32,7 +32,7 @@ enum Focus {
 }
 
 pub struct ConfigView {
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
     theme_index: usize,
     editing: bool,
     focus: Focus,
@@ -44,8 +44,8 @@ pub struct ConfigView {
 }
 
 impl ConfigView {
-    pub fn new(dispatcher: Arc<Dispatcher>) -> Self {
-        let state = dispatcher.get_state();
+    pub fn new(store: Arc<Store>) -> Self {
+        let state = store.get_state();
 
         let theme = Theme::from_string(&state.config.theme);
 
@@ -56,7 +56,7 @@ impl ConfigView {
             .unwrap();
 
         Self {
-            dispatcher,
+            store,
             theme_index: idx,
             editing: false,
             focus: Focus::SSHUser,
@@ -87,7 +87,7 @@ impl ConfigView {
         self.theme_index = (self.theme_index + 1) % THEMES.len();
         let theme = THEMES[self.theme_index].clone();
         self.theme_state.borrow_mut().value = theme.to_string();
-        self.dispatcher.dispatch(Action::PreviewTheme(theme));
+        self.store.dispatch(Action::PreviewTheme(theme));
     }
 
     fn previous_color(&mut self) {
@@ -95,7 +95,7 @@ impl ConfigView {
         self.theme_index = (self.theme_index + count - 1) % count;
         let theme = THEMES[self.theme_index].clone();
         self.theme_state.borrow_mut().value = theme.to_string();
-        self.dispatcher.dispatch(Action::PreviewTheme(theme));
+        self.store.dispatch(Action::PreviewTheme(theme));
     }
 
     fn set_config(&mut self, state: &State) {
@@ -116,7 +116,7 @@ impl ConfigView {
             .split(",")
             .map_into()
             .collect();
-        self.dispatcher.dispatch(Action::UpdateConfig(config));
+        self.store.dispatch(Action::UpdateConfig(config));
     }
 
     fn render_label(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
@@ -339,7 +339,7 @@ impl View for ConfigView {
 
 impl WidgetRef for ConfigView {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.dispatcher.get_state();
+        let state = self.store.get_state();
 
         let view_rects = Layout::vertical([
             Constraint::Length(1), // label

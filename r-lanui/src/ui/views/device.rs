@@ -8,8 +8,8 @@ use crate::{
         },
         store::{
             action::Action,
-            dispatcher::Dispatcher,
             state::{State, ViewID},
+            store::Store,
         },
     },
 };
@@ -31,7 +31,7 @@ enum SSHFocus {
 }
 
 pub struct DeviceView {
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
     editing: bool,
     focus: SSHFocus,
     ssh_user_state: RefCell<InputState>,
@@ -40,9 +40,9 @@ pub struct DeviceView {
 }
 
 impl DeviceView {
-    pub fn new(dispatcher: Arc<Dispatcher>) -> Self {
+    pub fn new(store: Arc<Store>) -> Self {
         Self {
-            dispatcher,
+            store,
             editing: false,
             focus: SSHFocus::User,
             ssh_user_state: RefCell::new(InputState {
@@ -236,7 +236,7 @@ impl View for DeviceView {
 
 impl WidgetRef for DeviceView {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.dispatcher.get_state();
+        let state = self.store.get_state();
 
         let view_rects = Layout::vertical([
             Constraint::Length(1),
@@ -282,8 +282,7 @@ impl EventHandler for DeviceView {
                         self.focus = SSHFocus::User;
                         self.editing = false;
                     } else {
-                        self.dispatcher
-                            .dispatch(Action::UpdateView(ViewID::Devices));
+                        self.store.dispatch(Action::UpdateView(ViewID::Devices));
                     }
                     handled = true;
                 }
@@ -315,7 +314,7 @@ impl EventHandler for DeviceView {
                                 device_config.ssh_port = port.unwrap();
                                 device_config.ssh_identity_file =
                                     self.ssh_identity_state.borrow().value.clone();
-                                self.dispatcher
+                                self.store
                                     .dispatch(Action::UpdateDeviceConfig(device_config));
                                 self.reset_input_state();
                                 self.focus = SSHFocus::User;
@@ -344,7 +343,7 @@ impl EventHandler for DeviceView {
                     } else if c == 's' {
                         if !state.paused {
                             handled = true;
-                            self.dispatcher.dispatch(Action::TogglePause);
+                            self.store.dispatch(Action::TogglePause);
                         }
                     }
                 }

@@ -17,30 +17,30 @@ use std::{
 };
 
 use super::{
-    store::{action::Action, dispatcher::Dispatcher, state::State},
+    store::{action::Action, state::State, store::Store},
     views::{main::MainView, View},
 };
 
 struct App {
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
     main_view: Box<dyn View>,
 }
 
 impl App {
-    fn new(dispatcher: Arc<Dispatcher>) -> Self {
-        let dispatcher_clone = Arc::clone(&dispatcher);
+    fn new(store: Arc<Store>) -> Self {
+        let store_clone = Arc::clone(&store);
         Self {
-            dispatcher,
-            main_view: Box::new(MainView::new(dispatcher_clone)),
+            store,
+            main_view: Box::new(MainView::new(store_clone)),
         }
     }
 
     pub fn get_state(&self) -> State {
-        self.dispatcher.get_state()
+        self.store.get_state()
     }
 }
 
-pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Report> {
+pub fn launch(store: Arc<Store>) -> Result<(), Report> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -48,7 +48,7 @@ pub fn launch(dispatcher: Arc<Dispatcher>) -> Result<(), Report> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(dispatcher);
+    let mut app = App::new(store);
 
     // start app loop
     let res = run_app(&mut terminal, &mut app);
@@ -109,7 +109,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> 
                 .spawn()
                 .expect("failed to start shell command");
             handle.wait().expect("shell command failed");
-            app.dispatcher.dispatch(Action::TogglePause);
+            app.store.dispatch(Action::TogglePause);
             continue;
         }
 

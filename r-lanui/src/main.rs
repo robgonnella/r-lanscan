@@ -14,7 +14,7 @@ use std::{
     },
     thread::{self, JoinHandle},
 };
-use ui::store::{action::Action, dispatcher::Dispatcher};
+use ui::store::{action::Action, store::Store};
 
 use r_lanlib::{
     network::{self, NetworkInterface},
@@ -77,7 +77,7 @@ fn process_arp(
     source_port: u16,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
 ) -> Result<(Vec<Device>, Receiver<ScanMessage>), ScanError> {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
@@ -93,7 +93,7 @@ fn process_arp(
         tx,
     );
 
-    dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
+    store.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing ARP Scan…",
     ))));
 
@@ -116,7 +116,7 @@ fn process_arp(
             ScanMessage::ARPScanResult(m) => {
                 debug!("received scanning message: {:?}", m);
                 arp_results.insert(m.to_owned());
-                dispatcher.dispatch(Action::AddDevice(DeviceWithPorts {
+                store.dispatch(Action::AddDevice(DeviceWithPorts {
                     hostname: m.hostname.clone(),
                     ip: m.ip.clone(),
                     mac: m.mac.clone(),
@@ -133,7 +133,7 @@ fn process_arp(
 
     let items: Vec<Device> = arp_results.into_iter().collect();
 
-    dispatcher.dispatch(Action::UpdateMessage(None));
+    store.dispatch(Action::UpdateMessage(None));
 
     debug!("finished arp scan");
     Ok((items, rx))
@@ -148,7 +148,7 @@ fn process_syn(
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
     source_port: u16,
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
 ) -> Result<Vec<DeviceWithPorts>, ScanError> {
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
@@ -174,7 +174,7 @@ fn process_syn(
     );
 
     debug!("starting syn scan");
-    dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
+    store.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing SYN Scan…",
     ))));
 
@@ -200,7 +200,7 @@ fn process_syn(
                 match device {
                     Some(d) => {
                         d.open_ports.insert(m.open_port.to_owned());
-                        dispatcher.dispatch(Action::AddDevice(d.clone()));
+                        store.dispatch(Action::AddDevice(d.clone()));
                     }
                     None => {
                         warn!("received syn result for unknown device: {:?}", m);
@@ -213,7 +213,7 @@ fn process_syn(
 
     handle.join().unwrap()?;
 
-    dispatcher.dispatch(Action::UpdateMessage(None));
+    store.dispatch(Action::UpdateMessage(None));
 
     Ok(syn_results)
 }
@@ -221,7 +221,7 @@ fn process_syn(
 fn monitor_network(
     config: Arc<Config>,
     interface: Arc<NetworkInterface>,
-    dispatcher: Arc<Dispatcher>,
+    store: Arc<Store>,
 ) -> JoinHandle<Result<(), ScanError>> {
     info!("starting network monitor");
     thread::spawn(move || -> Result<(), ScanError> {
@@ -251,7 +251,7 @@ fn monitor_network(
             source_port,
             rx,
             tx.clone(),
-            Arc::clone(&dispatcher),
+            Arc::clone(&store),
         )?;
 
         let results = process_syn(
@@ -263,23 +263,23 @@ fn monitor_network(
             rx,
             tx.clone(),
             source_port,
-            Arc::clone(&dispatcher),
+            Arc::clone(&store),
         )?;
 
-        dispatcher.dispatch(Action::UpdateAllDevices(results));
+        store.dispatch(Action::UpdateAllDevices(results));
 
         debug!("network scan completed");
 
         thread::sleep(time::Duration::from_secs(15));
-        let handle = monitor_network(config, interface, dispatcher);
+        let handle = monitor_network(config, interface, store);
         handle.join().unwrap()
     })
 }
 
-fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) {
+fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Store>) {
     let config_path = get_project_config_path();
     let config_manager = Arc::new(Mutex::new(ConfigManager::new(&config_path)));
-    let dispatcher = Arc::new(Dispatcher::new(Arc::clone(&config_manager)));
+    let store = Arc::new(Store::new(Arc::clone(&config_manager)));
 
     let manager = config_manager.lock().unwrap();
     let config: Config;
@@ -289,7 +289,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) 
 
     if let Some(target_config) = conf_opt {
         config = target_config;
-        dispatcher.dispatch(Action::SetConfig(config.id.clone()));
+        store.dispatch(Action::SetConfig(config.id.clone()));
     } else {
         config = Config {
             id: fakeit::animal::animal().to_lowercase(),
@@ -297,10 +297,10 @@ fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Dispatcher>) 
             ports: args.ports.clone(),
             ..Config::default()
         };
-        dispatcher.dispatch(Action::CreateAndSetConfig(config.clone()))
+        store.dispatch(Action::CreateAndSetConfig(config.clone()))
     }
 
-    (config, dispatcher)
+    (config, store)
 }
 
 fn is_root() -> bool {
