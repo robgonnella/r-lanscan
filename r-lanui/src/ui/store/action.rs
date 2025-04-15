@@ -8,8 +8,10 @@ use super::state::{Command, Theme, ViewID};
 
 #[derive(Debug)]
 pub enum Action {
+    SetError(Option<String>),
     ClearCommand,
     ExecuteCommand(Command),
+    SetCommandInProgress(bool),
     UpdateCommandOutput((Command, Output)),
     ToggleViewSelect,
     UpdateView(ViewID),

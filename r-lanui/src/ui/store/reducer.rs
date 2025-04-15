@@ -26,6 +26,11 @@ impl Reducer {
 
     pub fn reduce(&self, prev_state: State, action: Action) -> State {
         let new_state = match action {
+            Action::SetError(err) => {
+                let mut state = prev_state.clone();
+                state.error = err;
+                state
+            }
             Action::ToggleViewSelect => {
                 let mut state = prev_state.clone();
                 state.render_view_select = !state.render_view_select;
@@ -166,6 +171,7 @@ impl Reducer {
             Action::ExecuteCommand(cmd) => {
                 let mut state = prev_state.clone();
                 state.execute_cmd = Some(cmd);
+                state.cmd_output = None;
                 state
             }
             Action::ClearCommand => {
@@ -174,8 +180,14 @@ impl Reducer {
                 state.cmd_output = None;
                 state
             }
+            Action::SetCommandInProgress(value) => {
+                let mut state = prev_state.clone();
+                state.cmd_in_progress = value;
+                state
+            }
             Action::UpdateCommandOutput((cmd, output)) => {
                 let mut state = prev_state.clone();
+                state.execute_cmd = None;
                 state.cmd_output = Some((cmd, output));
                 state
             }

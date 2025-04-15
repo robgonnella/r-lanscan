@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::ui::{
-    components::{footer::InfoFooter, header::Header},
+    components::{footer::InfoFooter, header::Header, popover::get_popover_area},
     store::{
         action::Action,
         state::{State, ViewID},
@@ -11,8 +11,9 @@ use crate::ui::{
 use ratatui::{
     crossterm::event::{Event, KeyCode},
     layout::{Constraint, Layout, Rect},
-    style::Style,
-    widgets::{Block, BorderType, Clear, Padding, Paragraph, Widget, WidgetRef},
+    style::{palette::tailwind, Style},
+    text::Line,
+    widgets::{Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget, WidgetRef},
 };
 
 use super::{
@@ -131,6 +132,34 @@ impl MainView {
         }
     }
 
+    fn render_error_popover(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+        if state.error.is_some() {
+            let msg = state.error.clone().unwrap();
+            let block = Block::bordered()
+                .border_type(BorderType::Double)
+                .border_style(
+                    Style::new()
+                        .fg(tailwind::RED.c600)
+                        .bg(state.colors.buffer_bg),
+                )
+                .padding(Padding::uniform(2))
+                .style(Style::default().bg(state.colors.buffer_bg));
+            let inner_area = block.inner(area);
+            let [msg_area, exit_area] = Layout::vertical([
+                Constraint::Percentage(100), // msg
+                Constraint::Length(1),       // exit
+            ])
+            .areas(inner_area);
+
+            let message = Line::from(format!("Error: {}", msg));
+            let exit = Paragraph::new("Press enter to clear error").centered();
+            ClearWidget.render(area, buf);
+            block.render(area, buf);
+            message.render(msg_area, buf);
+            exit.render(exit_area, buf);
+        }
+    }
+
     fn render_footer(
         &self,
         legend: &str,
@@ -175,8 +204,8 @@ impl WidgetRef for MainView {
 
         let view_id = self.store.get_state().view_id;
         let view = self.sub_views.get(&view_id).unwrap();
-        let legend = view.legend();
-        let override_legend = view.override_main_legend();
+        let legend = view.legend(&state);
+        let override_legend = view.override_main_legend(&state);
 
         // render background for entire display
         self.render_buffer_bg(area, buf, &state);
@@ -188,6 +217,8 @@ impl WidgetRef for MainView {
         self.render_middle_view(view, page_areas[1], buf, &state);
         // legend for current view
         self.render_footer(legend, override_legend, page_areas[2], buf, &state);
+        // popover when there are errors in the store
+        self.render_error_popover(get_popover_area(area, 50, 40), buf, &state);
 
         // view selection
         if state.render_view_select {
@@ -202,7 +233,7 @@ impl WidgetRef for MainView {
 
             select_block.render(select_area, buf);
 
-            Clear.render(select_inner_area, buf);
+            ClearWidget.render(select_inner_area, buf);
             self.render_buffer_bg(select_inner_area, buf, &state);
             self.render_view_select_popover(select_inner_area, buf);
         }
@@ -216,31 +247,44 @@ impl EventHandler for MainView {
             return select_view.process_event(evt, state);
         }
 
-        let view_id = state.view_id.clone();
-        let view = self.sub_views.get(&view_id).unwrap();
-        let mut handled = view.process_event(evt, state);
-
-        if !handled {
+        if state.error.is_some() {
             match evt {
                 Event::Key(key) => match key.code {
-                    KeyCode::Char('v') => {
-                        if !state.render_view_select {
-                            handled = true;
-                            self.store.dispatch(Action::ToggleViewSelect);
-                        }
-                    }
-                    KeyCode::Esc => {
-                        if state.render_view_select {
-                            handled = true;
-                            self.store.dispatch(Action::ToggleViewSelect);
-                        }
+                    KeyCode::Enter => {
+                        self.store.dispatch(Action::SetError(None));
                     }
                     _ => {}
                 },
                 _ => {}
             }
-        }
+            true
+        } else {
+            let view_id = state.view_id.clone();
+            let view = self.sub_views.get(&view_id).unwrap();
+            let mut handled = view.process_event(evt, state);
 
-        handled
+            if !handled {
+                match evt {
+                    Event::Key(key) => match key.code {
+                        KeyCode::Char('v') => {
+                            if !state.render_view_select {
+                                handled = true;
+                                self.store.dispatch(Action::ToggleViewSelect);
+                            }
+                        }
+                        KeyCode::Esc => {
+                            if state.render_view_select {
+                                handled = true;
+                                self.store.dispatch(Action::ToggleViewSelect);
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {}
+                }
+            }
+
+            handled
+        }
     }
 }

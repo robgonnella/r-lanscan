@@ -35,6 +35,7 @@ impl Store {
         Self {
             reducer: Reducer::new(config_manager),
             state: Mutex::new(State {
+                error: None,
                 render_view_select: false,
                 view_id: ViewID::Devices,
                 config,
@@ -46,6 +47,7 @@ impl Store {
                 message: None,
                 execute_cmd: None,
                 cmd_output: None,
+                cmd_in_progress: false,
             }),
         }
     }

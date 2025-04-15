@@ -15,6 +15,7 @@ use std::{
     io::{self, Stdout},
     process::Command,
     sync::Arc,
+    thread,
 };
 
 use crate::config::DeviceConfig;
@@ -63,7 +64,14 @@ impl App {
         cmd: AppCommand,
         device: DeviceWithPorts,
         device_config: DeviceConfig,
+        cmd_in_progress: bool,
     ) -> Result<()> {
+        if cmd_in_progress {
+            return Ok(());
+        }
+
+        self.store.dispatch(Action::SetCommandInProgress(true));
+
         match cmd {
             AppCommand::SSH => {
                 self.pause()?;
@@ -77,15 +85,26 @@ impl App {
                     .wrap_err("failed to start ssh command")?;
                 handle.wait().wrap_err("shell command failed")?;
                 self.store.dispatch(Action::ClearCommand);
+                self.store.dispatch(Action::SetCommandInProgress(false));
             }
             AppCommand::TRACEROUTE => {
-                let output = Command::new("traceroute")
-                    .arg(device.ip)
-                    .output()
-                    .wrap_err("failed to start traceroute command")?;
-                self.store.dispatch(Action::ClearCommand);
-                self.store
-                    .dispatch(Action::UpdateCommandOutput((cmd, output)))
+                let ip = device.ip.clone();
+                let store = Arc::clone(&self.store);
+                thread::spawn(move || {
+                    let exec = Command::new("traceroute").arg(ip).output();
+                    match exec {
+                        Ok(output) => {
+                            store.dispatch(Action::ClearCommand);
+                            store.dispatch(Action::UpdateCommandOutput((cmd, output)));
+                            store.dispatch(Action::SetCommandInProgress(false));
+                        }
+                        Err(err) => {
+                            store.dispatch(Action::ClearCommand);
+                            store.dispatch(Action::SetError(Some(err.to_string())));
+                            store.dispatch(Action::SetCommandInProgress(false));
+                        }
+                    }
+                });
             }
             AppCommand::BROWSE(port) => {
                 self.pause()?;
@@ -95,6 +114,7 @@ impl App {
                     .wrap_err("failed to start lynx browser")?;
                 handle.wait().wrap_err("shell command failed")?;
                 self.store.dispatch(Action::ClearCommand);
+                self.store.dispatch(Action::SetCommandInProgress(false));
             }
         }
 
@@ -118,10 +138,14 @@ impl App {
             if state.execute_cmd.is_some() && !*self.paused.borrow() {
                 let cmd = state.execute_cmd.clone().unwrap();
                 if state.selected_device.is_some() && state.selected_device_config.is_some() {
-                    let device = state.selected_device.unwrap();
-                    let device_config = state.selected_device_config.unwrap();
-                    self.handle_cmd(cmd, device, device_config)?;
-                    continue;
+                    let device = state.selected_device.clone().unwrap();
+                    let device_config = state.selected_device_config.clone().unwrap();
+                    self.handle_cmd(cmd.clone(), device, device_config, state.cmd_in_progress)?;
+                    match cmd {
+                        AppCommand::SSH => continue,
+                        AppCommand::BROWSE(_) => continue,
+                        _ => {}
+                    }
                 }
             }
 

@@ -122,12 +122,12 @@ impl ConfigView {
     }
 
     fn render_label(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
-        let header = Header::new(String::from("Config"));
+        let header = Header::new("Config".to_string());
         header.render(area, buf, state);
     }
 
     fn render_network(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
-        let field = Field::new(String::from("Network"), state.config.cidr.clone());
+        let field = Field::new("Network".to_string(), state.config.cidr.clone());
         field.render(area, buf, state);
     }
 
@@ -323,14 +323,14 @@ impl View for ConfigView {
     fn id(&self) -> ViewID {
         ViewID::Config
     }
-    fn legend(&self) -> &str {
+    fn legend(&self, _state: &State) -> &str {
         if *self.editing.borrow() {
             "(esc) exit configuration | (tab) focus next | (enter) save config"
         } else {
             "(c) configure"
         }
     }
-    fn override_main_legend(&self) -> bool {
+    fn override_main_legend(&self, _state: &State) -> bool {
         if *self.editing.borrow() {
             true
         } else {

@@ -28,10 +28,10 @@ pub trait CustomStatefulWidget {
 
 pub trait View: EventHandler + WidgetRef {
     fn id(&self) -> ViewID;
-    fn legend(&self) -> &str {
+    fn legend(&self, _state: &State) -> &str {
         ""
     }
-    fn override_main_legend(&self) -> bool {
+    fn override_main_legend(&self, _state: &State) -> bool {
         false
     }
 }

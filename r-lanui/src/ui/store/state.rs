@@ -69,6 +69,7 @@ impl Display for Command {
 
 #[derive(Debug, Clone)]
 pub struct State {
+    pub error: Option<String>,
     pub render_view_select: bool,
     pub view_id: ViewID,
     pub config: Config,
@@ -79,6 +80,7 @@ pub struct State {
     pub colors: Colors,
     pub message: Option<String>,
     pub execute_cmd: Option<Command>,
+    pub cmd_in_progress: bool,
     pub cmd_output: Option<(Command, Output)>,
 }
 

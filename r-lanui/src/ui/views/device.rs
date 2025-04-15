@@ -1,6 +1,5 @@
 use crate::ui::{
     components::{
-        device_info::DeviceInfo,
         header::Header,
         input::{Input, InputState},
         popover::get_popover_area,
@@ -11,13 +10,16 @@ use crate::ui::{
         store::Store,
     },
 };
+use itertools::Itertools;
 use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     crossterm::event::{Event, KeyCode},
     layout::{Constraint, Layout, Rect},
     style::Style,
     text::{Line, Span},
-    widgets::{Block, BorderType, Padding, Paragraph, StatefulWidget, Widget, WidgetRef, Wrap},
+    widgets::{
+        Block, BorderType, Clear, Padding, Paragraph, StatefulWidget, Widget, WidgetRef, Wrap,
+    },
 };
 use std::{cell::RefCell, sync::Arc};
 
@@ -81,19 +83,26 @@ impl DeviceView {
         }
 
         let rects = Layout::vertical([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
+            Constraint::Length(1), // header
+            Constraint::Length(1), // spacer
+            Constraint::Length(1), // user
+            Constraint::Length(1), // spacer
+            Constraint::Length(1), // port
+            Constraint::Length(1), // spacer
+            Constraint::Length(1), // identity
+            Constraint::Length(1), // spacer
         ])
         .split(area);
 
+        let header = Header::new("Device SSH Config".to_string());
         let ssh_user_input = Input::new("SSH User");
         let ssh_port_input = Input::new("SSH Port");
         let ssh_identity_input = Input::new("SSH Identity");
 
-        ssh_user_input.render(rects[0], buf, &mut self.ssh_user_state.borrow_mut());
-        ssh_port_input.render(rects[1], buf, &mut self.ssh_port_state.borrow_mut());
-        ssh_identity_input.render(rects[2], buf, &mut self.ssh_identity_state.borrow_mut());
+        header.render(rects[0], buf, state);
+        ssh_user_input.render(rects[2], buf, &mut self.ssh_user_state.borrow_mut());
+        ssh_port_input.render(rects[4], buf, &mut self.ssh_port_state.borrow_mut());
+        ssh_identity_input.render(rects[6], buf, &mut self.ssh_identity_state.borrow_mut());
     }
 
     fn render_device_info(
@@ -101,12 +110,71 @@ impl DeviceView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         device: &DeviceWithPorts,
+        state: &State,
     ) {
-        DeviceInfo::new(device.clone()).render(area, buf);
+        let [header_area, _, info_area] = Layout::vertical([
+            Constraint::Length(1), // header
+            Constraint::Length(1), // spacer
+            Constraint::Min(1),    // info
+        ])
+        .areas(area);
+
+        let host_str = format!("Hostname: {0}", device.hostname);
+        let ip_str = format!("IP: {0}", device.ip);
+        let mac_str = format!("MAC: {0}", device.mac);
+        let vendor_str = format!("Vendor: {0}", device.vendor);
+        let open_ports_str = format!(
+            "Open Ports: {0}",
+            device
+                .open_ports
+                .iter()
+                .sorted_by_key(|p| p.id)
+                .map(|p| p.id.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        );
+
+        let [host_area, _, ip_area, _, mac_area, _, vendor_area, _, ports_area] =
+            Layout::vertical([
+                Constraint::Length(1),       // hostname
+                Constraint::Length(1),       // spacer
+                Constraint::Length(1),       // ip
+                Constraint::Length(1),       // spacer
+                Constraint::Length(1),       // mac
+                Constraint::Length(1),       // spacer
+                Constraint::Length(1),       // vendor
+                Constraint::Length(1),       // spacer
+                Constraint::Percentage(100), // ports
+            ])
+            .areas(info_area);
+
+        let header = Header::new("Device Info".to_string());
+        let host = Line::from(host_str);
+        let ip = Line::from(ip_str);
+        let mac = Line::from(mac_str);
+        let vendor = Line::from(vendor_str);
+        let open_ports = Paragraph::new(vec![Line::from(open_ports_str)])
+            .wrap(Wrap { trim: true })
+            .left_aligned();
+
+        header.render(header_area, buf, state);
+        host.render(host_area, buf);
+        ip.render(ip_area, buf);
+        mac.render(mac_area, buf);
+        vendor.render(vendor_area, buf);
+        open_ports.render(ports_area, buf);
     }
 
     fn render_cmd_output(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
-        if state.cmd_output.is_some() {
+        if self.is_tracing(state) {
+            let [label_area] = Layout::vertical([
+                Constraint::Min(1), // label
+            ])
+            .areas(area);
+
+            let header = Header::new("tracing...".to_string());
+            header.render(label_area, buf, state);
+        } else if state.cmd_output.is_some() {
             let (cmd, output) = state.cmd_output.clone().unwrap();
             let header = Header::new(cmd.to_string());
 
@@ -124,7 +192,7 @@ impl DeviceView {
             let stdout = Paragraph::new(Line::from(vec![stdout_label, stdout_value]))
                 .wrap(Wrap { trim: true });
 
-            let rects = Layout::vertical([
+            let [label_area, _, status_area, _, stderr_area, _, stdout_area] = Layout::vertical([
                 Constraint::Length(1),       // label
                 Constraint::Length(1),       // spacer
                 Constraint::Length(1),       // status
@@ -133,12 +201,12 @@ impl DeviceView {
                 Constraint::Length(1),       // spacer
                 Constraint::Percentage(100), // stdout
             ])
-            .split(area);
+            .areas(area);
 
-            header.render(rects[0], buf, &state);
-            status.render(rects[2], buf);
-            stderr.render(rects[4], buf);
-            stdout.render(rects[6], buf);
+            header.render(label_area, buf, &state);
+            status.render(status_area, buf);
+            stderr.render(stderr_area, buf);
+            stdout.render(stdout_area, buf);
         }
     }
 
@@ -156,16 +224,17 @@ impl DeviceView {
                         .fg(state.colors.border_color)
                         .bg(state.colors.buffer_bg),
                 )
-                .padding(Padding::uniform(2));
+                .padding(Padding::uniform(2))
+                .style(Style::new().bg(state.colors.buffer_bg));
             let inner_area = block.inner(area);
-            let rects = Layout::vertical([
+            let [header_area, _, port_area, _, message_area] = Layout::vertical([
                 Constraint::Length(1), // header
                 Constraint::Length(1), // spacer
                 Constraint::Length(1), // port select
                 Constraint::Length(1), // spacer
                 Constraint::Length(1), // enter to submit message
             ])
-            .split(inner_area);
+            .areas(inner_area);
 
             let header = Header::new("Enter port to browse".to_string());
             let input = Input::new("Port");
@@ -173,10 +242,11 @@ impl DeviceView {
                 "Press enter to open browser or esc to cancel",
             )]);
 
+            Clear.render(area, buf);
             block.render(area, buf);
-            header.render(rects[0], buf, state);
-            input.render(rects[2], buf, &mut self.browser_port_state.borrow_mut());
-            message.render(rects[4], buf);
+            header.render(header_area, buf, state);
+            input.render(port_area, buf, &mut self.browser_port_state.borrow_mut());
+            message.render(message_area, buf);
         }
     }
 
@@ -289,20 +359,34 @@ impl DeviceView {
 
         *self.focus.borrow_mut() = next_focus;
     }
+
+    fn is_tracing(&self, state: &State) -> bool {
+        if state.execute_cmd.is_some() {
+            let cmd = state.execute_cmd.clone().unwrap();
+            match cmd {
+                Command::TRACEROUTE => true,
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
 }
 
 impl View for DeviceView {
     fn id(&self) -> ViewID {
         ViewID::Device
     }
-    fn legend(&self) -> &str {
+    fn legend(&self, state: &State) -> &str {
         if *self.editing.borrow() {
             "(esc) exit configuration | (enter) save configuration"
+        } else if self.is_tracing(state) {
+            "tracing..."
         } else {
             "(esc) back to devices | (c) configure | (s) SSH | (t) traceroute | (b) browse"
         }
     }
-    fn override_main_legend(&self) -> bool {
+    fn override_main_legend(&self, _state: &State) -> bool {
         true
     }
 }
@@ -311,33 +395,26 @@ impl WidgetRef for DeviceView {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
         let state = self.store.get_state();
 
-        let view_rects = Layout::horizontal([
+        let [left_area, right_area] = Layout::horizontal([
             Constraint::Percentage(50), // info
             Constraint::Percentage(50), // command output
         ])
-        .split(area);
+        .areas(area);
 
-        let info_rects = Layout::vertical([
-            Constraint::Length(1), // label
-            Constraint::Length(1), // spacer
-            Constraint::Length(3), // ssh info
-            Constraint::Min(5),    // device info
+        let [ssh_area, _, info_area] = Layout::vertical([
+            Constraint::Length(8),       // ssh info
+            Constraint::Length(1),       // spacer
+            Constraint::Percentage(100), // device info
         ])
-        .split(view_rects[0]);
-
-        let label_rects = Layout::horizontal([Constraint::Length(20)]).split(info_rects[0]);
-
-        let header = Header::new(String::from("Device Info"));
-
-        header.render(label_rects[0], buf, &state);
+        .areas(left_area);
 
         let popover_area = get_popover_area(area, 33, 34);
 
         if let Some(device) = state.selected_device.clone() {
             self.render_browser_port_select_popover(popover_area, buf, &state);
-            self.render_device_ssh_config(info_rects[2], buf, &device, &state);
-            self.render_device_info(info_rects[3], buf, &device);
-            self.render_cmd_output(view_rects[1], buf, &state);
+            self.render_device_ssh_config(ssh_area, buf, &device, &state);
+            self.render_device_info(info_area, buf, &device, &state);
+            self.render_cmd_output(right_area, buf, &state);
         }
     }
 }
@@ -360,10 +437,11 @@ impl EventHandler for DeviceView {
                 KeyCode::Esc => {
                     if *self.editing.borrow() {
                         self.reset_input_state();
-                    } else {
+                        handled = true;
+                    } else if !self.is_tracing(state) {
                         self.store.dispatch(Action::UpdateView(ViewID::Devices));
+                        handled = true;
                     }
-                    handled = true;
                 }
                 KeyCode::Tab => {
                     if *self.editing.borrow() {
@@ -418,6 +496,8 @@ impl EventHandler for DeviceView {
                         // handle value update for focused element
                         self.push_input_char(c);
                         handled = true;
+                    } else if self.is_tracing(state) {
+                        handled = true
                     } else if c == 'c' {
                         // enter edit mode
                         *self.focus.borrow_mut() = Focus::SSHUser;
@@ -430,10 +510,10 @@ impl EventHandler for DeviceView {
                             self.store.dispatch(Action::ExecuteCommand(Command::SSH));
                         }
                     } else if c == 't' {
-                        if state.execute_cmd.is_none() {
-                            handled = true;
+                        if !self.is_tracing(state) {
                             self.store
                                 .dispatch(Action::ExecuteCommand(Command::TRACEROUTE));
+                            handled = true;
                         }
                     } else if c == 'b' {
                         *self.focus.borrow_mut() = Focus::BrowserPort;
