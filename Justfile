@@ -9,8 +9,11 @@ generate-dot-env:
 scan *args:
     cargo run -p r-lanscan -- {{args}}
 
-up *args:
+up *args: generate-dot-env && exec-workspace
     docker compose up --build -d {{args}}
+
+exec-workspace:
+    docker compose exec workspace /workspace/target/debug/r-lanui
 
 down *args:
     docker compose down --remove-orphans {{args}}
