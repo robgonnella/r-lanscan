@@ -101,9 +101,8 @@ impl DeviceView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         device: &DeviceWithPorts,
-        state: &State,
     ) {
-        DeviceInfo::new(device.clone()).render(area, buf, state);
+        DeviceInfo::new(device.clone()).render(area, buf);
     }
 
     fn render_cmd_output(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
@@ -337,7 +336,7 @@ impl WidgetRef for DeviceView {
         if let Some(device) = state.selected_device.clone() {
             self.render_browser_port_select_popover(popover_area, buf, &state);
             self.render_device_ssh_config(info_rects[2], buf, &device, &state);
-            self.render_device_info(info_rects[3], buf, &device, &state);
+            self.render_device_info(info_rects[3], buf, &device);
             self.render_cmd_output(view_rects[1], buf, &state);
         }
     }

@@ -1,8 +1,3 @@
-# R-LANLIB
-
-Library package for performing ARP and SYN scanning of a LAN
-
-```rust
 use std::{sync::mpsc, time::Duration};
 
 use r_lanlib::{
@@ -61,4 +56,3 @@ fn main() {
         println!("error: {:?}", e);
     }
 }
-```

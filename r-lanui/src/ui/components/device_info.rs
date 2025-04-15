@@ -6,8 +6,6 @@ use ratatui::{
     widgets::{Paragraph, Widget, Wrap},
 };
 
-use crate::ui::{store::state::State, views::traits::CustomWidget};
-
 pub struct DeviceInfo {
     device: DeviceWithPorts,
 }
@@ -18,8 +16,8 @@ impl DeviceInfo {
     }
 }
 
-impl CustomWidget for DeviceInfo {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State)
+impl Widget for DeviceInfo {
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
     {
