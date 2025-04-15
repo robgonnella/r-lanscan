@@ -6,6 +6,7 @@ use crate::ui::{
     },
     store::{
         action::Action,
+        derived::get_device_config_from_state,
         state::{Command, State, ViewID},
         store::Store,
     },
@@ -76,7 +77,7 @@ impl DeviceView {
         state: &State,
     ) {
         if !*self.editing.borrow() || self.browser_port_state.borrow().editing {
-            let device_config = self.store.get_device_config_from_state(device, state);
+            let device_config = get_device_config_from_state(device, state);
             self.ssh_user_state.borrow_mut().value = device_config.ssh_user.clone();
             self.ssh_port_state.borrow_mut().value = device_config.ssh_port.to_string();
             self.ssh_identity_state.borrow_mut().value = device_config.ssh_identity_file.clone();
@@ -467,8 +468,7 @@ impl EventHandler for DeviceView {
                             }
                         } else if let Some(device) = state.selected_device.clone() {
                             // save config
-                            let mut device_config =
-                                self.store.get_device_config_from_state(&device, &state);
+                            let mut device_config = get_device_config_from_state(&device, state);
                             device_config.ssh_user = self.ssh_user_state.borrow().value.clone();
                             let mut port =
                                 self.ssh_port_state.borrow().value.clone().parse::<u16>();
@@ -480,6 +480,8 @@ impl EventHandler for DeviceView {
                                 self.ssh_identity_state.borrow().value.clone();
                             self.store
                                 .dispatch(Action::UpdateDeviceConfig(device_config));
+                            self.store
+                                .dispatch(Action::UpdateSelectedDevice(device.mac));
                             self.reset_input_state();
                             handled = true;
                         }

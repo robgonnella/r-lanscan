@@ -55,8 +55,7 @@ impl Reducer {
                 let mut state = prev_state.clone();
                 let mut manager = self.config_manager.lock().unwrap();
                 manager.update_config(config.clone());
-                state.config = manager.get_by_id(config.id.as_str()).unwrap();
-                state.colors = Colors::new(Theme::from_string(&config.theme).to_palette());
+                state.config = config;
                 state
             }
             Action::UpdateAllDevices(devices) => {

@@ -3,9 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use r_lanlib::scanners::DeviceWithPorts;
-
-use crate::config::{ConfigManager, DeviceConfig, DEFAULT_CONFIG_ID};
+use crate::config::{ConfigManager, DEFAULT_CONFIG_ID};
 
 use super::{
     action::Action,
@@ -60,26 +58,5 @@ impl Store {
 
     pub fn get_state(&self) -> State {
         self.state.lock().unwrap().clone()
-    }
-
-    pub fn get_device_config_from_state(
-        &self,
-        device: &DeviceWithPorts,
-        state: &State,
-    ) -> DeviceConfig {
-        state
-            .selected_device_config
-            .clone()
-            .unwrap_or(DeviceConfig {
-                id: device.mac.clone(),
-                ssh_identity_file: state.config.default_ssh_identity.clone(),
-                ssh_port: state
-                    .config
-                    .default_ssh_port
-                    .clone()
-                    .parse::<u16>()
-                    .unwrap(),
-                ssh_user: state.config.default_ssh_user.clone(),
-            })
     }
 }

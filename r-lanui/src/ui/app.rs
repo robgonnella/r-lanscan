@@ -1,6 +1,5 @@
 use color_eyre::eyre::{Context, Result};
 use core::time;
-use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     crossterm::{
         event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
@@ -18,10 +17,12 @@ use std::{
     thread,
 };
 
-use crate::config::DeviceConfig;
-
 use super::{
-    store::{action::Action, state::Command as AppCommand, store::Store},
+    store::{
+        action::Action,
+        state::{Command as AppCommand, State},
+        store::Store,
+    },
     views::{main::MainView, traits::View},
 };
 
@@ -59,62 +60,61 @@ impl App {
         Ok(())
     }
 
-    fn handle_cmd(
-        &self,
-        cmd: AppCommand,
-        device: DeviceWithPorts,
-        device_config: DeviceConfig,
-        cmd_in_progress: bool,
-    ) -> Result<()> {
-        if cmd_in_progress {
+    fn handle_cmd(&self, cmd: AppCommand, state: &State) -> Result<()> {
+        if state.cmd_in_progress {
             return Ok(());
         }
 
-        self.store.dispatch(Action::SetCommandInProgress(true));
-
-        match cmd {
-            AppCommand::SSH => {
-                self.pause()?;
-                let mut handle = Command::new("ssh")
-                    .arg("-i")
-                    .arg(device_config.ssh_identity_file)
-                    .arg(format!("{}@{}", device_config.ssh_user, device.ip))
-                    .arg("-p")
-                    .arg(device_config.ssh_port.to_string())
-                    .spawn()
-                    .wrap_err("failed to start ssh command")?;
-                handle.wait().wrap_err("shell command failed")?;
-                self.store.dispatch(Action::ClearCommand);
-                self.store.dispatch(Action::SetCommandInProgress(false));
-            }
-            AppCommand::TRACEROUTE => {
-                let ip = device.ip.clone();
-                let store = Arc::clone(&self.store);
-                thread::spawn(move || {
-                    let exec = Command::new("traceroute").arg(ip).output();
-                    match exec {
-                        Ok(output) => {
-                            store.dispatch(Action::ClearCommand);
-                            store.dispatch(Action::UpdateCommandOutput((cmd, output)));
-                            store.dispatch(Action::SetCommandInProgress(false));
+        if state.selected_device.is_some() && state.selected_device_config.is_some() {
+            self.store.dispatch(Action::SetCommandInProgress(true));
+            let device = state.selected_device.clone().unwrap();
+            let device_config = state.selected_device_config.clone().unwrap();
+            match cmd {
+                AppCommand::SSH => {
+                    self.pause()?;
+                    let mut handle = Command::new("ssh")
+                        .arg("-i")
+                        .arg(device_config.ssh_identity_file)
+                        .arg(format!("{}@{}", device_config.ssh_user, device.ip))
+                        .arg("-p")
+                        .arg(device_config.ssh_port.to_string())
+                        .spawn()
+                        .wrap_err("failed to start ssh command")?;
+                    handle.wait().wrap_err("shell command failed")?;
+                    self.store.dispatch(Action::ClearCommand);
+                    self.store.dispatch(Action::SetCommandInProgress(false));
+                    self.restart()?;
+                }
+                AppCommand::TRACEROUTE => {
+                    let ip = device.ip.clone();
+                    let store = Arc::clone(&self.store);
+                    thread::spawn(move || {
+                        let exec = Command::new("traceroute").arg(ip).output();
+                        match exec {
+                            Ok(output) => {
+                                store.dispatch(Action::ClearCommand);
+                                store.dispatch(Action::UpdateCommandOutput((cmd, output)));
+                                store.dispatch(Action::SetCommandInProgress(false));
+                            }
+                            Err(err) => {
+                                store.dispatch(Action::ClearCommand);
+                                store.dispatch(Action::SetError(Some(err.to_string())));
+                                store.dispatch(Action::SetCommandInProgress(false));
+                            }
                         }
-                        Err(err) => {
-                            store.dispatch(Action::ClearCommand);
-                            store.dispatch(Action::SetError(Some(err.to_string())));
-                            store.dispatch(Action::SetCommandInProgress(false));
-                        }
-                    }
-                });
-            }
-            AppCommand::BROWSE(port) => {
-                self.pause()?;
-                let mut handle = Command::new("lynx")
-                    .arg(format!("{}:{}", device.ip, port))
-                    .spawn()
-                    .wrap_err("failed to start lynx browser")?;
-                handle.wait().wrap_err("shell command failed")?;
-                self.store.dispatch(Action::ClearCommand);
-                self.store.dispatch(Action::SetCommandInProgress(false));
+                    });
+                }
+                AppCommand::BROWSE(port) => {
+                    self.pause()?;
+                    let mut handle = Command::new("lynx")
+                        .arg(format!("{}:{}", device.ip, port))
+                        .spawn()
+                        .wrap_err("failed to start lynx browser")?;
+                    handle.wait().wrap_err("shell command failed")?;
+                    self.store.dispatch(Action::ClearCommand);
+                    self.store.dispatch(Action::SetCommandInProgress(false));
+                    self.restart()?;
+                }
             }
         }
 
@@ -125,28 +125,13 @@ impl App {
         loop {
             let state = self.store.get_state();
 
-            if *self.paused.borrow() && state.execute_cmd.is_none() {
-                // unpause
-                self.restart()?;
-                *self.paused.borrow_mut() = false;
-            }
-
             if *self.paused.borrow() {
                 continue;
             }
 
-            if state.execute_cmd.is_some() && !*self.paused.borrow() {
+            if state.execute_cmd.is_some() {
                 let cmd = state.execute_cmd.clone().unwrap();
-                if state.selected_device.is_some() && state.selected_device_config.is_some() {
-                    let device = state.selected_device.clone().unwrap();
-                    let device_config = state.selected_device_config.clone().unwrap();
-                    self.handle_cmd(cmd.clone(), device, device_config, state.cmd_in_progress)?;
-                    match cmd {
-                        AppCommand::SSH => continue,
-                        AppCommand::BROWSE(_) => continue,
-                        _ => {}
-                    }
-                }
+                self.handle_cmd(cmd, &state)?;
             }
 
             self.terminal
