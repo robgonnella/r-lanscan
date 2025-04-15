@@ -3,6 +3,7 @@ services:
     image: lscr.io/linuxserver/openssh-server:latest
     environment:
       TZ: Etc/UTC
+      USER_NAME: $USER
       PUBLIC_KEY: $PUBLIC_KEY
       SUDO_ACCESS: false
       PASSWORD_ACCESS: false
@@ -12,6 +13,9 @@ services:
 
   workspace:
     build: .
+    volumes:
+      - $PRIVATE_KEY_FILE:/root/.ssh/id_rsa
+      - $PUBLIC_KEY_FILE:/root/.ssh/id_rsa.pub
     environment:
       USER: root
       LOG_LEVEL: debug

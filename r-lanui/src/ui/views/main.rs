@@ -16,8 +16,11 @@ use ratatui::{
 };
 
 use super::{
-    config::ConfigView, device::DeviceView, devices::DevicesView, view_select::ViewSelect,
-    CustomWidget, EventHandler, View,
+    config::ConfigView,
+    device::DeviceView,
+    devices::DevicesView,
+    traits::{CustomWidget, EventHandler, View},
+    view_select::ViewSelect,
 };
 
 const DEFAULT_PADDING: Padding = Padding::horizontal(2);
@@ -207,14 +210,14 @@ impl WidgetRef for MainView {
 }
 
 impl EventHandler for MainView {
-    fn process_event(&mut self, evt: &Event, state: &State) -> bool {
+    fn process_event(&self, evt: &Event, state: &State) -> bool {
         if state.render_view_select {
-            let select_view = self.sub_views.get_mut(&ViewID::ViewSelect).unwrap();
+            let select_view = self.sub_views.get(&ViewID::ViewSelect).unwrap();
             return select_view.process_event(evt, state);
         }
 
         let view_id = state.view_id.clone();
-        let view = self.sub_views.get_mut(&view_id).unwrap();
+        let view = self.sub_views.get(&view_id).unwrap();
         let mut handled = view.process_event(evt, state);
 
         if !handled {

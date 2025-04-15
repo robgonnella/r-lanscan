@@ -8,7 +8,7 @@ use std::{
 use itertools::Itertools;
 use r_lanlib::scanners::DeviceWithPorts;
 
-use crate::config::ConfigManager;
+use crate::config::{ConfigManager, DeviceConfig};
 
 use super::{
     action::Action,
@@ -26,11 +26,6 @@ impl Reducer {
 
     pub fn reduce(&self, prev_state: State, action: Action) -> State {
         let new_state = match action {
-            Action::TogglePause => {
-                let mut state = prev_state.clone();
-                state.paused = !state.paused;
-                state
-            }
             Action::ToggleViewSelect => {
                 let mut state = prev_state.clone();
                 state.render_view_select = !state.render_view_select;
@@ -125,7 +120,36 @@ impl Reducer {
             }
             Action::UpdateSelectedDevice(i) => {
                 let mut state = prev_state.clone();
-                state.selected_device = Some(String::from(i));
+                if let Some(device) = state.device_map.get(i.as_str()) {
+                    state.selected_device = Some(device.clone());
+                    let device_config: DeviceConfig;
+                    if state.config.device_configs.contains_key(&device.ip) {
+                        device_config =
+                            state.config.device_configs.get(&device.ip).unwrap().clone();
+                    } else if state.config.device_configs.contains_key(&device.mac) {
+                        device_config = state
+                            .config
+                            .device_configs
+                            .get(&device.mac)
+                            .unwrap()
+                            .clone();
+                    } else {
+                        device_config = DeviceConfig {
+                            id: device.mac.clone(),
+                            ssh_identity_file: state.config.default_ssh_identity.clone(),
+                            ssh_port: state
+                                .config
+                                .default_ssh_port
+                                .clone()
+                                .parse::<u16>()
+                                .unwrap(),
+                            ssh_user: state.config.default_ssh_user.clone(),
+                        }
+                    }
+
+                    state.selected_device_config = Some(device_config);
+                }
+
                 state
             }
             Action::UpdateDeviceConfig(device_config) => {
@@ -137,6 +161,16 @@ impl Reducer {
                 let mut manager = self.config_manager.lock().unwrap();
                 manager.update_config(config.clone());
                 state.config = config;
+                state
+            }
+            Action::ExecuteCommand(cmd) => {
+                let mut state = prev_state.clone();
+                state.execute_cmd = Some(cmd);
+                state
+            }
+            Action::ClearCommand => {
+                let mut state = prev_state.clone();
+                state.execute_cmd = None;
                 state
             }
         };

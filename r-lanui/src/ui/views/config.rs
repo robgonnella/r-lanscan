@@ -18,7 +18,7 @@ use ratatui::{
 };
 use std::{cell::RefCell, sync::Arc};
 
-use super::{CustomWidget, EventHandler, View};
+use super::traits::{CustomWidget, EventHandler, View};
 
 const THEMES: [Theme; 4] = [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
 
@@ -33,9 +33,9 @@ enum Focus {
 
 pub struct ConfigView {
     store: Arc<Store>,
-    theme_index: usize,
-    editing: bool,
-    focus: Focus,
+    theme_index: RefCell<usize>,
+    editing: RefCell<bool>,
+    focus: RefCell<Focus>,
     ssh_user_state: RefCell<InputState>,
     ssh_port_state: RefCell<InputState>,
     ssh_identity_state: RefCell<InputState>,
@@ -57,9 +57,9 @@ impl ConfigView {
 
         Self {
             store,
-            theme_index: idx,
-            editing: false,
-            focus: Focus::SSHUser,
+            theme_index: RefCell::new(idx),
+            editing: RefCell::new(false),
+            focus: RefCell::new(Focus::SSHUser),
             ssh_user_state: RefCell::new(InputState {
                 editing: false,
                 value: String::from(""),
@@ -83,24 +83,26 @@ impl ConfigView {
         }
     }
 
-    fn next_color(&mut self) {
-        self.theme_index = (self.theme_index + 1) % THEMES.len();
-        let theme = THEMES[self.theme_index].clone();
+    fn next_color(&self) {
+        let new_idx = *self.theme_index.borrow() + 1;
+        *self.theme_index.borrow_mut() = new_idx % THEMES.len();
+        let theme = THEMES[*self.theme_index.borrow()].clone();
         self.theme_state.borrow_mut().value = theme.to_string();
         self.store.dispatch(Action::PreviewTheme(theme));
     }
 
-    fn previous_color(&mut self) {
+    fn previous_color(&self) {
         let count = THEMES.len();
-        self.theme_index = (self.theme_index + count - 1) % count;
-        let theme = THEMES[self.theme_index].clone();
+        let new_idx = *self.theme_index.borrow() + count - 1;
+        *self.theme_index.borrow_mut() = new_idx % count;
+        let theme = THEMES[*self.theme_index.borrow()].clone();
         self.theme_state.borrow_mut().value = theme.to_string();
         self.store.dispatch(Action::PreviewTheme(theme));
     }
 
-    fn set_config(&mut self, state: &State) {
+    fn set_config(&self, state: &State) {
         let mut config = state.config.clone();
-        config.theme = THEMES[self.theme_index].clone().to_string();
+        config.theme = THEMES[*self.theme_index.borrow()].clone().to_string();
         config.default_ssh_user = self.ssh_user_state.borrow().value.clone();
         let mut port = self.ssh_port_state.borrow().value.clone().parse::<u16>();
         if port.is_err() {
@@ -130,7 +132,7 @@ impl ConfigView {
     }
 
     fn push_input_char(&self, char: char) {
-        match self.focus {
+        match *self.focus.borrow() {
             Focus::SSHUser => self.ssh_user_state.borrow_mut().value.push(char),
             Focus::SSHPort => self.ssh_port_state.borrow_mut().value.push(char),
             Focus::SSHIdentity => self.ssh_identity_state.borrow_mut().value.push(char),
@@ -140,7 +142,7 @@ impl ConfigView {
     }
 
     fn pop_input_char(&self) {
-        match self.focus {
+        match *self.focus.borrow() {
             Focus::SSHUser => {
                 self.ssh_user_state.borrow_mut().value.pop();
             }
@@ -165,10 +167,10 @@ impl ConfigView {
         self.scan_ports_state.borrow_mut().editing = false;
     }
 
-    fn focus_next(&mut self) {
-        let next_focus = match self.focus {
+    fn focus_next(&self) {
+        let next_focus = match *self.focus.borrow() {
             Focus::SSHUser => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = true;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -178,7 +180,7 @@ impl ConfigView {
                 Focus::SSHPort
             }
             Focus::SSHPort => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = true;
@@ -188,7 +190,7 @@ impl ConfigView {
                 Focus::SSHIdentity
             }
             Focus::SSHIdentity => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -198,7 +200,7 @@ impl ConfigView {
                 Focus::Theme
             }
             Focus::Theme => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -208,7 +210,7 @@ impl ConfigView {
                 Focus::ScanPorts
             }
             Focus::ScanPorts => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = true;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -219,13 +221,13 @@ impl ConfigView {
             }
         };
 
-        self.focus = next_focus;
+        *self.focus.borrow_mut() = next_focus;
     }
 
-    fn focus_previous(&mut self) {
-        let next_focus = match self.focus {
+    fn focus_previous(&self) {
+        let next_focus = match *self.focus.borrow() {
             Focus::ScanPorts => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.scan_ports_state.borrow_mut().editing = false;
                     self.theme_state.borrow_mut().editing = true;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -235,7 +237,7 @@ impl ConfigView {
                 Focus::Theme
             }
             Focus::Theme => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.scan_ports_state.borrow_mut().editing = false;
                     self.theme_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = true;
@@ -245,7 +247,7 @@ impl ConfigView {
                 Focus::SSHIdentity
             }
             Focus::SSHIdentity => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.scan_ports_state.borrow_mut().editing = false;
                     self.theme_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -255,7 +257,7 @@ impl ConfigView {
                 Focus::SSHPort
             }
             Focus::SSHPort => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.scan_ports_state.borrow_mut().editing = false;
                     self.theme_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -265,7 +267,7 @@ impl ConfigView {
                 Focus::SSHUser
             }
             Focus::SSHUser => {
-                if self.editing {
+                if *self.editing.borrow() {
                     self.scan_ports_state.borrow_mut().editing = true;
                     self.theme_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
@@ -276,7 +278,7 @@ impl ConfigView {
             }
         };
 
-        self.focus = next_focus;
+        *self.focus.borrow_mut() = next_focus;
     }
 
     fn render_ports(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
@@ -294,7 +296,7 @@ impl ConfigView {
         ])
         .split(area);
 
-        if !self.editing {
+        if !*self.editing.borrow() {
             self.ssh_user_state.borrow_mut().value = state.config.default_ssh_user.clone();
             self.ssh_port_state.borrow_mut().value = state.config.default_ssh_port.clone();
             self.ssh_identity_state.borrow_mut().value = state.config.default_ssh_identity.clone();
@@ -322,14 +324,14 @@ impl View for ConfigView {
         ViewID::Config
     }
     fn legend(&self) -> &str {
-        if self.editing {
+        if *self.editing.borrow() {
             "(esc) exit configuration | (tab) focus next | (enter) save config"
         } else {
             "(c) configure"
         }
     }
     fn override_main_legend(&self) -> bool {
-        if self.editing {
+        if *self.editing.borrow() {
             true
         } else {
             false
@@ -365,7 +367,7 @@ impl WidgetRef for ConfigView {
 }
 
 impl EventHandler for ConfigView {
-    fn process_event(&mut self, evt: &Event, state: &State) -> bool {
+    fn process_event(&self, evt: &Event, state: &State) -> bool {
         if state.render_view_select {
             return false;
         }
@@ -381,60 +383,60 @@ impl EventHandler for ConfigView {
                 if key.kind == KeyEventKind::Press {
                     match key.code {
                         KeyCode::Esc => {
-                            if self.editing {
+                            if *self.editing.borrow() {
                                 self.reset_input_state();
-                                self.focus = Focus::SSHUser;
-                                self.editing = false;
+                                *self.focus.borrow_mut() = Focus::SSHUser;
+                                *self.editing.borrow_mut() = false;
                                 handled = true;
                             }
                         }
                         KeyCode::Tab => {
-                            if self.editing {
+                            if *self.editing.borrow() {
                                 self.focus_next();
                                 handled = true;
                             }
                         }
                         KeyCode::BackTab => {
-                            if self.editing {
+                            if *self.editing.borrow() {
                                 self.focus_previous();
                                 handled = true;
                             }
                         }
                         KeyCode::Right => {
-                            if self.editing && self.theme_state.borrow().editing {
+                            if *self.editing.borrow() && self.theme_state.borrow().editing {
                                 self.next_color();
                                 handled = true;
                             }
                         }
                         KeyCode::Left => {
-                            if self.editing && self.theme_state.borrow().editing {
+                            if *self.editing.borrow() && self.theme_state.borrow().editing {
                                 self.previous_color();
                                 handled = true;
                             }
                         }
                         KeyCode::Enter => {
-                            if self.editing {
+                            if *self.editing.borrow() {
                                 self.set_config(state);
                                 self.reset_input_state();
-                                self.focus = Focus::SSHUser;
-                                self.editing = false;
+                                *self.focus.borrow_mut() = Focus::SSHUser;
+                                *self.editing.borrow_mut() = false;
                                 handled = true;
                             }
                         }
                         KeyCode::Backspace => {
-                            if self.editing && !self.theme_state.borrow().editing {
+                            if *self.editing.borrow() && !self.theme_state.borrow().editing {
                                 self.pop_input_char();
                                 handled = true;
                             }
                         }
                         KeyCode::Char(c) => {
-                            if self.editing && !self.theme_state.borrow().editing {
+                            if *self.editing.borrow() && !self.theme_state.borrow().editing {
                                 // handle value update for focused element
                                 self.push_input_char(c);
                                 handled = true;
-                            } else if c == 'c' && !self.editing {
+                            } else if c == 'c' && !*self.editing.borrow() {
                                 // enter edit mode
-                                self.editing = true;
+                                *self.editing.borrow_mut() = true;
                                 self.ssh_user_state.borrow_mut().editing = true;
                                 handled = true;
                             }

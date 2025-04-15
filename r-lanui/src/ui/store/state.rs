@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::style::{palette::tailwind, Color};
 
-use crate::config::Config;
+use crate::config::{Config, DeviceConfig};
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub enum ViewID {
@@ -50,17 +50,23 @@ impl Colors {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Command {
+    SSH,
+}
+
+#[derive(Debug, Clone)]
 pub struct State {
     pub render_view_select: bool,
-    pub paused: bool,
     pub view_id: ViewID,
     pub config: Config,
     pub devices: Vec<DeviceWithPorts>,
     pub device_map: HashMap<String, DeviceWithPorts>,
-    pub selected_device: Option<String>,
+    pub selected_device: Option<DeviceWithPorts>,
+    pub selected_device_config: Option<DeviceConfig>,
     pub colors: Colors,
     pub message: Option<String>,
+    pub execute_cmd: Option<Command>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

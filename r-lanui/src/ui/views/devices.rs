@@ -15,7 +15,7 @@ use crate::ui::{
     },
 };
 
-use super::{CustomWidgetRef, EventHandler, View};
+use super::traits::{CustomWidgetRef, EventHandler, View};
 
 pub struct DevicesView {
     store: Arc<Store>,
@@ -67,12 +67,12 @@ impl DevicesView {
         }
     }
 
-    fn next(&mut self) {
+    fn next(&self) {
         let i = self.table.borrow_mut().next();
         self.set_store_selected(i);
     }
 
-    fn previous(&mut self) {
+    fn previous(&self) {
         let i = self.table.borrow_mut().previous();
         self.set_store_selected(i);
     }
@@ -139,7 +139,7 @@ impl WidgetRef for DevicesView {
 }
 
 impl EventHandler for DevicesView {
-    fn process_event(&mut self, evt: &Event, state: &State) -> bool {
+    fn process_event(&self, evt: &Event, state: &State) -> bool {
         if state.render_view_select {
             return false;
         }

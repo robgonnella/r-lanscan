@@ -13,7 +13,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::ui::{
     store::state::State,
-    views::{CustomStatefulWidget, CustomWidgetRef},
+    views::traits::{CustomStatefulWidget, CustomWidgetRef},
 };
 
 use super::scrollbar::ScrollBar;

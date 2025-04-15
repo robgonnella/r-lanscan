@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Block, BorderType, Paragraph, Widget},
 };
 
-use crate::ui::{store::state::State, views::CustomWidget};
+use crate::ui::{store::state::State, views::traits::CustomWidget};
 
 pub struct InfoFooter {
     content: String,

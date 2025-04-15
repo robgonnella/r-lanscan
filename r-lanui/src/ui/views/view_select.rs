@@ -15,7 +15,7 @@ use crate::ui::{
     },
 };
 
-use super::{CustomWidgetRef, EventHandler, View};
+use super::traits::{CustomWidgetRef, EventHandler, View};
 
 pub struct ViewSelect {
     store: Arc<Store>,
@@ -55,11 +55,11 @@ impl ViewSelect {
         }
     }
 
-    fn next(&mut self) {
+    fn next(&self) {
         self.table.borrow_mut().next();
     }
 
-    fn previous(&mut self) {
+    fn previous(&self) {
         self.table.borrow_mut().previous();
     }
 
@@ -80,7 +80,7 @@ impl View for ViewSelect {
 }
 
 impl EventHandler for ViewSelect {
-    fn process_event(&mut self, evt: &Event, state: &State) -> bool {
+    fn process_event(&self, evt: &Event, state: &State) -> bool {
         if !state.render_view_select {
             return false;
         }

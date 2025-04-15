@@ -1,5 +1,5 @@
 use clap::Parser;
-use color_eyre::eyre::{eyre, Report};
+use color_eyre::eyre::{eyre, Result};
 use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
@@ -14,7 +14,11 @@ use std::{
     },
     thread::{self, JoinHandle},
 };
-use ui::store::{action::Action, store::Store};
+
+use ui::{
+    app,
+    store::{action::Action, store::Store},
+};
 
 use r_lanlib::{
     network::{self, NetworkInterface},
@@ -310,7 +314,7 @@ fn is_root() -> bool {
     }
 }
 
-fn main() -> Result<(), Report> {
+fn main() -> Result<()> {
     color_eyre::install()?;
 
     let args = Args::parse();
@@ -322,19 +326,16 @@ fn main() -> Result<(), Report> {
     }
 
     let interface = network::get_default_interface().expect("could not get default interface");
-    let (config, dispatcher) = init(&args, &interface);
+    let (config, store) = init(&args, &interface);
 
     // don't do anything with handle here as this call is recursive
     // so if we join our main process will never exit
-    monitor_network(
-        Arc::new(config),
-        Arc::new(interface),
-        Arc::clone(&dispatcher),
-    );
+    monitor_network(Arc::new(config), Arc::new(interface), Arc::clone(&store));
 
     if args.debug {
         loop {}
     }
 
-    ui::app::launch(Arc::clone(&dispatcher))
+    let application = app::create_app(store)?;
+    application.launch()
 }

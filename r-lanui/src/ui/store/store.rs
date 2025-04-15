@@ -3,7 +3,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::config::{ConfigManager, DEFAULT_CONFIG_ID};
+use r_lanlib::scanners::DeviceWithPorts;
+
+use crate::config::{ConfigManager, DeviceConfig, DEFAULT_CONFIG_ID};
 
 use super::{
     action::Action,
@@ -11,6 +13,15 @@ use super::{
     state::{Colors, State, Theme, ViewID},
 };
 
+/**
+ * This manages the state of our application but cannot cover all user
+ * interactions as some actions are inherintly "event" based resulting in
+ * no updates to stored state. For example, when dropping to an SSH shell,
+ * there is no "state" that needs to be updated but rather the "terminal"
+ * process in app.rs needs to be informed to pause the app and drop to
+ * a shell ssh command for the given device. To cover this case, this store
+ * allows consumers to register "effects" to react to certain actions
+ */
 pub struct Store {
     state: Mutex<State>,
     reducer: Reducer,
@@ -31,14 +42,15 @@ impl Store {
             reducer: Reducer::new(config_manager),
             state: Mutex::new(State {
                 render_view_select: false,
-                paused: false,
                 view_id: ViewID::Devices,
                 config,
                 devices: Vec::new(),
                 device_map: HashMap::new(),
                 selected_device: None,
+                selected_device_config: None,
                 colors,
                 message: None,
+                execute_cmd: None,
             }),
         }
     }
@@ -51,5 +63,26 @@ impl Store {
 
     pub fn get_state(&self) -> State {
         self.state.lock().unwrap().clone()
+    }
+
+    pub fn get_device_config_from_state(
+        &self,
+        device: &DeviceWithPorts,
+        state: &State,
+    ) -> DeviceConfig {
+        state
+            .selected_device_config
+            .clone()
+            .unwrap_or(DeviceConfig {
+                id: device.mac.clone(),
+                ssh_identity_file: state.config.default_ssh_identity.clone(),
+                ssh_port: state
+                    .config
+                    .default_ssh_port
+                    .clone()
+                    .parse::<u16>()
+                    .unwrap(),
+                ssh_user: state.config.default_ssh_user.clone(),
+            })
     }
 }
