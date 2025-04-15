@@ -106,19 +106,23 @@ impl App {
 
                     let handled = self.main_view.process_event(&evt, &state);
 
-                    if !handled {
-                        match evt {
-                            Event::Key(key) => match key.code {
-                                KeyCode::Char('q') => return Ok(()),
-                                KeyCode::Char('c') => {
-                                    if key.modifiers == KeyModifiers::CONTROL {
-                                        return Ok(());
-                                    }
+                    match evt {
+                        Event::Key(key) => match key.code {
+                            KeyCode::Char('q') => {
+                                // allow overriding q key
+                                if !handled {
+                                    return Ok(());
                                 }
-                                _ => {}
-                            },
+                            }
+                            KeyCode::Char('c') => {
+                                // do not allow overriding ctrl-c
+                                if key.modifiers == KeyModifiers::CONTROL {
+                                    return Ok(());
+                                }
+                            }
                             _ => {}
-                        }
+                        },
+                        _ => {}
                     }
                 }
             }
