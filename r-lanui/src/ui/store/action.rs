@@ -2,12 +2,13 @@ use r_lanlib::scanners::DeviceWithPorts;
 
 use crate::config::{Config, DeviceConfig};
 
-use super::state::{Theme, ViewID};
+use super::state::{Command, Theme, ViewID};
 
 #[derive(Debug)]
 pub enum Action {
+    ClearCommand,
+    ExecuteCommand(Command),
     ToggleViewSelect,
-    TogglePause,
     UpdateView(ViewID),
     UpdateMessage(Option<String>),
     PreviewTheme(Theme),

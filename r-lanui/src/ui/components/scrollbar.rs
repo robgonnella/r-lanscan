@@ -4,7 +4,7 @@ use ratatui::{
     widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget},
 };
 
-use crate::ui::{store::state::State, views::CustomStatefulWidget};
+use crate::ui::{store::state::State, views::traits::CustomStatefulWidget};
 
 pub struct ScrollBar {}
 

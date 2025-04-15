@@ -1,27 +1,28 @@
 use std::{
     collections::HashMap,
-    net::Ipv4Addr,
-    str::FromStr,
     sync::{Arc, Mutex},
 };
 
-use itertools::Itertools;
 use r_lanlib::scanners::DeviceWithPorts;
 
-use crate::config::{ConfigManager, DEFAULT_CONFIG_ID};
+use crate::config::{ConfigManager, DeviceConfig, DEFAULT_CONFIG_ID};
 
 use super::{
     action::Action,
+    reducer::Reducer,
     state::{Colors, State, Theme, ViewID},
 };
 
+/**
+ * Manages the state of our application
+ */
 pub struct Store {
-    config_manager: Arc<Mutex<ConfigManager>>,
-    state: State,
+    state: Mutex<State>,
+    reducer: Reducer,
 }
 
 impl Store {
-    pub fn new(config_manager: Arc<Mutex<ConfigManager>>) -> Self {
+    pub fn new<'conf_man>(config_manager: Arc<Mutex<ConfigManager>>) -> Self {
         let config = config_manager
             .lock()
             .unwrap()
@@ -32,142 +33,50 @@ impl Store {
         let colors = Colors::new(theme.to_palette());
 
         Self {
-            config_manager,
-            state: State {
+            reducer: Reducer::new(config_manager),
+            state: Mutex::new(State {
                 render_view_select: false,
-                paused: false,
                 view_id: ViewID::Devices,
                 config,
                 devices: Vec::new(),
                 device_map: HashMap::new(),
                 selected_device: None,
+                selected_device_config: None,
                 colors,
                 message: None,
-            },
+                execute_cmd: None,
+            }),
         }
     }
 
-    pub fn get_state(&self) -> State {
-        self.state.clone()
+    pub fn dispatch(&self, action: Action) {
+        let mut prev_state = self.state.lock().unwrap();
+        let new_state = self.reducer.reduce(prev_state.clone(), action);
+        *prev_state = new_state;
     }
 
-    pub fn update(&mut self, action: Action) {
-        let new_state = match action {
-            Action::TogglePause => {
-                let mut state = self.state.clone();
-                state.paused = !state.paused;
-                state
-            }
-            Action::ToggleViewSelect => {
-                let mut state = self.state.clone();
-                state.render_view_select = !state.render_view_select;
-                state
-            }
-            Action::UpdateView(id) => {
-                let mut state = self.state.clone();
-                state.view_id = id;
-                state
-            }
-            Action::UpdateMessage(message) => {
-                let mut state = self.state.clone();
-                state.message = message;
-                state
-            }
-            Action::PreviewTheme(theme) => {
-                let mut state = self.state.clone();
-                state.colors = Colors::new(theme.to_palette());
-                state
-            }
-            Action::UpdateConfig(config) => {
-                let mut state = self.state.clone();
-                let mut manager = self.config_manager.lock().unwrap();
-                manager.update_config(config.clone());
-                state.config = manager.get_by_id(config.id.as_str()).unwrap();
-                state.colors = Colors::new(Theme::from_string(&config.theme).to_palette());
-                state
-            }
-            Action::UpdateAllDevices(devices) => {
-                let mut state = self.state.clone();
-                let mut new_map: HashMap<String, DeviceWithPorts> = HashMap::new();
-                for d in devices.iter() {
-                    new_map.insert(d.mac.clone(), d.clone());
-                }
-                state.devices = devices.clone();
-                state
-                    .devices
-                    .sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
-                state.device_map = new_map;
-                state
-            }
-            Action::AddDevice(device) => {
-                let mut state = self.state.clone();
-                if state.device_map.contains_key(&device.mac.clone()) {
-                    let found_device = state
-                        .devices
-                        .iter_mut()
-                        .find(|d| d.mac == device.mac)
-                        .unwrap();
-                    found_device.hostname = device.hostname.clone();
-                    found_device.ip = device.ip.clone();
-                    found_device.mac = device.mac.clone();
+    pub fn get_state(&self) -> State {
+        self.state.lock().unwrap().clone()
+    }
 
-                    for p in &device.open_ports {
-                        found_device.open_ports.insert(p.clone());
-                    }
-
-                    found_device.open_ports.iter().sorted_by_key(|p| p.id);
-                    let mapped_device = state.device_map.get_mut(&device.mac.clone()).unwrap();
-                    *mapped_device = found_device.clone();
-                } else {
-                    state.devices.push(device.clone());
-                    state.device_map.insert(device.mac.clone(), device.clone());
-                }
-                state
-                    .devices
-                    .sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
-                state
-            }
-            Action::SetConfig(config_id) => {
-                let mut state = self.state.clone();
-                if let Some(conf) = self
-                    .config_manager
-                    .lock()
-                    .unwrap()
-                    .get_by_id(config_id.as_str())
-                {
-                    let theme = Theme::from_string(&conf.theme);
-                    state.config = conf;
-                    state.colors = Colors::new(theme.to_palette());
-                }
-                state
-            }
-            Action::CreateAndSetConfig(config) => {
-                let mut state = self.state.clone();
-                let mut manager = self.config_manager.lock().unwrap();
-                manager.create(&config);
-                let theme = Theme::from_string(&config.theme);
-                state.config = config.clone();
-                state.colors = Colors::new(theme.to_palette());
-                state
-            }
-            Action::UpdateSelectedDevice(i) => {
-                let mut state = self.state.clone();
-                state.selected_device = Some(String::from(i));
-                state
-            }
-            Action::UpdateDeviceConfig(device_config) => {
-                let mut state = self.state.clone();
-                let mut config = state.config.clone();
-                config
-                    .device_configs
-                    .insert(device_config.id.clone(), device_config);
-                let mut manager = self.config_manager.lock().unwrap();
-                manager.update_config(config.clone());
-                state.config = config;
-                state
-            }
-        };
-
-        self.state = new_state;
+    pub fn get_device_config_from_state(
+        &self,
+        device: &DeviceWithPorts,
+        state: &State,
+    ) -> DeviceConfig {
+        state
+            .selected_device_config
+            .clone()
+            .unwrap_or(DeviceConfig {
+                id: device.mac.clone(),
+                ssh_identity_file: state.config.default_ssh_identity.clone(),
+                ssh_port: state
+                    .config
+                    .default_ssh_port
+                    .clone()
+                    .parse::<u16>()
+                    .unwrap(),
+                ssh_user: state.config.default_ssh_user.clone(),
+            })
     }
 }
