@@ -45,6 +45,7 @@ impl Store {
                 colors,
                 message: None,
                 execute_cmd: None,
+                cmd_output: None,
             }),
         }
     }

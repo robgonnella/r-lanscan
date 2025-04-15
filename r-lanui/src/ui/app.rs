@@ -1,5 +1,6 @@
 use color_eyre::eyre::{Context, Result};
 use core::time;
+use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     crossterm::{
         event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
@@ -15,6 +16,8 @@ use std::{
     process::Command,
     sync::Arc,
 };
+
+use crate::config::DeviceConfig;
 
 use super::{
     store::{action::Action, state::Command as AppCommand, store::Store},
@@ -55,6 +58,40 @@ impl App {
         Ok(())
     }
 
+    fn handle_cmd(
+        &self,
+        cmd: AppCommand,
+        device: DeviceWithPorts,
+        device_config: DeviceConfig,
+    ) -> Result<()> {
+        match cmd {
+            AppCommand::SSH => {
+                self.pause()?;
+                let mut handle = Command::new("ssh")
+                    .arg("-i")
+                    .arg(device_config.ssh_identity_file)
+                    .arg(format!("{}@{}", device_config.ssh_user, device.ip))
+                    .arg("-p")
+                    .arg(device_config.ssh_port.to_string())
+                    .spawn()
+                    .wrap_err("failed to start ssh shell command")?;
+                handle.wait().wrap_err("shell command failed")?;
+                self.store.dispatch(Action::ClearCommand);
+            }
+            AppCommand::TRACEROUTE => {
+                let output = Command::new("traceroute")
+                    .arg(device.ip)
+                    .output()
+                    .wrap_err("failed to start traceroute shell command")?;
+                self.store.dispatch(Action::ClearCommand);
+                self.store
+                    .dispatch(Action::UpdateCommandOutput((cmd, output)))
+            }
+        }
+
+        Ok(())
+    }
+
     fn process_loop(&self) -> Result<()> {
         loop {
             let state = self.store.get_state();
@@ -71,26 +108,11 @@ impl App {
 
             if state.execute_cmd.is_some() && !*self.paused.borrow() {
                 let cmd = state.execute_cmd.clone().unwrap();
-                match cmd {
-                    AppCommand::SSH => {
-                        if state.selected_device.is_some() && state.selected_device_config.is_some()
-                        {
-                            let device = state.selected_device.unwrap();
-                            let device_config = state.selected_device_config.unwrap();
-                            self.pause()?;
-                            let mut handle = Command::new("ssh")
-                                .arg("-i")
-                                .arg(device_config.ssh_identity_file)
-                                .arg(format!("{}@{}", device_config.ssh_user, device.ip))
-                                .arg("-p")
-                                .arg(device_config.ssh_port.to_string())
-                                .spawn()
-                                .wrap_err("failed to start ssh shell command")?;
-                            handle.wait().wrap_err("shell command failed")?;
-                            self.store.dispatch(Action::ClearCommand);
-                            continue;
-                        }
-                    }
+                if state.selected_device.is_some() && state.selected_device_config.is_some() {
+                    let device = state.selected_device.unwrap();
+                    let device_config = state.selected_device_config.unwrap();
+                    self.handle_cmd(cmd, device, device_config)?;
+                    continue;
                 }
             }
 

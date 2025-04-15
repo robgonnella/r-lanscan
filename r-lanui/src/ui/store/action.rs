@@ -1,3 +1,5 @@
+use std::process::Output;
+
 use r_lanlib::scanners::DeviceWithPorts;
 
 use crate::config::{Config, DeviceConfig};
@@ -8,6 +10,7 @@ use super::state::{Command, Theme, ViewID};
 pub enum Action {
     ClearCommand,
     ExecuteCommand(Command),
+    UpdateCommandOutput((Command, Output)),
     ToggleViewSelect,
     UpdateView(ViewID),
     UpdateMessage(Option<String>),

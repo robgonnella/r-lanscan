@@ -14,7 +14,8 @@ use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     crossterm::event::{Event, KeyCode},
     layout::{Constraint, Layout, Rect},
-    widgets::{StatefulWidget, WidgetRef},
+    text::{Line, Span},
+    widgets::{Paragraph, StatefulWidget, Widget, WidgetRef, Wrap},
 };
 use std::{cell::RefCell, sync::Arc};
 
@@ -95,6 +96,43 @@ impl DeviceView {
         state: &State,
     ) {
         DeviceInfo::new(device.clone()).render(area, buf, state);
+    }
+
+    fn render_cmd_output(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+        if state.cmd_output.is_some() {
+            let (cmd, output) = state.cmd_output.clone().unwrap();
+            let header = Header::new(cmd.to_string());
+
+            let status_value = Span::from(output.status.to_string());
+            let status = Line::from(vec![status_value]);
+
+            let stderr_label = Span::from("stderr: ");
+            let stderr_value = Span::from(String::from_utf8(output.stderr).unwrap());
+            let stderr = Paragraph::new(Line::from(vec![stderr_label, stderr_value]))
+                .wrap(Wrap { trim: true });
+
+            let stdout_label = Span::from("stdout: ");
+            let stdout_value = Span::from(String::from_utf8(output.stdout).unwrap());
+
+            let stdout = Paragraph::new(Line::from(vec![stdout_label, stdout_value]))
+                .wrap(Wrap { trim: true });
+
+            let rects = Layout::vertical([
+                Constraint::Length(1),       // label
+                Constraint::Length(1),       // spacer
+                Constraint::Length(1),       // status
+                Constraint::Length(1),       // spacer
+                Constraint::Min(1),          // stderr
+                Constraint::Length(1),       // spacer
+                Constraint::Percentage(100), // stdout
+            ])
+            .split(area);
+
+            header.render(rects[0], buf, &state);
+            status.render(rects[2], buf);
+            stderr.render(rects[4], buf);
+            stdout.render(rects[6], buf);
+        }
     }
 
     fn push_input_char(&self, char: char) {
@@ -190,7 +228,7 @@ impl View for DeviceView {
         if *self.editing.borrow() {
             "(esc) exit configuration | (enter) save configuration"
         } else {
-            "(esc) back to devices | (c) configure | (s) SSH"
+            "(esc) back to devices | (c) configure | (s) SSH | (t) traceroute"
         }
     }
     fn override_main_legend(&self) -> bool {
@@ -202,23 +240,30 @@ impl WidgetRef for DeviceView {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
         let state = self.store.get_state();
 
-        let view_rects = Layout::vertical([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(3),
-            Constraint::Min(5),
+        let view_rects = Layout::horizontal([
+            Constraint::Percentage(50), // info
+            Constraint::Percentage(50), // command output
         ])
         .split(area);
 
-        let label_rects = Layout::horizontal([Constraint::Length(20)]).split(view_rects[0]);
+        let info_rects = Layout::vertical([
+            Constraint::Length(1), // label
+            Constraint::Length(1), // spacer
+            Constraint::Length(3), // ssh info
+            Constraint::Min(5),    // device info
+        ])
+        .split(view_rects[0]);
+
+        let label_rects = Layout::horizontal([Constraint::Length(20)]).split(info_rects[0]);
 
         let header = Header::new(String::from("Device Info"));
 
         header.render(label_rects[0], buf, &state);
 
         if let Some(device) = state.selected_device.clone() {
-            self.render_device_ssh_config(view_rects[2], buf, &device, &state);
-            self.render_device_info(view_rects[3], buf, &device, &state);
+            self.render_device_ssh_config(info_rects[2], buf, &device, &state);
+            self.render_device_info(info_rects[3], buf, &device, &state);
+            self.render_cmd_output(view_rects[1], buf, &state);
         }
     }
 }
@@ -304,6 +349,12 @@ impl EventHandler for DeviceView {
                         if state.execute_cmd.is_none() {
                             handled = true;
                             self.store.dispatch(Action::ExecuteCommand(Command::SSH));
+                        }
+                    } else if c == 't' {
+                        if state.execute_cmd.is_none() {
+                            handled = true;
+                            self.store
+                                .dispatch(Action::ExecuteCommand(Command::TRACEROUTE));
                         }
                     }
                 }

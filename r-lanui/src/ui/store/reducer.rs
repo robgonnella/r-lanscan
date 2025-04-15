@@ -171,6 +171,12 @@ impl Reducer {
             Action::ClearCommand => {
                 let mut state = prev_state.clone();
                 state.execute_cmd = None;
+                state.cmd_output = None;
+                state
+            }
+            Action::UpdateCommandOutput((cmd, output)) => {
+                let mut state = prev_state.clone();
+                state.cmd_output = Some((cmd, output));
                 state
             }
         };
