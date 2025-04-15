@@ -11,6 +11,11 @@ services:
     ports:
       - 2222:2222
 
+  nginx:
+    image: nginx:latest
+    ports:
+      - 8080:80
+
   workspace:
     build: .
     volumes:

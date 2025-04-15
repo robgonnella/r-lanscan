@@ -2,7 +2,6 @@ use itertools::Itertools;
 use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     layout::Rect,
-    style::Style,
     text::Line,
     widgets::{Paragraph, Widget, Wrap},
 };
@@ -49,11 +48,6 @@ impl CustomWidget for DeviceInfo {
             Line::from(vendor),
             Line::from(open_ports),
         ])
-        .style(
-            Style::new()
-                .fg(state.colors.row_fg)
-                .bg(state.colors.buffer_bg),
-        )
         .wrap(Wrap { trim: true })
         .left_aligned();
 

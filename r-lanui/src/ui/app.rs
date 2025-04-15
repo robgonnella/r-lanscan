@@ -74,7 +74,7 @@ impl App {
                     .arg("-p")
                     .arg(device_config.ssh_port.to_string())
                     .spawn()
-                    .wrap_err("failed to start ssh shell command")?;
+                    .wrap_err("failed to start ssh command")?;
                 handle.wait().wrap_err("shell command failed")?;
                 self.store.dispatch(Action::ClearCommand);
             }
@@ -82,10 +82,19 @@ impl App {
                 let output = Command::new("traceroute")
                     .arg(device.ip)
                     .output()
-                    .wrap_err("failed to start traceroute shell command")?;
+                    .wrap_err("failed to start traceroute command")?;
                 self.store.dispatch(Action::ClearCommand);
                 self.store
                     .dispatch(Action::UpdateCommandOutput((cmd, output)))
+            }
+            AppCommand::BROWSE(port) => {
+                self.pause()?;
+                let mut handle = Command::new("lynx")
+                    .arg(format!("{}:{}", device.ip, port))
+                    .spawn()
+                    .wrap_err("failed to start lynx browser")?;
+                handle.wait().wrap_err("shell command failed")?;
+                self.store.dispatch(Action::ClearCommand);
             }
         }
 

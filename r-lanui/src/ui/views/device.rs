@@ -3,6 +3,7 @@ use crate::ui::{
         device_info::DeviceInfo,
         header::Header,
         input::{Input, InputState},
+        popover::get_popover_area,
     },
     store::{
         action::Action,
@@ -14,27 +15,30 @@ use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
     crossterm::event::{Event, KeyCode},
     layout::{Constraint, Layout, Rect},
+    style::Style,
     text::{Line, Span},
-    widgets::{Paragraph, StatefulWidget, Widget, WidgetRef, Wrap},
+    widgets::{Block, BorderType, Padding, Paragraph, StatefulWidget, Widget, WidgetRef, Wrap},
 };
 use std::{cell::RefCell, sync::Arc};
 
 use super::traits::{CustomWidget, EventHandler, View};
 
 #[derive(Debug, Clone)]
-enum SSHFocus {
-    User,
-    Port,
-    Identity,
+enum Focus {
+    SSHUser,
+    SSHPort,
+    SSHIdentity,
+    BrowserPort,
 }
 
 pub struct DeviceView {
     store: Arc<Store>,
     editing: RefCell<bool>,
-    focus: RefCell<SSHFocus>,
+    focus: RefCell<Focus>,
     ssh_user_state: RefCell<InputState>,
     ssh_port_state: RefCell<InputState>,
     ssh_identity_state: RefCell<InputState>,
+    browser_port_state: RefCell<InputState>,
 }
 
 impl DeviceView {
@@ -42,7 +46,7 @@ impl DeviceView {
         Self {
             store,
             editing: RefCell::new(false),
-            focus: RefCell::new(SSHFocus::User),
+            focus: RefCell::new(Focus::SSHUser),
             ssh_user_state: RefCell::new(InputState {
                 editing: false,
                 value: String::from(""),
@@ -52,6 +56,10 @@ impl DeviceView {
                 value: String::from(""),
             }),
             ssh_identity_state: RefCell::new(InputState {
+                editing: false,
+                value: String::from(""),
+            }),
+            browser_port_state: RefCell::new(InputState {
                 editing: false,
                 value: String::from(""),
             }),
@@ -65,7 +73,7 @@ impl DeviceView {
         device: &DeviceWithPorts,
         state: &State,
     ) {
-        if !*self.editing.borrow() {
+        if !*self.editing.borrow() || self.browser_port_state.borrow().editing {
             let device_config = self.store.get_device_config_from_state(device, state);
             self.ssh_user_state.borrow_mut().value = device_config.ssh_user.clone();
             self.ssh_port_state.borrow_mut().value = device_config.ssh_port.to_string();
@@ -135,53 +143,105 @@ impl DeviceView {
         }
     }
 
+    fn render_browser_port_select_popover(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+    ) {
+        if *self.editing.borrow() && self.browser_port_state.borrow().editing {
+            let block = Block::bordered()
+                .border_type(BorderType::Double)
+                .border_style(
+                    Style::new()
+                        .fg(state.colors.border_color)
+                        .bg(state.colors.buffer_bg),
+                )
+                .padding(Padding::uniform(2));
+            let inner_area = block.inner(area);
+            let rects = Layout::vertical([
+                Constraint::Length(1), // header
+                Constraint::Length(1), // spacer
+                Constraint::Length(1), // port select
+                Constraint::Length(1), // spacer
+                Constraint::Length(1), // enter to submit message
+            ])
+            .split(inner_area);
+
+            let header = Header::new("Enter port to browse".to_string());
+            let input = Input::new("Port");
+            let message = Line::from(vec![Span::from(
+                "Press enter to open browser or esc to cancel",
+            )]);
+
+            block.render(area, buf);
+            header.render(rects[0], buf, state);
+            input.render(rects[2], buf, &mut self.browser_port_state.borrow_mut());
+            message.render(rects[4], buf);
+        }
+    }
+
     fn push_input_char(&self, char: char) {
         match *self.focus.borrow() {
-            SSHFocus::User => self.ssh_user_state.borrow_mut().value.push(char),
-            SSHFocus::Port => self.ssh_port_state.borrow_mut().value.push(char),
-            SSHFocus::Identity => self.ssh_identity_state.borrow_mut().value.push(char),
+            Focus::BrowserPort => self.browser_port_state.borrow_mut().value.push(char),
+            Focus::SSHUser => self.ssh_user_state.borrow_mut().value.push(char),
+            Focus::SSHPort => self.ssh_port_state.borrow_mut().value.push(char),
+            Focus::SSHIdentity => self.ssh_identity_state.borrow_mut().value.push(char),
         };
     }
 
     fn pop_input_char(&self) {
         match *self.focus.borrow() {
-            SSHFocus::User => self.ssh_user_state.borrow_mut().value.pop(),
-            SSHFocus::Port => self.ssh_port_state.borrow_mut().value.pop(),
-            SSHFocus::Identity => self.ssh_identity_state.borrow_mut().value.pop(),
+            Focus::BrowserPort => self.browser_port_state.borrow_mut().value.pop(),
+            Focus::SSHUser => self.ssh_user_state.borrow_mut().value.pop(),
+            Focus::SSHPort => self.ssh_port_state.borrow_mut().value.pop(),
+            Focus::SSHIdentity => self.ssh_identity_state.borrow_mut().value.pop(),
         };
     }
 
     fn reset_input_state(&self) {
+        self.browser_port_state.borrow_mut().editing = false;
         self.ssh_user_state.borrow_mut().editing = false;
         self.ssh_port_state.borrow_mut().editing = false;
         self.ssh_identity_state.borrow_mut().editing = false;
+        *self.focus.borrow_mut() = Focus::SSHUser;
+        *self.editing.borrow_mut() = false;
     }
 
     fn focus_next(&self) {
         let next_focus = match *self.focus.borrow() {
-            SSHFocus::User => {
+            Focus::BrowserPort => {
+                if *self.editing.borrow() {
+                    self.browser_port_state.borrow_mut().editing = true;
+                    self.ssh_identity_state.borrow_mut().editing = false;
+                    self.ssh_port_state.borrow_mut().editing = false;
+                    self.ssh_user_state.borrow_mut().editing = false;
+                }
+                Focus::BrowserPort
+            }
+            Focus::SSHUser => {
                 if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = true;
                     self.ssh_identity_state.borrow_mut().editing = false;
                 }
-                SSHFocus::Port
+                Focus::SSHPort
             }
-            SSHFocus::Port => {
+            Focus::SSHPort => {
                 if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = true;
                 }
-                SSHFocus::Identity
+                Focus::SSHIdentity
             }
-            SSHFocus::Identity => {
+            Focus::SSHIdentity => {
                 if *self.editing.borrow() {
                     self.ssh_user_state.borrow_mut().editing = true;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
                 }
-                SSHFocus::User
+                Focus::SSHUser
             }
         };
 
@@ -190,29 +250,41 @@ impl DeviceView {
 
     fn focus_previous(&self) {
         let next_focus = match *self.focus.borrow() {
-            SSHFocus::Identity => {
+            Focus::BrowserPort => {
                 if *self.editing.borrow() {
+                    self.browser_port_state.borrow_mut().editing = true;
+                    self.ssh_identity_state.borrow_mut().editing = false;
+                    self.ssh_port_state.borrow_mut().editing = false;
+                    self.ssh_user_state.borrow_mut().editing = false;
+                }
+                Focus::BrowserPort
+            }
+            Focus::SSHIdentity => {
+                if *self.editing.borrow() {
+                    self.browser_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = true;
                     self.ssh_user_state.borrow_mut().editing = false;
                 }
-                SSHFocus::Port
+                Focus::SSHPort
             }
-            SSHFocus::Port => {
+            Focus::SSHPort => {
                 if *self.editing.borrow() {
+                    self.browser_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_user_state.borrow_mut().editing = true;
                 }
-                SSHFocus::User
+                Focus::SSHUser
             }
-            SSHFocus::User => {
+            Focus::SSHUser => {
                 if *self.editing.borrow() {
+                    self.browser_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = true;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_user_state.borrow_mut().editing = false;
                 }
-                SSHFocus::Identity
+                Focus::SSHIdentity
             }
         };
 
@@ -228,7 +300,7 @@ impl View for DeviceView {
         if *self.editing.borrow() {
             "(esc) exit configuration | (enter) save configuration"
         } else {
-            "(esc) back to devices | (c) configure | (s) SSH | (t) traceroute"
+            "(esc) back to devices | (c) configure | (s) SSH | (t) traceroute | (b) browse"
         }
     }
     fn override_main_legend(&self) -> bool {
@@ -260,7 +332,10 @@ impl WidgetRef for DeviceView {
 
         header.render(label_rects[0], buf, &state);
 
+        let popover_area = get_popover_area(area, 33, 34);
+
         if let Some(device) = state.selected_device.clone() {
+            self.render_browser_port_select_popover(popover_area, buf, &state);
             self.render_device_ssh_config(info_rects[2], buf, &device, &state);
             self.render_device_info(info_rects[3], buf, &device, &state);
             self.render_cmd_output(view_rects[1], buf, &state);
@@ -286,8 +361,6 @@ impl EventHandler for DeviceView {
                 KeyCode::Esc => {
                     if *self.editing.borrow() {
                         self.reset_input_state();
-                        *self.focus.borrow_mut() = SSHFocus::User;
-                        *self.editing.borrow_mut() = false;
                     } else {
                         self.store.dispatch(Action::UpdateView(ViewID::Devices));
                     }
@@ -307,8 +380,16 @@ impl EventHandler for DeviceView {
                 }
                 KeyCode::Enter => {
                     if *self.editing.borrow() {
-                        // save config
-                        if let Some(device) = state.selected_device.clone() {
+                        if self.browser_port_state.borrow().editing {
+                            let port_str = self.browser_port_state.borrow().value.clone();
+                            if let Ok(port) = port_str.parse::<u16>() {
+                                self.store
+                                    .dispatch(Action::ExecuteCommand(Command::BROWSE(port)));
+                                self.reset_input_state();
+                                handled = true;
+                            }
+                        } else if let Some(device) = state.selected_device.clone() {
+                            // save config
                             let mut device_config =
                                 self.store.get_device_config_from_state(&device, &state);
                             device_config.ssh_user = self.ssh_user_state.borrow().value.clone();
@@ -323,8 +404,6 @@ impl EventHandler for DeviceView {
                             self.store
                                 .dispatch(Action::UpdateDeviceConfig(device_config));
                             self.reset_input_state();
-                            *self.focus.borrow_mut() = SSHFocus::User;
-                            *self.editing.borrow_mut() = false;
                             handled = true;
                         }
                     }
@@ -342,8 +421,9 @@ impl EventHandler for DeviceView {
                         handled = true;
                     } else if c == 'c' {
                         // enter edit mode
-                        *self.editing.borrow_mut() = true;
+                        *self.focus.borrow_mut() = Focus::SSHUser;
                         self.ssh_user_state.borrow_mut().editing = true;
+                        *self.editing.borrow_mut() = true;
                         handled = true;
                     } else if c == 's' {
                         if state.execute_cmd.is_none() {
@@ -356,6 +436,13 @@ impl EventHandler for DeviceView {
                             self.store
                                 .dispatch(Action::ExecuteCommand(Command::TRACEROUTE));
                         }
+                    } else if c == 'b' {
+                        *self.focus.borrow_mut() = Focus::BrowserPort;
+                        let mut browser_state = self.browser_port_state.borrow_mut();
+                        browser_state.editing = true;
+                        browser_state.value = "80".to_string();
+                        *self.editing.borrow_mut() = true;
+                        handled = true;
                     }
                 }
                 _ => {}

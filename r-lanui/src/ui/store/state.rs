@@ -54,6 +54,7 @@ impl Colors {
 pub enum Command {
     SSH,
     TRACEROUTE,
+    BROWSE(u16),
 }
 
 impl Display for Command {
@@ -61,6 +62,7 @@ impl Display for Command {
         match self {
             Command::SSH => write!(f, "ssh"),
             Command::TRACEROUTE => write!(f, "traceroute"),
+            Command::BROWSE(_) => write!(f, "browse"),
         }
     }
 }
