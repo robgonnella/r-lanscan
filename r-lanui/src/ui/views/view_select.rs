@@ -3,7 +3,7 @@ use std::{cell::RefCell, sync::Arc};
 use itertools::Itertools;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
-    widgets::WidgetRef,
+    layout::Rect,
 };
 
 use crate::ui::{
@@ -120,9 +120,16 @@ impl EventHandler for ViewSelect {
     }
 }
 
-impl WidgetRef for ViewSelect {
-    fn render_ref(&self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.store.get_state();
-        self.table.borrow().render_ref(area, buf, &state);
+impl CustomWidgetRef for ViewSelect {
+    fn render_ref(
+        &self,
+        area: ratatui::prelude::Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        total_area: Rect,
+    ) {
+        self.table
+            .borrow()
+            .render_ref(area, buf, &state, total_area);
     }
 }

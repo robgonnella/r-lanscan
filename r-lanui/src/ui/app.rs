@@ -134,9 +134,11 @@ impl App {
                 self.handle_cmd(cmd, &state)?;
             }
 
-            self.terminal
-                .borrow_mut()
-                .draw(|f| self.main_view.render_ref(f.area(), f.buffer_mut()))?;
+            self.terminal.borrow_mut().draw(|f| {
+                let total_area = f.area().clone();
+                self.main_view
+                    .render_ref(f.area(), f.buffer_mut(), &state, total_area)
+            })?;
 
             // Use poll here so we don't block the thread, this will allow
             // rendering of incoming device data from network as it's received

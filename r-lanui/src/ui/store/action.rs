@@ -13,6 +13,7 @@ pub enum Action {
     ExecuteCommand(Command),
     SetCommandInProgress(bool),
     UpdateCommandOutput((Command, Output)),
+    ClearCommandOutput,
     ToggleViewSelect,
     UpdateView(ViewID),
     UpdateMessage(Option<String>),

@@ -1,4 +1,4 @@
-use ratatui::{crossterm::event::Event, layout::Rect, widgets::WidgetRef};
+use ratatui::{crossterm::event::Event, layout::Rect};
 
 use crate::ui::store::state::{State, ViewID};
 
@@ -11,7 +11,15 @@ pub trait CustomWidget {
 }
 
 pub trait CustomWidgetRef {
-    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State);
+    fn render_ref(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        // gives views access to total app area for things like
+        // calculating popover area from total available area
+        total_area: Rect,
+    );
 }
 
 pub trait CustomStatefulWidget {
@@ -26,7 +34,7 @@ pub trait CustomStatefulWidget {
     );
 }
 
-pub trait View: EventHandler + WidgetRef {
+pub trait View: EventHandler + CustomWidgetRef {
     fn id(&self) -> ViewID;
     fn legend(&self, _state: &State) -> &str {
         ""

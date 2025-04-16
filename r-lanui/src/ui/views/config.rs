@@ -14,11 +14,11 @@ use itertools::Itertools;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    widgets::{StatefulWidget, WidgetRef},
+    widgets::StatefulWidget,
 };
 use std::{cell::RefCell, sync::Arc};
 
-use super::traits::{CustomWidget, EventHandler, View};
+use super::traits::{CustomWidget, CustomWidgetRef, EventHandler, View};
 
 const THEMES: [Theme; 4] = [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
 
@@ -339,10 +339,14 @@ impl View for ConfigView {
     }
 }
 
-impl WidgetRef for ConfigView {
-    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.store.get_state();
-
+impl CustomWidgetRef for ConfigView {
+    fn render_ref(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        _total_area: Rect,
+    ) {
         let view_rects = Layout::vertical([
             Constraint::Length(1), // label
             Constraint::Length(1), // spacer

@@ -20,7 +20,7 @@ use super::{
     config::ConfigView,
     device::DeviceView,
     devices::DevicesView,
-    traits::{CustomWidget, EventHandler, View},
+    traits::{CustomWidget, CustomWidgetRef, EventHandler, View},
     view_select::ViewSelect,
 };
 
@@ -114,6 +114,7 @@ impl MainView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         state: &State,
+        parent_area: Rect,
     ) {
         let block: Block<'_> = Block::bordered()
             .border_style(Style::new().fg(state.colors.border_color))
@@ -121,14 +122,20 @@ impl MainView {
             .padding(DEFAULT_PADDING);
         let inner_area = block.inner(area);
         block.render(area, buf);
-        view.render_ref(inner_area, buf);
+        view.render_ref(inner_area, buf, state, parent_area);
     }
 
-    fn render_view_select_popover(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+    fn render_view_select_popover(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        parent_area: Rect,
+    ) {
         let view = self.sub_views.get(&ViewID::ViewSelect);
 
         if let Some(view_select) = view {
-            view_select.render_ref(area, buf);
+            view_select.render_ref(area, buf, state, parent_area);
         }
     }
 
@@ -190,10 +197,14 @@ impl View for MainView {
     }
 }
 
-impl WidgetRef for MainView {
-    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.store.get_state();
-
+impl CustomWidgetRef for MainView {
+    fn render_ref(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        total_area: Rect,
+    ) {
         // consists of 3 vertical rectangles (top, middle, bottom)
         let page_areas = Layout::vertical([
             Constraint::Length(5),
@@ -202,7 +213,7 @@ impl WidgetRef for MainView {
         ])
         .split(area);
 
-        let view_id = self.store.get_state().view_id;
+        let view_id = state.view_id.clone();
         let view = self.sub_views.get(&view_id).unwrap();
         let legend = view.legend(&state);
         let override_legend = view.override_main_legend(&state);
@@ -214,11 +225,9 @@ impl WidgetRef for MainView {
         let top_section_areas_clone = Rc::clone(&top_section_areas);
         self.render_top(top_section_areas, buf, &state, state.message.clone());
         // view
-        self.render_middle_view(view, page_areas[1], buf, &state);
+        self.render_middle_view(view, page_areas[1], buf, &state, total_area);
         // legend for current view
         self.render_footer(legend, override_legend, page_areas[2], buf, &state);
-        // popover when there are errors in the store
-        self.render_error_popover(get_popover_area(area, 50, 40), buf, &state);
 
         // view selection
         if state.render_view_select {
@@ -235,8 +244,12 @@ impl WidgetRef for MainView {
 
             ClearWidget.render(select_inner_area, buf);
             self.render_buffer_bg(select_inner_area, buf, &state);
-            self.render_view_select_popover(select_inner_area, buf);
+            self.render_view_select_popover(select_inner_area, buf, &state, total_area);
         }
+
+        // popover when there are errors in the store
+        // important to render this last so it properly layers on top
+        self.render_error_popover(get_popover_area(area, 50, 40), buf, &state);
     }
 }
 

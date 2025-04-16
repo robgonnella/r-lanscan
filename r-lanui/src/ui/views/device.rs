@@ -18,13 +18,11 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::Style,
     text::{Line, Span},
-    widgets::{
-        Block, BorderType, Clear, Padding, Paragraph, StatefulWidget, Widget, WidgetRef, Wrap,
-    },
+    widgets::{Block, BorderType, Clear, Padding, Paragraph, StatefulWidget, Widget, Wrap},
 };
 use std::{cell::RefCell, sync::Arc};
 
-use super::traits::{CustomWidget, EventHandler, View};
+use super::traits::{CustomWidget, CustomWidgetRef, EventHandler, View};
 
 #[derive(Debug, Clone)]
 enum Focus {
@@ -154,10 +152,7 @@ impl DeviceView {
         let ip = Line::from(ip_str);
         let mac = Line::from(mac_str);
         let vendor = Line::from(vendor_str);
-        let open_ports = Paragraph::new(vec![Line::from(open_ports_str)])
-            .wrap(Wrap { trim: true })
-            .left_aligned();
-
+        let open_ports = Paragraph::new(vec![Line::from(open_ports_str)]).wrap(Wrap { trim: true });
         header.render(header_area, buf, state);
         host.render(host_area, buf);
         ip.render(ip_area, buf);
@@ -220,28 +215,21 @@ impl DeviceView {
         if *self.editing.borrow() && self.browser_port_state.borrow().editing {
             let block = Block::bordered()
                 .border_type(BorderType::Double)
-                .border_style(
-                    Style::new()
-                        .fg(state.colors.border_color)
-                        .bg(state.colors.buffer_bg),
-                )
+                .border_style(Style::new().fg(state.colors.border_color))
                 .padding(Padding::uniform(2))
                 .style(Style::new().bg(state.colors.buffer_bg));
             let inner_area = block.inner(area);
-            let [header_area, _, port_area, _, message_area] = Layout::vertical([
-                Constraint::Length(1), // header
-                Constraint::Length(1), // spacer
-                Constraint::Length(1), // port select
-                Constraint::Length(1), // spacer
-                Constraint::Length(1), // enter to submit message
+            let [header_area, _, port_area, message_area] = Layout::vertical([
+                Constraint::Length(1),       // header
+                Constraint::Length(1),       // spacer
+                Constraint::Percentage(100), // port select
+                Constraint::Length(1),       // enter to submit message
             ])
             .areas(inner_area);
 
             let header = Header::new("Enter port to browse".to_string());
             let input = Input::new("Port");
-            let message = Line::from(vec![Span::from(
-                "Press enter to open browser or esc to cancel",
-            )]);
+            let message = Paragraph::new("Press enter to open browser or esc to cancel").centered();
 
             Clear.render(area, buf);
             block.render(area, buf);
@@ -392,10 +380,14 @@ impl View for DeviceView {
     }
 }
 
-impl WidgetRef for DeviceView {
-    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.store.get_state();
-
+impl CustomWidgetRef for DeviceView {
+    fn render_ref(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        total_area: Rect,
+    ) {
         let [left_area, right_area] = Layout::horizontal([
             Constraint::Percentage(50), // info
             Constraint::Percentage(50), // command output
@@ -409,13 +401,14 @@ impl WidgetRef for DeviceView {
         ])
         .areas(left_area);
 
-        let popover_area = get_popover_area(area, 33, 34);
+        let popover_area = get_popover_area(total_area, 40, 30);
 
         if let Some(device) = state.selected_device.clone() {
-            self.render_browser_port_select_popover(popover_area, buf, &state);
             self.render_device_ssh_config(ssh_area, buf, &device, &state);
             self.render_device_info(info_area, buf, &device, &state);
             self.render_cmd_output(right_area, buf, &state);
+            // important that this is last so it's properly layers on top
+            self.render_browser_port_select_popover(popover_area, buf, &state);
         }
     }
 }
@@ -440,6 +433,7 @@ impl EventHandler for DeviceView {
                         self.reset_input_state();
                         handled = true;
                     } else if !self.is_tracing(state) {
+                        self.store.dispatch(Action::ClearCommandOutput);
                         self.store.dispatch(Action::UpdateView(ViewID::Devices));
                         handled = true;
                     }

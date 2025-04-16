@@ -190,6 +190,11 @@ impl Reducer {
                 state.cmd_output = Some((cmd, output));
                 state
             }
+            Action::ClearCommandOutput => {
+                let mut state = prev_state.clone();
+                state.cmd_output = None;
+                state
+            }
         };
 
         new_state

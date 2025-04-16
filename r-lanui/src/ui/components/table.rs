@@ -122,7 +122,13 @@ impl Table {
 }
 
 impl CustomWidgetRef for Table {
-    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+    fn render_ref(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        _total_area: Rect,
+    ) {
         // main table view + right aligned scrollbar
         let table_rects =
             Layout::horizontal([Constraint::Min(5), Constraint::Length(3)]).split(area);

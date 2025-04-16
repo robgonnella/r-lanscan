@@ -2,7 +2,6 @@ use itertools::Itertools;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    widgets::WidgetRef,
 };
 use std::{cell::RefCell, sync::Arc};
 
@@ -68,20 +67,16 @@ impl DevicesView {
     }
 
     fn next(&self) {
-        let i = self.table.borrow_mut().next();
-        self.set_store_selected(i);
+        self.table.borrow_mut().next();
     }
 
     fn previous(&self) {
-        let i = self.table.borrow_mut().previous();
-        self.set_store_selected(i);
+        self.table.borrow_mut().previous();
     }
 
-    fn set_store_selected(&self, i: usize) {
-        let devices = self.store.get_state().devices;
-
-        if devices.len() > 0 && i < devices.len() {
-            let mac = devices[i].mac.clone();
+    fn set_store_selected(&self, i: usize, state: &State) {
+        if state.devices.len() > 0 && i < state.devices.len() {
+            let mac = state.devices[i].mac.clone();
             self.store.dispatch(Action::UpdateSelectedDevice(mac));
         }
     }
@@ -92,7 +87,13 @@ impl DevicesView {
         }
     }
 
-    fn render_table(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+    fn render_table(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        total_area: Rect,
+    ) {
         let items = state
             .devices
             .iter()
@@ -112,9 +113,9 @@ impl DevicesView {
             .collect_vec();
         let selected = self.table.borrow_mut().update_items(items);
         if let Some(selected) = selected {
-            self.set_store_selected(selected);
+            self.set_store_selected(selected, state);
         }
-        self.table.borrow().render_ref(area, buf, state);
+        self.table.borrow().render_ref(area, buf, state, total_area);
     }
 }
 
@@ -122,19 +123,27 @@ impl View for DevicesView {
     fn id(&self) -> ViewID {
         ViewID::Devices
     }
+
+    fn legend(&self, _state: &State) -> &str {
+        "(enter) view device details"
+    }
 }
 
-impl WidgetRef for DevicesView {
-    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let state = self.store.get_state();
-
+impl CustomWidgetRef for DevicesView {
+    fn render_ref(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        total_area: Rect,
+    ) {
         if let Some(selected_idx) = self.table.borrow().selected() {
-            self.set_store_selected(selected_idx);
+            self.set_store_selected(selected_idx, state);
         }
 
         let view_rects = Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).split(area);
 
-        self.render_table(view_rects[1], buf, &state);
+        self.render_table(view_rects[1], buf, &state, total_area);
     }
 }
 
