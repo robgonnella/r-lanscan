@@ -1,3 +1,6 @@
+default:
+    @just --list
+
 ui *args:
     cargo run -p r-lanui -- {{args}}
 
@@ -20,3 +23,9 @@ down *args:
 
 logs *args:
     docker compose logs -f {{args}}
+
+test *args:
+    cargo test {{args}}
+
+test-report *args:
+    cargo llvm-cov {{args}}
