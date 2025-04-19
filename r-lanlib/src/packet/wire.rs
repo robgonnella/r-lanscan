@@ -24,7 +24,6 @@ impl Reader for PNetReader {
     }
 }
 
-unsafe impl Send for PNetReader {}
 unsafe impl Sync for PNetReader {}
 
 /**
@@ -48,7 +47,6 @@ impl Sender for PNetSender {
     }
 }
 
-unsafe impl Send for PNetSender {}
 unsafe impl Sync for PNetSender {}
 
 pub fn default(
