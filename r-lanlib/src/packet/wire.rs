@@ -76,9 +76,21 @@ pub fn default(
 #[cfg(test)]
 mod tests {
     use datalink::MacAddr;
+    use mockall::mock;
     use std::{net::Ipv4Addr, str::FromStr};
 
     use super::*;
+
+    const SINGLE_BYTE: [u8; 1] = [1];
+
+    mock! {
+        PacketReader {}
+        impl Reader for PacketReader {
+            fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
+        }
+        unsafe impl Send for PacketReader {}
+        unsafe impl Sync for PacketReader {}
+    }
 
     fn get_default_interface() -> NetworkInterface {
         NetworkInterface {
@@ -98,5 +110,14 @@ mod tests {
         let interface = get_default_interface();
         let wire = default(&interface);
         assert!(wire.is_ok())
+    }
+
+    #[test]
+    fn returns_packet_result() {
+        let mut mock = MockPacketReader::new();
+        mock.expect_next_packet().return_once(|| Ok(&SINGLE_BYTE));
+        let result = mock.next_packet();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), &SINGLE_BYTE);
     }
 }

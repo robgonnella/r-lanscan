@@ -1,3 +1,6 @@
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+
 use core::time;
 
 pub mod arp;
@@ -12,6 +15,7 @@ pub trait Reader: Send + Sync {
     fn next_packet(&mut self) -> Result<&[u8], std::io::Error>;
 }
 
+#[cfg_attr(test, automock)]
 pub trait Sender: Send + Sync {
     fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
 }

@@ -1,10 +1,12 @@
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+
+use serde;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 use std::thread::JoinHandle;
-
-use serde;
-use serde::{Deserialize, Serialize};
 
 pub const IDLE_TIMEOUT: u16 = 10000;
 
@@ -91,6 +93,7 @@ pub enum ScanMessage {
     SYNScanResult(SYNScanResult),
 }
 
+#[cfg_attr(test, automock)]
 pub trait Scanner: Sync + Send {
     fn scan(&self) -> JoinHandle<Result<(), ScanError>>;
 }
