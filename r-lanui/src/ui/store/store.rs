@@ -3,6 +3,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use r_lanlib::scanners::Device;
+
 use crate::config::{ConfigManager, DEFAULT_CONFIG_ID};
 
 use super::{
@@ -37,6 +39,7 @@ impl Store {
                 render_view_select: false,
                 view_id: ViewID::Devices,
                 config,
+                arp_history: HashMap::new(),
                 devices: Vec::new(),
                 device_map: HashMap::new(),
                 selected_device: None,
@@ -58,5 +61,17 @@ impl Store {
 
     pub fn get_state(&self) -> State {
         self.state.lock().unwrap().clone()
+    }
+
+    // returns just the devices that were detected in last arp scan
+    // i.e. miss count = 0
+    pub fn get_detected_devices(&self) -> Vec<Device> {
+        let locked = self.state.lock().unwrap();
+        locked
+            .arp_history
+            .iter()
+            .filter(|d| d.1 .1 == 0)
+            .map(|d| d.1 .0.clone())
+            .collect::<Vec<Device>>()
     }
 }

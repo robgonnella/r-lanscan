@@ -60,7 +60,7 @@ impl DevicesView {
                     "MAC".to_string(),
                     "OPEN PORTS".to_string(),
                 ]),
-                vec![15, 20, 20, 17, 30],
+                vec![20, 20, 20, 17, 30],
                 height,
             )),
         }
@@ -99,7 +99,11 @@ impl DevicesView {
             .iter()
             .map(|d| {
                 vec![
-                    d.ip.clone(),
+                    if d.is_current_host {
+                        format!("{} [YOU]", d.ip.clone())
+                    } else {
+                        d.ip.clone()
+                    },
                     d.hostname.clone(),
                     d.vendor.clone(),
                     d.mac.clone(),

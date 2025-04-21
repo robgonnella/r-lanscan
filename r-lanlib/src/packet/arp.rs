@@ -1,9 +1,8 @@
-use std::net;
-
 use pnet::{
     packet::{arp, ethernet, MutablePacket},
     util,
 };
+use std::net;
 
 // Constants used to help locate our nested packets
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();

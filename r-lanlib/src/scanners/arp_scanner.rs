@@ -15,7 +15,7 @@ use crate::{
     targets::ips::IPTargets,
 };
 
-use super::{heartbeat::HeartBeat, DeviceStatus, ScanMessage, Scanner};
+use super::{heartbeat::HeartBeat, ScanMessage, Scanner};
 
 // Data structure representing an ARP scanner
 pub struct ARPScanner<'net> {
@@ -169,8 +169,8 @@ impl<'net> ARPScanner<'net> {
                         hostname,
                         ip: ip4.to_string(),
                         mac,
-                        status: DeviceStatus::Online,
                         vendor,
+                        is_current_host: ip4 == source_ipv4,
                     }));
                 });
             }

@@ -130,6 +130,8 @@ fn process_arp(
         tx,
     );
 
+    info!("starting arp scan...");
+
     let handle = scanner.scan();
 
     loop {
@@ -175,10 +177,15 @@ fn print_arp(args: &Args, devices: &Vec<Device>) {
     } else {
         let mut arp_table = prettytable::Table::new();
 
-        arp_table.add_row(prettytable::row!["HOSTNAME", "IP", "MAC", "VENDOR",]);
+        arp_table.add_row(prettytable::row!["IP", "HOSTNAME", "MAC", "VENDOR",]);
 
         for d in devices.iter() {
-            arp_table.add_row(prettytable::row![d.hostname, d.ip, d.mac, d.vendor]);
+            let ip_field = if d.is_current_host {
+                format!("{} [YOU]", d.ip)
+            } else {
+                d.ip.to_string()
+            };
+            arp_table.add_row(prettytable::row![ip_field, d.hostname, d.mac, d.vendor]);
         }
 
         arp_table.printstd();
@@ -202,6 +209,7 @@ fn process_syn(
             ip: d.ip.to_owned(),
             mac: d.mac.to_owned(),
             vendor: d.vendor.to_owned(),
+            is_current_host: d.is_current_host,
             open_ports: HashSet::new(),
         })
     }
@@ -216,6 +224,8 @@ fn process_syn(
         time::Duration::from_millis(args.idle_timeout_ms.into()),
         tx,
     );
+
+    info!("starting syn scan...");
 
     let handle = scanner.scan();
 
@@ -264,14 +274,20 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
         let mut syn_table: prettytable::Table = prettytable::Table::new();
 
         syn_table.add_row(prettytable::row![
-            "HOSTNAME",
             "IP",
+            "HOSTNAME",
             "MAC",
             "VENDOR",
             "OPEN_PORTS",
         ]);
 
         for d in devices {
+            let ip_field = if d.is_current_host {
+                format!("{} [YOU]", d.ip)
+            } else {
+                d.ip.to_string()
+            };
+
             let ports = d
                 .open_ports
                 .iter()
@@ -279,8 +295,8 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
                 .map(|p| p.id.to_owned().to_string())
                 .collect::<Vec<String>>();
             syn_table.add_row(prettytable::row![
+                ip_field,
                 d.hostname,
-                d.ip,
                 d.mac,
                 d.vendor,
                 ports.join(", ")

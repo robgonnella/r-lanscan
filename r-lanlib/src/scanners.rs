@@ -23,20 +23,14 @@ pub struct Port {
     pub status: PortStatus,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum DeviceStatus {
-    Offline,
-    Online,
-}
-
 // ARP Result from a single device
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Device {
     pub hostname: String,
     pub ip: String,
     pub mac: String,
-    pub status: DeviceStatus,
     pub vendor: String,
+    pub is_current_host: bool,
 }
 
 // Device with open ports
@@ -46,7 +40,20 @@ pub struct DeviceWithPorts {
     pub mac: String,
     pub hostname: String,
     pub vendor: String,
+    pub is_current_host: bool,
     pub open_ports: HashSet<Port>,
+}
+
+impl From<DeviceWithPorts> for Device {
+    fn from(value: DeviceWithPorts) -> Self {
+        Self {
+            ip: value.ip.clone(),
+            mac: value.mac.clone(),
+            hostname: value.hostname.clone(),
+            vendor: value.vendor.clone(),
+            is_current_host: value.is_current_host.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]

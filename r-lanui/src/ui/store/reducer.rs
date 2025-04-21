@@ -6,7 +6,7 @@ use std::{
 };
 
 use itertools::Itertools;
-use r_lanlib::scanners::DeviceWithPorts;
+use r_lanlib::scanners::{Device, DeviceWithPorts};
 
 use crate::config::{ConfigManager, DeviceConfig};
 
@@ -14,6 +14,8 @@ use super::{
     action::Action,
     state::{Colors, State, Theme},
 };
+
+const MAX_ARP_MISS: i8 = 3;
 
 pub struct Reducer {
     config_manager: Arc<Mutex<ConfigManager>>,
@@ -61,18 +63,43 @@ impl Reducer {
             Action::UpdateAllDevices(devices) => {
                 let mut state = prev_state.clone();
                 let mut new_map: HashMap<String, DeviceWithPorts> = HashMap::new();
+                let mut arp_history: HashMap<String, (Device, i8)> = HashMap::new();
+
                 for d in devices.iter() {
                     new_map.insert(d.mac.clone(), d.clone());
                 }
+
                 state.devices = devices.clone();
                 state
                     .devices
                     .sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
+
                 state.device_map = new_map;
+
+                // keep devices that may have been missed in last scan but
+                // up to a max limit of misses
+                for d in state.arp_history.iter() {
+                    let mut count = d.1 .1.clone();
+                    if !state.device_map.contains_key(d.0) {
+                        count += 1;
+                    }
+
+                    if count < MAX_ARP_MISS {
+                        arp_history.insert(d.0.clone(), (d.1 .0.clone(), count));
+                    }
+                }
+
+                state.arp_history = arp_history;
                 state
             }
             Action::AddDevice(device) => {
                 let mut state = prev_state.clone();
+                let arp_device: Device = device.clone().into();
+
+                state
+                    .arp_history
+                    .insert(device.mac.clone(), (arp_device, 0));
+
                 if state.device_map.contains_key(&device.mac.clone()) {
                     let found_device = state
                         .devices
@@ -94,6 +121,7 @@ impl Reducer {
                     state.devices.push(device.clone());
                     state.device_map.insert(device.mac.clone(), device.clone());
                 }
+
                 state
                     .devices
                     .sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
