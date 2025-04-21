@@ -24,8 +24,8 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, DeviceWithPorts, ScanError,
-        ScanMessage, Scanner, IDLE_TIMEOUT,
+        arp_scanner::ARPScanner, syn_scanner::SYNScanner, DeviceWithPorts, ScanError, ScanMessage,
+        Scanner, IDLE_TIMEOUT,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
@@ -82,9 +82,7 @@ fn process_arp(
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
     store: Arc<Store>,
-) -> Result<(Vec<Device>, Receiver<ScanMessage>), ScanError> {
-    let mut arp_results: HashSet<Device> = HashSet::new();
-
+) -> Result<Receiver<ScanMessage>, ScanError> {
     let scanner = ARPScanner::new(
         interface,
         packet_reader,
@@ -119,13 +117,13 @@ fn process_arp(
             }
             ScanMessage::ARPScanResult(m) => {
                 debug!("received scanning message: {:?}", m);
-                arp_results.insert(m.to_owned());
                 store.dispatch(Action::AddDevice(DeviceWithPorts {
                     hostname: m.hostname.clone(),
                     ip: m.ip.clone(),
                     mac: m.mac.clone(),
                     open_ports: HashSet::new(),
                     vendor: m.vendor.clone(),
+                    is_current_host: m.is_current_host,
                 }));
             }
             _ => {}
@@ -133,35 +131,35 @@ fn process_arp(
     }
 
     debug!("waiting for arp handle to finish");
-    handle.join().unwrap()?;
 
-    let items: Vec<Device> = arp_results.into_iter().collect();
+    handle.join().unwrap()?;
 
     store.dispatch(Action::UpdateMessage(None));
 
     debug!("finished arp scan");
-    Ok((items, rx))
+    Ok(rx)
 }
 
 fn process_syn(
     packet_reader: Arc<Mutex<dyn packet::Reader>>,
     packet_sender: Arc<Mutex<dyn packet::Sender>>,
     interface: &NetworkInterface,
-    devices: Vec<Device>,
     ports: Vec<String>,
     rx: Receiver<ScanMessage>,
     tx: Sender<ScanMessage>,
     source_port: u16,
     store: Arc<Store>,
 ) -> Result<Vec<DeviceWithPorts>, ScanError> {
+    let arp_devices = store.get_detected_devices();
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
-    for d in devices.iter() {
+    for d in arp_devices.iter() {
         syn_results.push(DeviceWithPorts {
             hostname: d.hostname.to_owned(),
             ip: d.ip.to_owned(),
             mac: d.mac.to_owned(),
             vendor: d.vendor.to_owned(),
+            is_current_host: d.is_current_host,
             open_ports: HashSet::new(),
         })
     }
@@ -170,7 +168,7 @@ fn process_syn(
         interface,
         packet_reader,
         packet_sender,
-        devices,
+        arp_devices,
         PortTargets::new(ports),
         source_port,
         time::Duration::from_millis(IDLE_TIMEOUT.into()),
@@ -228,6 +226,7 @@ fn monitor_network(
     store: Arc<Store>,
 ) -> JoinHandle<Result<(), ScanError>> {
     info!("starting network monitor");
+
     thread::spawn(move || -> Result<(), ScanError> {
         let source_port = network::get_available_port().or_else(|e| {
             Err(ScanError {
@@ -247,7 +246,7 @@ fn monitor_network(
             })
         })?;
 
-        let (arp_results, rx) = process_arp(
+        let rx = process_arp(
             Arc::clone(&wire.0),
             Arc::clone(&wire.1),
             &interface,
@@ -262,7 +261,6 @@ fn monitor_network(
             Arc::clone(&wire.0),
             Arc::clone(&wire.1),
             &interface,
-            arp_results,
             config.ports.clone(),
             rx,
             tx.clone(),
@@ -327,7 +325,6 @@ fn main() -> Result<()> {
 
     let interface = network::get_default_interface().expect("could not get default interface");
     let (config, store) = init(&args, &interface);
-
     // don't do anything with handle here as this call is recursive
     // so if we join our main process will never exit
     monitor_network(Arc::new(config), Arc::new(interface), Arc::clone(&store));

@@ -119,7 +119,11 @@ impl DeviceView {
         .areas(area);
 
         let host_str = format!("Hostname: {0}", device.hostname);
-        let ip_str = format!("IP: {0}", device.ip);
+        let ip_str = if device.is_current_host {
+            format!("IP: {0} [YOU]", device.ip)
+        } else {
+            format!("IP: {0}", device.ip)
+        };
         let mac_str = format!("MAC: {0}", device.mac);
         let vendor_str = format!("Vendor: {0}", device.vendor);
         let open_ports_str = format!(
