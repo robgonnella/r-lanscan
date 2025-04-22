@@ -4,8 +4,6 @@ use ratatui::{
     widgets::{Paragraph, Widget, Wrap},
 };
 
-use crate::ui::{store::state::State, views::traits::CustomWidget};
-
 pub struct Field {
     key: String,
     value: String,
@@ -17,8 +15,8 @@ impl Field {
     }
 }
 
-impl CustomWidget for Field {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, _state: &State)
+impl Widget for Field {
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
     {

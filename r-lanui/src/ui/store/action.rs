@@ -2,16 +2,18 @@ use std::process::Output;
 
 use r_lanlib::scanners::DeviceWithPorts;
 
-use crate::config::{Config, DeviceConfig};
+use crate::{
+    config::{Config, DeviceConfig},
+    ui::events::types::Command,
+};
 
-use super::state::{Command, Theme, ViewID};
+use super::state::{Theme, ViewID};
 
 #[derive(Debug)]
 pub enum Action {
+    SetUIPaused(bool),
     SetError(Option<String>),
-    ClearCommand,
-    ExecuteCommand(Command),
-    SetCommandInProgress(bool),
+    SetCommandInProgress(Option<Command>),
     UpdateCommandOutput((Command, Output)),
     ClearCommandOutput,
     ToggleViewSelect,

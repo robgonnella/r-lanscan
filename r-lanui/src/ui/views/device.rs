@@ -4,17 +4,18 @@ use crate::ui::{
         input::{Input, InputState},
         popover::get_popover_area,
     },
+    events::types::{Command, Event},
     store::{
         action::Action,
         derived::get_device_config_from_state,
-        state::{Command, State, ViewID},
+        state::{State, ViewID},
         store::Store,
     },
 };
 use itertools::Itertools;
 use r_lanlib::scanners::DeviceWithPorts;
 use ratatui::{
-    crossterm::event::{Event, KeyCode},
+    crossterm::event::{Event as CrossTermEvent, KeyCode},
     layout::{Constraint, Layout, Rect},
     style::Style,
     text::{Line, Span},
@@ -22,7 +23,7 @@ use ratatui::{
 };
 use std::{cell::RefCell, sync::Arc};
 
-use super::traits::{CustomWidget, CustomWidgetRef, EventHandler, View};
+use super::traits::{CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 #[derive(Debug, Clone)]
 enum Focus {
@@ -72,10 +73,10 @@ impl DeviceView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         device: &DeviceWithPorts,
-        state: &State,
+        ctx: &CustomWidgetContext,
     ) {
         if !*self.editing.borrow() || self.browser_port_state.borrow().editing {
-            let device_config = get_device_config_from_state(device, state);
+            let device_config = get_device_config_from_state(device, &ctx.state);
             self.ssh_user_state.borrow_mut().value = device_config.ssh_user.clone();
             self.ssh_port_state.borrow_mut().value = device_config.ssh_port.to_string();
             self.ssh_identity_state.borrow_mut().value = device_config.ssh_identity_file.clone();
@@ -98,7 +99,7 @@ impl DeviceView {
         let ssh_port_input = Input::new("SSH Port");
         let ssh_identity_input = Input::new("SSH Identity");
 
-        header.render(rects[0], buf, state);
+        header.render(rects[0], buf, ctx);
         ssh_user_input.render(rects[2], buf, &mut self.ssh_user_state.borrow_mut());
         ssh_port_input.render(rects[4], buf, &mut self.ssh_port_state.borrow_mut());
         ssh_identity_input.render(rects[6], buf, &mut self.ssh_identity_state.borrow_mut());
@@ -109,7 +110,7 @@ impl DeviceView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         device: &DeviceWithPorts,
-        state: &State,
+        ctx: &CustomWidgetContext,
     ) {
         let [header_area, _, info_area] = Layout::vertical([
             Constraint::Length(1), // header
@@ -157,7 +158,7 @@ impl DeviceView {
         let mac = Line::from(mac_str);
         let vendor = Line::from(vendor_str);
         let open_ports = Paragraph::new(vec![Line::from(open_ports_str)]).wrap(Wrap { trim: true });
-        header.render(header_area, buf, state);
+        header.render(header_area, buf, ctx);
         host.render(host_area, buf);
         ip.render(ip_area, buf);
         mac.render(mac_area, buf);
@@ -165,17 +166,22 @@ impl DeviceView {
         open_ports.render(ports_area, buf);
     }
 
-    fn render_cmd_output(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
-        if self.is_tracing(state) {
+    fn render_cmd_output(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        if self.is_tracing(&ctx.state) {
             let [label_area] = Layout::vertical([
                 Constraint::Min(1), // label
             ])
             .areas(area);
 
             let header = Header::new("tracing...".to_string());
-            header.render(label_area, buf, state);
-        } else if state.cmd_output.is_some() {
-            let (cmd, output) = state.cmd_output.clone().unwrap();
+            header.render(label_area, buf, ctx);
+        } else if ctx.state.cmd_output.is_some() {
+            let (cmd, output) = ctx.state.cmd_output.clone().unwrap();
             let header = Header::new(cmd.to_string());
 
             let status_value = Span::from(output.status.to_string());
@@ -203,7 +209,7 @@ impl DeviceView {
             ])
             .areas(area);
 
-            header.render(label_area, buf, &state);
+            header.render(label_area, buf, ctx);
             status.render(status_area, buf);
             stderr.render(stderr_area, buf);
             stdout.render(stdout_area, buf);
@@ -214,14 +220,14 @@ impl DeviceView {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
+        ctx: &CustomWidgetContext,
     ) {
         if *self.editing.borrow() && self.browser_port_state.borrow().editing {
             let block = Block::bordered()
                 .border_type(BorderType::Double)
-                .border_style(Style::new().fg(state.colors.border_color))
+                .border_style(Style::new().fg(ctx.state.colors.border_color))
                 .padding(Padding::uniform(2))
-                .style(Style::new().bg(state.colors.buffer_bg));
+                .style(Style::new().bg(ctx.state.colors.buffer_bg));
             let inner_area = block.inner(area);
             let [header_area, _, port_area, message_area] = Layout::vertical([
                 Constraint::Length(1),       // header
@@ -237,7 +243,7 @@ impl DeviceView {
 
             Clear.render(area, buf);
             block.render(area, buf);
-            header.render(header_area, buf, state);
+            header.render(header_area, buf, ctx);
             input.render(port_area, buf, &mut self.browser_port_state.borrow_mut());
             message.render(message_area, buf);
         }
@@ -354,10 +360,10 @@ impl DeviceView {
     }
 
     fn is_tracing(&self, state: &State) -> bool {
-        if state.execute_cmd.is_some() {
-            let cmd = state.execute_cmd.clone().unwrap();
+        if state.cmd_in_progress.is_some() {
+            let cmd = state.cmd_in_progress.clone().unwrap();
             match cmd {
-                Command::TRACEROUTE => true,
+                Command::TRACEROUTE(_) => true,
                 _ => false,
             }
         } else {
@@ -389,8 +395,7 @@ impl CustomWidgetRef for DeviceView {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-        total_area: Rect,
+        ctx: &CustomWidgetContext,
     ) {
         let [left_area, right_area] = Layout::horizontal([
             Constraint::Percentage(50), // info
@@ -405,38 +410,38 @@ impl CustomWidgetRef for DeviceView {
         ])
         .areas(left_area);
 
-        let popover_area = get_popover_area(total_area, 40, 30);
+        let popover_area = get_popover_area(ctx.app_area, 40, 30);
 
-        if let Some(device) = state.selected_device.clone() {
-            self.render_device_ssh_config(ssh_area, buf, &device, &state);
-            self.render_device_info(info_area, buf, &device, &state);
-            self.render_cmd_output(right_area, buf, &state);
-            // important that this is last so it's properly layers on top
-            self.render_browser_port_select_popover(popover_area, buf, &state);
+        if let Some(device) = ctx.state.selected_device.clone() {
+            self.render_device_ssh_config(ssh_area, buf, &device, ctx);
+            self.render_device_info(info_area, buf, &device, ctx);
+            self.render_cmd_output(right_area, buf, ctx);
+            // important that this is last so it properly layers on top
+            self.render_browser_port_select_popover(popover_area, buf, ctx);
         }
     }
 }
 
 impl EventHandler for DeviceView {
-    fn process_event(&self, evt: &Event, state: &State) -> bool {
-        if state.render_view_select {
+    fn process_event(&self, evt: &CrossTermEvent, ctx: &CustomWidgetContext) -> bool {
+        if ctx.state.render_view_select {
             return false;
         }
 
         let mut handled = false;
 
         match evt {
-            Event::FocusGained => {}
-            Event::FocusLost => {}
-            Event::Mouse(_m) => {}
-            Event::Paste(_s) => {}
-            Event::Resize(_x, _y) => {}
-            Event::Key(key) => match key.code {
+            CrossTermEvent::FocusGained => {}
+            CrossTermEvent::FocusLost => {}
+            CrossTermEvent::Mouse(_m) => {}
+            CrossTermEvent::Paste(_s) => {}
+            CrossTermEvent::Resize(_x, _y) => {}
+            CrossTermEvent::Key(key) => match key.code {
                 KeyCode::Esc => {
                     if *self.editing.borrow() {
                         self.reset_input_state();
                         handled = true;
-                    } else if !self.is_tracing(state) {
+                    } else if !self.is_tracing(&ctx.state) {
                         self.store.dispatch(Action::ClearCommandOutput);
                         self.store.dispatch(Action::UpdateView(ViewID::Devices));
                         handled = true;
@@ -459,14 +464,17 @@ impl EventHandler for DeviceView {
                         if self.browser_port_state.borrow().editing {
                             let port_str = self.browser_port_state.borrow().value.clone();
                             if let Ok(port) = port_str.parse::<u16>() {
-                                self.store
-                                    .dispatch(Action::ExecuteCommand(Command::BROWSE(port)));
+                                let _ = ctx.events.send(Event::ExecCommand(Command::BROWSE(
+                                    ctx.state.selected_device.clone().unwrap().into(),
+                                    port,
+                                )));
                                 self.reset_input_state();
                                 handled = true;
                             }
-                        } else if let Some(device) = state.selected_device.clone() {
+                        } else if let Some(device) = ctx.state.selected_device.clone() {
                             // save config
-                            let mut device_config = get_device_config_from_state(&device, state);
+                            let mut device_config =
+                                get_device_config_from_state(&device, &ctx.state);
                             device_config.ssh_user = self.ssh_user_state.borrow().value.clone();
                             let mut port =
                                 self.ssh_port_state.borrow().value.clone().parse::<u16>();
@@ -496,7 +504,7 @@ impl EventHandler for DeviceView {
                         // handle value update for focused element
                         self.push_input_char(c);
                         handled = true;
-                    } else if self.is_tracing(state) {
+                    } else if self.is_tracing(&ctx.state) {
                         handled = true
                     } else if c == 'c' {
                         // enter edit mode
@@ -505,14 +513,18 @@ impl EventHandler for DeviceView {
                         *self.editing.borrow_mut() = true;
                         handled = true;
                     } else if c == 's' {
-                        if state.execute_cmd.is_none() {
+                        if ctx.state.cmd_in_progress.is_none() {
                             handled = true;
-                            self.store.dispatch(Action::ExecuteCommand(Command::SSH));
+                            let _ = ctx.events.send(Event::ExecCommand(Command::SSH(
+                                ctx.state.selected_device.clone().unwrap().into(),
+                                ctx.state.selected_device_config.clone().unwrap(),
+                            )));
                         }
                     } else if c == 't' {
-                        if !self.is_tracing(state) {
-                            self.store
-                                .dispatch(Action::ExecuteCommand(Command::TRACEROUTE));
+                        if !self.is_tracing(&ctx.state) {
+                            let _ = ctx.events.send(Event::ExecCommand(Command::TRACEROUTE(
+                                ctx.state.selected_device.clone().unwrap().into(),
+                            )));
                             handled = true;
                         }
                     } else if c == 'b' {

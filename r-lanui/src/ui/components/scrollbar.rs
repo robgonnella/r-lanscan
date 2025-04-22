@@ -4,7 +4,7 @@ use ratatui::{
     widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget},
 };
 
-use crate::ui::{store::state::State, views::traits::CustomStatefulWidget};
+use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext};
 
 pub struct ScrollBar {}
 
@@ -22,7 +22,7 @@ impl CustomStatefulWidget for ScrollBar {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         state: &mut Self::State,
-        custom_state: &State,
+        ctx: &CustomWidgetContext,
     ) {
         let scroll_area = area.inner(Margin {
             vertical: 1,
@@ -37,7 +37,7 @@ impl CustomStatefulWidget for ScrollBar {
             .orientation(ScrollbarOrientation::VerticalRight)
             .begin_symbol(None)
             .end_symbol(None)
-            .style(Style::new().fg(custom_state.colors.scroll_bar_fg));
+            .style(Style::new().fg(ctx.state.colors.scroll_bar_fg));
 
         scrollbar.render(scroll_area, buf, state)
     }
