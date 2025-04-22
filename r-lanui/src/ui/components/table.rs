@@ -11,10 +11,7 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::ui::{
-    store::state::State,
-    views::traits::{CustomStatefulWidget, CustomWidgetRef},
-};
+use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext, CustomWidgetRef};
 
 use super::scrollbar::ScrollBar;
 
@@ -126,8 +123,7 @@ impl CustomWidgetRef for Table {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-        _total_area: Rect,
+        ctx: &CustomWidgetContext,
     ) {
         // main table view + right aligned scrollbar
         let table_rects =
@@ -139,8 +135,8 @@ impl CustomWidgetRef for Table {
 
         let header = self.headers.as_ref().map(|hs| {
             let header_style = Style::default()
-                .fg(state.colors.header_fg)
-                .bg(state.colors.header_bg)
+                .fg(ctx.state.colors.header_fg)
+                .bg(ctx.state.colors.header_bg)
                 .add_modifier(Modifier::BOLD);
 
             hs.iter()
@@ -152,7 +148,7 @@ impl CustomWidgetRef for Table {
 
         let selected_style = Style::default()
             .add_modifier(Modifier::REVERSED)
-            .fg(state.colors.selected_row_fg);
+            .fg(ctx.state.colors.selected_row_fg);
 
         let rows = self.items.iter().enumerate().map(|(_i, data)| {
             let item = fit_to_width(data, self.column_sizes.clone());
@@ -172,7 +168,11 @@ impl CustomWidgetRef for Table {
             item.into_iter()
                 .map(|content| Cell::from(Text::from(format!("{line_breaks}{content}"))))
                 .collect::<Row>()
-                .style(Style::new().fg(state.colors.row_fg).bg(state.colors.row_bg))
+                .style(
+                    Style::new()
+                        .fg(ctx.state.colors.row_fg)
+                        .bg(ctx.state.colors.row_bg),
+                )
                 .height(self.item_height as u16)
         });
 
@@ -184,7 +184,7 @@ impl CustomWidgetRef for Table {
 
         let mut t = RatatuiTable::new(rows, widths)
             .row_highlight_style(selected_style)
-            .bg(state.colors.buffer_bg)
+            .bg(ctx.state.colors.buffer_bg)
             .highlight_spacing(HighlightSpacing::Always);
 
         if let Some(h) = header {
@@ -195,7 +195,7 @@ impl CustomWidgetRef for Table {
 
         let scrollbar = ScrollBar::new();
         let mut scroll_state = self.scroll_state.borrow_mut();
-        scrollbar.render(table_rects[1], buf, &mut scroll_state, state);
+        scrollbar.render(table_rects[1], buf, &mut scroll_state, ctx);
     }
 }
 

@@ -1,25 +1,34 @@
-use ratatui::{crossterm::event::Event, layout::Rect};
+use std::sync::mpsc::Sender;
 
-use crate::ui::store::state::{State, ViewID};
+use ratatui::{crossterm::event::Event as CrossTermEvent, layout::Rect};
+
+use crate::ui::{
+    events::types::Event,
+    store::state::{State, ViewID},
+};
 
 pub trait EventHandler {
-    fn process_event(&self, evt: &Event, state: &State) -> bool;
+    fn process_event(&self, evt: &CrossTermEvent, ctx: &CustomWidgetContext) -> bool;
+}
+
+pub struct CustomWidgetContext {
+    // app state
+    pub state: State,
+    // total area for the entire application - useful for calculating
+    // popover areas
+    pub app_area: Rect,
+    // event producer - this how components and views can communicate user
+    // behavior back to main loop to perform actions that aren't related to
+    // state - executing a shell command
+    pub events: Sender<Event>,
 }
 
 pub trait CustomWidget {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State);
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, ctx: &CustomWidgetContext);
 }
 
 pub trait CustomWidgetRef {
-    fn render_ref(
-        &self,
-        area: Rect,
-        buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-        // gives views access to total app area for things like
-        // calculating popover area from total available area
-        total_area: Rect,
-    );
+    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, ctx: &CustomWidgetContext);
 }
 
 pub trait CustomStatefulWidget {
@@ -30,7 +39,7 @@ pub trait CustomStatefulWidget {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         state: &mut Self::State,
-        custom_state: &State,
+        ctx: &CustomWidgetContext,
     );
 }
 

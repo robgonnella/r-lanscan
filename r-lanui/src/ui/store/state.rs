@@ -1,10 +1,13 @@
 use core::fmt;
-use std::{collections::HashMap, fmt::Display, process::Output};
+use std::{collections::HashMap, process::Output};
 
 use r_lanlib::scanners::{Device, DeviceWithPorts};
 use ratatui::style::{palette::tailwind, Color};
 
-use crate::config::{Config, DeviceConfig};
+use crate::{
+    config::{Config, DeviceConfig},
+    ui::events::types::Command,
+};
 
 pub type MissedCount = i8;
 
@@ -52,25 +55,9 @@ impl Colors {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Command {
-    SSH,
-    TRACEROUTE,
-    BROWSE(u16),
-}
-
-impl Display for Command {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Command::SSH => write!(f, "ssh"),
-            Command::TRACEROUTE => write!(f, "traceroute"),
-            Command::BROWSE(_) => write!(f, "browse"),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct State {
+    pub ui_paused: bool,
     pub error: Option<String>,
     pub render_view_select: bool,
     pub view_id: ViewID,
@@ -82,8 +69,7 @@ pub struct State {
     pub selected_device_config: Option<DeviceConfig>,
     pub colors: Colors,
     pub message: Option<String>,
-    pub execute_cmd: Option<Command>,
-    pub cmd_in_progress: bool,
+    pub cmd_in_progress: Option<Command>,
     pub cmd_output: Option<(Command, Output)>,
 }
 

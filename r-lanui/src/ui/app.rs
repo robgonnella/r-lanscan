@@ -1,39 +1,46 @@
 use color_eyre::eyre::{Context, Result};
 use core::time;
+use log::*;
 use ratatui::{
     crossterm::{
-        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
+        event::{
+            self, DisableMouseCapture, EnableMouseCapture, Event as CrossTermEvent, KeyCode,
+            KeyModifiers,
+        },
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     },
+    layout::Rect,
     prelude::CrosstermBackend,
     Terminal,
 };
 use std::{
     cell::RefCell,
     io::{self, Stdout},
-    process::Command,
-    sync::Arc,
-    thread,
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc,
+    },
 };
 
 use super::{
-    store::{
-        action::Action,
-        state::{Command as AppCommand, State},
-        store::Store,
+    events::types::Event,
+    store::{action::Action, store::Store},
+    views::{
+        main::MainView,
+        traits::{CustomWidgetContext, View},
     },
-    views::{main::MainView, traits::View},
 };
 
 pub struct App {
     terminal: RefCell<Terminal<CrosstermBackend<Stdout>>>,
-    paused: RefCell<bool>,
     store: Arc<Store>,
     main_view: Box<dyn View>,
+    event_loop_sender: Sender<Event>,
+    event_loop_receiver: Receiver<Event>,
 }
 
-pub fn create_app(store: Arc<Store>) -> Result<App> {
+pub fn create_app(tx: Sender<Event>, rx: Receiver<Event>, store: Arc<Store>) -> Result<App> {
     // setup terminal
     enable_raw_mode().wrap_err("failed to enter raw mode")?;
     let mut stdout = io::stdout();
@@ -41,103 +48,72 @@ pub fn create_app(store: Arc<Store>) -> Result<App> {
         .wrap_err("failed to enter alternate screen")?;
     let backend = CrosstermBackend::new(stdout);
     let terminal = Terminal::new(backend).wrap_err("failed to create terminal")?;
-    Ok(App::new(terminal, store))
+    Ok(App::new(tx, rx, terminal, store))
 }
 
 impl App {
-    fn new(terminal: Terminal<CrosstermBackend<Stdout>>, store: Arc<Store>) -> Self {
+    fn new(
+        tx: Sender<Event>,
+        rx: Receiver<Event>,
+        terminal: Terminal<CrosstermBackend<Stdout>>,
+        store: Arc<Store>,
+    ) -> Self {
         Self {
             terminal: RefCell::new(terminal),
-            paused: RefCell::new(false),
             store: Arc::clone(&store),
-            main_view: Box::new(MainView::new(store)),
+            main_view: Box::new(MainView::new(store, tx.clone())),
+            event_loop_sender: tx,
+            event_loop_receiver: rx,
         }
     }
 
     pub fn launch(&self) -> Result<()> {
-        self.process_loop()?;
+        self.start_app_loop()?;
         self.exit()?;
         Ok(())
     }
 
-    fn handle_cmd(&self, cmd: AppCommand, state: &State) -> Result<()> {
-        if state.cmd_in_progress {
-            return Ok(());
-        }
-
-        if state.selected_device.is_some() && state.selected_device_config.is_some() {
-            self.store.dispatch(Action::SetCommandInProgress(true));
-            let device = state.selected_device.clone().unwrap();
-            let device_config = state.selected_device_config.clone().unwrap();
-            match cmd {
-                AppCommand::SSH => {
-                    self.pause()?;
-                    let mut handle = Command::new("ssh")
-                        .arg("-i")
-                        .arg(device_config.ssh_identity_file)
-                        .arg(format!("{}@{}", device_config.ssh_user, device.ip))
-                        .arg("-p")
-                        .arg(device_config.ssh_port.to_string())
-                        .spawn()
-                        .wrap_err("failed to start ssh command")?;
-                    handle.wait().wrap_err("shell command failed")?;
-                    self.store.dispatch(Action::ClearCommand);
-                    self.store.dispatch(Action::SetCommandInProgress(false));
-                    self.restart()?;
-                }
-                AppCommand::TRACEROUTE => {
-                    let ip = device.ip.clone();
-                    let store = Arc::clone(&self.store);
-                    thread::spawn(move || {
-                        let exec = Command::new("traceroute").arg(ip).output();
-                        match exec {
-                            Ok(output) => {
-                                store.dispatch(Action::ClearCommand);
-                                store.dispatch(Action::UpdateCommandOutput((cmd, output)));
-                                store.dispatch(Action::SetCommandInProgress(false));
-                            }
-                            Err(err) => {
-                                store.dispatch(Action::ClearCommand);
-                                store.dispatch(Action::SetError(Some(err.to_string())));
-                                store.dispatch(Action::SetCommandInProgress(false));
-                            }
-                        }
-                    });
-                }
-                AppCommand::BROWSE(port) => {
-                    self.pause()?;
-                    let mut handle = Command::new("lynx")
-                        .arg(format!("{}:{}", device.ip, port))
-                        .spawn()
-                        .wrap_err("failed to start lynx browser")?;
-                    handle.wait().wrap_err("shell command failed")?;
-                    self.store.dispatch(Action::ClearCommand);
-                    self.store.dispatch(Action::SetCommandInProgress(false));
-                    self.restart()?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn process_loop(&self) -> Result<()> {
+    fn start_app_loop(&self) -> Result<()> {
         loop {
             let state = self.store.get_state();
 
-            if *self.paused.borrow() {
-                continue;
+            if state.ui_paused {
+                if let Ok(evt) = self.event_loop_receiver.recv() {
+                    match evt {
+                        Event::ResumeUI => {
+                            self.restart()?;
+                            self.store.dispatch(Action::SetUIPaused(false));
+                            self.event_loop_sender.send(Event::UIResumed)?;
+                            continue;
+                        }
+                        _ => {}
+                    }
+                }
+            } else if let Ok(evt) = self.event_loop_receiver.try_recv() {
+                match evt {
+                    Event::PauseUI => {
+                        self.pause()?;
+                        self.store.dispatch(Action::SetUIPaused(true));
+                        self.event_loop_sender.send(Event::UIPaused)?;
+                        continue;
+                    }
+                    _ => {}
+                }
             }
 
-            if state.execute_cmd.is_some() {
-                let cmd = state.execute_cmd.clone().unwrap();
-                self.handle_cmd(cmd, &state)?;
-            }
+            let mut ctx = CustomWidgetContext {
+                state: state.clone(),
+                app_area: Rect::default(),
+                events: self.event_loop_sender.clone(),
+            };
 
             self.terminal.borrow_mut().draw(|f| {
-                let total_area = f.area().clone();
-                self.main_view
-                    .render_ref(f.area(), f.buffer_mut(), &state, total_area)
+                ctx = CustomWidgetContext {
+                    state,
+                    app_area: f.area().clone(),
+                    events: self.event_loop_sender.clone(),
+                };
+                self.main_view.render_ref(f.area(), f.buffer_mut(), &ctx)
             })?;
 
             // Use poll here so we don't block the thread, this will allow
@@ -146,19 +122,22 @@ impl App {
                 if has_event {
                     let evt = event::read()?;
 
-                    let handled = self.main_view.process_event(&evt, &state);
+                    let handled = self.main_view.process_event(&evt, &ctx);
 
                     match evt {
-                        Event::Key(key) => match key.code {
+                        CrossTermEvent::Key(key) => match key.code {
                             KeyCode::Char('q') => {
                                 // allow overriding q key
                                 if !handled {
+                                    self.event_loop_sender.send(Event::Quit)?;
                                     return Ok(());
                                 }
                             }
                             KeyCode::Char('c') => {
                                 // do not allow overriding ctrl-c
                                 if key.modifiers == KeyModifiers::CONTROL {
+                                    info!("APP RECEIVED CONTROL-C SEQUENCE");
+                                    self.event_loop_sender.send(Event::Quit)?;
                                     return Ok(());
                                 }
                             }
@@ -173,7 +152,7 @@ impl App {
 
     fn pause(&self) -> Result<()> {
         self.exit()?;
-        *self.paused.borrow_mut() = true;
+        self.store.dispatch(Action::SetUIPaused(true));
         Ok(())
     }
 
@@ -187,7 +166,7 @@ impl App {
         )?;
         terminal.hide_cursor()?;
         terminal.clear()?;
-        *self.paused.borrow_mut() = false;
+        self.store.dispatch(Action::SetUIPaused(false));
         Ok(())
     }
 

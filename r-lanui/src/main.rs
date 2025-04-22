@@ -9,15 +9,15 @@ use std::{
     collections::HashSet,
     env, fs,
     sync::{
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, channel, Receiver, Sender},
         Arc, Mutex,
     },
     thread::{self, JoinHandle},
 };
 
 use ui::{
-    app,
-    store::{action::Action, store::Store},
+    app, events,
+    store::{action::Action, derived::get_detected_devices, store::Store},
 };
 
 use r_lanlib::{
@@ -150,7 +150,8 @@ fn process_syn(
     source_port: u16,
     store: Arc<Store>,
 ) -> Result<Vec<DeviceWithPorts>, ScanError> {
-    let arp_devices = store.get_detected_devices();
+    let state = store.get_state();
+    let arp_devices = get_detected_devices(&state);
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
     for d in arp_devices.iter() {
@@ -333,6 +334,19 @@ fn main() -> Result<()> {
         loop {}
     }
 
-    let application = app::create_app(store)?;
-    application.launch()
+    let event_manager_channel = channel();
+    let app_channel = channel();
+
+    let event_manager = events::manager::EventManager::new(
+        app_channel.0,
+        event_manager_channel.1,
+        Arc::clone(&store),
+    );
+
+    let application = app::create_app(event_manager_channel.0, app_channel.1, store)?;
+
+    let handle = thread::spawn(move || event_manager.start_event_loop());
+
+    application.launch()?;
+    handle.join().unwrap()
 }

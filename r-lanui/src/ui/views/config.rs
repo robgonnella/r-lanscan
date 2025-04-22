@@ -14,11 +14,11 @@ use itertools::Itertools;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    widgets::StatefulWidget,
+    widgets::{StatefulWidget, Widget},
 };
 use std::{cell::RefCell, sync::Arc};
 
-use super::traits::{CustomWidget, CustomWidgetRef, EventHandler, View};
+use super::traits::{CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 const THEMES: [Theme; 4] = [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
 
@@ -121,14 +121,24 @@ impl ConfigView {
         self.store.dispatch(Action::UpdateConfig(config));
     }
 
-    fn render_label(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+    fn render_label(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
         let header = Header::new("Config".to_string());
-        header.render(area, buf, state);
+        header.render(area, buf, ctx);
     }
 
-    fn render_network(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
-        let field = Field::new("Network".to_string(), state.config.cidr.clone());
-        field.render(area, buf, state);
+    fn render_network(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        let field = Field::new("Network".to_string(), ctx.state.config.cidr.clone());
+        field.render(area, buf);
     }
 
     fn push_input_char(&self, char: char) {
@@ -344,8 +354,7 @@ impl CustomWidgetRef for ConfigView {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-        _total_area: Rect,
+        ctx: &CustomWidgetContext,
     ) {
         let view_rects = Layout::vertical([
             Constraint::Length(1), // label
@@ -362,17 +371,17 @@ impl CustomWidgetRef for ConfigView {
 
         let label_rects = Layout::horizontal([Constraint::Length(20)]).split(view_rects[0]);
 
-        self.render_label(label_rects[0], buf, &state);
-        self.render_network(view_rects[2], buf, &state);
-        self.render_ssh(view_rects[4], buf, &state);
+        self.render_label(label_rects[0], buf, ctx);
+        self.render_network(view_rects[2], buf, ctx);
+        self.render_ssh(view_rects[4], buf, &ctx.state);
         self.render_theme(view_rects[6], buf);
         self.render_ports(view_rects[8], buf);
     }
 }
 
 impl EventHandler for ConfigView {
-    fn process_event(&self, evt: &Event, state: &State) -> bool {
-        if state.render_view_select {
+    fn process_event(&self, evt: &Event, ctx: &CustomWidgetContext) -> bool {
+        if ctx.state.render_view_select {
             return false;
         }
 
@@ -420,7 +429,7 @@ impl EventHandler for ConfigView {
                         }
                         KeyCode::Enter => {
                             if *self.editing.borrow() {
-                                self.set_config(state);
+                                self.set_config(&ctx.state);
                                 self.reset_input_state();
                                 *self.focus.borrow_mut() = Focus::SSHUser;
                                 *self.editing.borrow_mut() = false;

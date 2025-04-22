@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Block, BorderType, Paragraph, Widget},
 };
 
-use crate::ui::{store::state::State, views::traits::CustomWidget};
+use crate::ui::views::traits::{CustomWidget, CustomWidgetContext};
 
 pub struct InfoFooter {
     content: String,
@@ -18,21 +18,21 @@ impl InfoFooter {
 }
 
 impl CustomWidget for InfoFooter {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State)
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, ctx: &CustomWidgetContext)
     where
         Self: Sized,
     {
         let info_footer = Paragraph::new(Line::from(self.content.as_str()))
             .style(
                 Style::new()
-                    .fg(state.colors.row_fg)
-                    .bg(state.colors.buffer_bg),
+                    .fg(ctx.state.colors.row_fg)
+                    .bg(ctx.state.colors.buffer_bg),
             )
             .centered()
             .block(
                 Block::bordered()
                     .border_type(BorderType::Double)
-                    .border_style(Style::new().fg(state.colors.border_color)),
+                    .border_style(Style::new().fg(ctx.state.colors.border_color)),
             );
 
         info_footer.render(area, buf)

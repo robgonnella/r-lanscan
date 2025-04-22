@@ -28,6 +28,11 @@ impl Reducer {
 
     pub fn reduce(&self, prev_state: State, action: Action) -> State {
         let new_state = match action {
+            Action::SetUIPaused(value) => {
+                let mut state = prev_state.clone();
+                state.ui_paused = value;
+                state
+            }
             Action::SetError(err) => {
                 let mut state = prev_state.clone();
                 state.error = err;
@@ -195,18 +200,6 @@ impl Reducer {
                 state.config = config;
                 state
             }
-            Action::ExecuteCommand(cmd) => {
-                let mut state = prev_state.clone();
-                state.execute_cmd = Some(cmd);
-                state.cmd_output = None;
-                state
-            }
-            Action::ClearCommand => {
-                let mut state = prev_state.clone();
-                state.execute_cmd = None;
-                state.cmd_output = None;
-                state
-            }
             Action::SetCommandInProgress(value) => {
                 let mut state = prev_state.clone();
                 state.cmd_in_progress = value;
@@ -214,7 +207,6 @@ impl Reducer {
             }
             Action::UpdateCommandOutput((cmd, output)) => {
                 let mut state = prev_state.clone();
-                state.execute_cmd = None;
                 state.cmd_output = Some((cmd, output));
                 state
             }

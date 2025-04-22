@@ -14,7 +14,7 @@ use crate::ui::{
     },
 };
 
-use super::traits::{CustomWidgetRef, EventHandler, View};
+use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 pub struct DevicesView {
     store: Arc<Store>,
@@ -91,10 +91,10 @@ impl DevicesView {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-        total_area: Rect,
+        ctx: &CustomWidgetContext,
     ) {
-        let items = state
+        let items = ctx
+            .state
             .devices
             .iter()
             .map(|d| {
@@ -117,9 +117,9 @@ impl DevicesView {
             .collect_vec();
         let selected = self.table.borrow_mut().update_items(items);
         if let Some(selected) = selected {
-            self.set_store_selected(selected, state);
+            self.set_store_selected(selected, &ctx.state);
         }
-        self.table.borrow().render_ref(area, buf, state, total_area);
+        self.table.borrow().render_ref(area, buf, ctx);
     }
 }
 
@@ -138,22 +138,21 @@ impl CustomWidgetRef for DevicesView {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-        total_area: Rect,
+        ctx: &CustomWidgetContext,
     ) {
         if let Some(selected_idx) = self.table.borrow().selected() {
-            self.set_store_selected(selected_idx, state);
+            self.set_store_selected(selected_idx, &ctx.state);
         }
 
         let view_rects = Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).split(area);
 
-        self.render_table(view_rects[1], buf, &state, total_area);
+        self.render_table(view_rects[1], buf, ctx);
     }
 }
 
 impl EventHandler for DevicesView {
-    fn process_event(&self, evt: &Event, state: &State) -> bool {
-        if state.render_view_select {
+    fn process_event(&self, evt: &Event, ctx: &CustomWidgetContext) -> bool {
+        if ctx.state.render_view_select {
             return false;
         }
 
@@ -177,7 +176,7 @@ impl EventHandler for DevicesView {
                             handled = true;
                         }
                         KeyCode::Enter => {
-                            self.handle_device_selection(state);
+                            self.handle_device_selection(&ctx.state);
                             handled = true;
                         }
                         _ => {}

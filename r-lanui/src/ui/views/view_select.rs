@@ -1,21 +1,14 @@
 use std::{cell::RefCell, sync::Arc};
 
 use itertools::Itertools;
-use ratatui::{
-    crossterm::event::{Event, KeyCode, KeyEventKind},
-    layout::Rect,
-};
+use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind};
 
 use crate::ui::{
     components::table::{self, Table},
-    store::{
-        action::Action,
-        state::{State, ViewID},
-        store::Store,
-    },
+    store::{action::Action, state::ViewID, store::Store},
 };
 
-use super::traits::{CustomWidgetRef, EventHandler, View};
+use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 pub struct ViewSelect {
     store: Arc<Store>,
@@ -80,8 +73,8 @@ impl View for ViewSelect {
 }
 
 impl EventHandler for ViewSelect {
-    fn process_event(&self, evt: &Event, state: &State) -> bool {
-        if !state.render_view_select {
+    fn process_event(&self, evt: &Event, ctx: &CustomWidgetContext) -> bool {
+        if !ctx.state.render_view_select {
             return false;
         }
 
@@ -100,7 +93,7 @@ impl EventHandler for ViewSelect {
                             handled = true;
                         }
                         KeyCode::Esc => {
-                            if state.render_view_select {
+                            if ctx.state.render_view_select {
                                 self.store.dispatch(Action::ToggleViewSelect);
                                 handled = true;
                             }
@@ -125,11 +118,8 @@ impl CustomWidgetRef for ViewSelect {
         &self,
         area: ratatui::prelude::Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-        total_area: Rect,
+        ctx: &CustomWidgetContext,
     ) {
-        self.table
-            .borrow()
-            .render_ref(area, buf, &state, total_area);
+        self.table.borrow().render_ref(area, buf, ctx);
     }
 }
