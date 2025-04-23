@@ -359,6 +359,3 @@ impl<'net> Scanner for SYNScanner<'net> {
         })
     }
 }
-
-unsafe impl<'net> Sync for SYNScanner<'net> {}
-unsafe impl<'net> Send for SYNScanner<'net> {}

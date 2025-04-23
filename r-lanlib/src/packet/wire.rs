@@ -1,9 +1,8 @@
+use pnet::datalink;
 use std::{
     error::Error,
     sync::{Arc, Mutex},
 };
-
-use pnet::datalink;
 
 use crate::{
     network::NetworkInterface,

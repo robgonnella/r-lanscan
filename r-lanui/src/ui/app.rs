@@ -32,8 +32,10 @@ use super::{
     },
 };
 
+type Backend = CrosstermBackend<Stdout>;
+
 pub struct App {
-    terminal: RefCell<Terminal<CrosstermBackend<Stdout>>>,
+    terminal: RefCell<Terminal<Backend>>,
     store: Arc<Store>,
     main_view: Box<dyn View>,
     event_loop_sender: Sender<Event>,
@@ -55,7 +57,7 @@ impl App {
     fn new(
         tx: Sender<Event>,
         rx: Receiver<Event>,
-        terminal: Terminal<CrosstermBackend<Stdout>>,
+        terminal: Terminal<Backend>,
         store: Arc<Store>,
     ) -> Self {
         Self {

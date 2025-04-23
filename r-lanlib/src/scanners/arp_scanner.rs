@@ -278,6 +278,3 @@ impl<'net> Scanner for ARPScanner<'net> {
         })
     }
 }
-
-unsafe impl<'net> Sync for ARPScanner<'net> {}
-unsafe impl<'net> Send for ARPScanner<'net> {}

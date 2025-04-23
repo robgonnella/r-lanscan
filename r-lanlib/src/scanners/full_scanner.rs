@@ -114,6 +114,3 @@ impl<'net> Scanner for FullScanner<'net> {
         syn.scan()
     }
 }
-
-unsafe impl<'net> Sync for FullScanner<'net> {}
-unsafe impl<'net> Send for FullScanner<'net> {}
