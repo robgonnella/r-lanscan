@@ -1,4 +1,3 @@
-use log::*;
 use std::{
     process::Command as ShellCommand,
     sync::{
@@ -29,6 +28,9 @@ impl EventManager {
     }
 
     pub fn start_event_loop(&self) -> Result<()> {
+        ctrlc::set_handler(move || println!("captured ctrl-c in event thread!"))
+            .expect("Error setting Ctrl-C handler");
+
         let rx = Arc::clone(&self.rx);
 
         loop {
@@ -68,7 +70,6 @@ impl EventManager {
                         }
                     }
                 }
-                info!("starting ssh to {}", device.ip);
                 let mut handle = ShellCommand::new("ssh")
                     .arg("-i")
                     .arg(device_config.ssh_identity_file)
@@ -78,7 +79,6 @@ impl EventManager {
                     .spawn()
                     .wrap_err("failed to start ssh command")?;
                 handle.wait().wrap_err("command failed")?;
-                debug!("restarting terminal");
                 self.tx.send(Event::ResumeUI)?;
             }
             AppCommand::TRACEROUTE(device) => {
@@ -95,7 +95,7 @@ impl EventManager {
                 }
             }
             AppCommand::BROWSE(device, port) => {
-                let _ = self.tx.send(Event::PauseUI);
+                self.tx.send(Event::PauseUI)?;
                 loop {
                     if let Ok(evt) = rx.recv() {
                         if evt == Event::UIPaused {
@@ -103,13 +103,12 @@ impl EventManager {
                         }
                     }
                 }
-                info!("starting browser for {}:{}", device.ip, port);
                 let mut handle = ShellCommand::new("lynx")
                     .arg(format!("{}:{}", device.ip, port))
                     .spawn()
                     .wrap_err("failed to start lynx browser")?;
                 handle.wait().wrap_err("shell command failed")?;
-                let _ = self.tx.send(Event::ResumeUI);
+                self.tx.send(Event::ResumeUI)?;
             }
         }
 
