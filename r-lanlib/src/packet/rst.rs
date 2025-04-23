@@ -10,9 +10,9 @@ const PKT_IP4_SIZE: usize = ipv4::Ipv4Packet::minimum_packet_size();
 const PKT_TCP_SIZE: usize = tcp::TcpPacket::minimum_packet_size();
 const PKT_TOTAL_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 
-pub struct SYNPacket {}
+pub struct RSTPacket {}
 
-impl SYNPacket {
+impl RSTPacket {
     pub fn new(
         source_mac: util::MacAddr,
         source_ipv4: net::Ipv4Addr,
@@ -20,6 +20,7 @@ impl SYNPacket {
         dest_ipv4: net::Ipv4Addr,
         dest_mac: util::MacAddr,
         dest_port: u16,
+        sequence_number: u32,
     ) -> [u8; PKT_TOTAL_SIZE] {
         let mut pkt_buf = [0u8; PKT_TOTAL_SIZE];
 
@@ -53,9 +54,9 @@ impl SYNPacket {
 
         tcp_header.set_source(source_port);
         tcp_header.set_destination(dest_port);
-        tcp_header.set_flags(tcp::TcpFlags::SYN);
+        tcp_header.set_flags(tcp::TcpFlags::RST);
         tcp_header.set_data_offset(5);
-        tcp_header.set_sequence(0);
+        tcp_header.set_sequence(sequence_number);
         tcp_header.set_checksum(tcp::ipv4_checksum(
             &tcp_header.to_immutable(),
             &source_ipv4,
@@ -79,20 +80,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn creates_syn_packet() {
+    fn creates_rst_packet() {
         let source_ip = net::Ipv4Addr::from_str("192.168.68.1").unwrap();
         let source_mac = MacAddr::from_str("00:00:00:00:00:00").unwrap();
         let source_port: u16 = 54321;
         let target_ip = net::Ipv4Addr::from_str("192.168.68.2").unwrap();
         let target_mac = MacAddr::from_str("00:00:00:00:00:01").unwrap();
         let target_port: u16 = 22;
-        let packet = SYNPacket::new(
+        let packet = RSTPacket::new(
             source_mac,
             source_ip,
             source_port,
             target_ip,
             target_mac,
             target_port,
+            1,
         );
         assert!(!packet.is_empty());
     }
