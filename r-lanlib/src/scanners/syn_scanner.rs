@@ -14,7 +14,7 @@ use std::{
 
 use crate::{
     network::NetworkInterface,
-    packet::{self, syn::SYNPacket, Reader, Sender},
+    packet::{self, rst::RSTPacket, syn::SYNPacket, Reader, Sender},
     scanners::{heartbeat::HeartBeat, ScanError, Scanning},
     targets::ports::PortTargets,
 };
@@ -62,7 +62,8 @@ impl<'net> SYNScanner<'net> {
     // receive packets simultaneously
     fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
         let packet_reader = Arc::clone(&self.packet_reader);
-        let packet_sender = Arc::clone(&self.packet_sender);
+        let heartbeat_packet_sender = Arc::clone(&self.packet_sender);
+        let rst_packet_sender = Arc::clone(&self.packet_sender);
         let devices = self.targets.to_owned();
         let notifier = self.notifier.clone();
         let source_ipv4 = self.interface.ipv4;
@@ -77,7 +78,12 @@ impl<'net> SYNScanner<'net> {
         // check for "done" signals
         thread::spawn(move || {
             debug!("starting syn heartbeat thread");
-            let heartbeat = HeartBeat::new(source_mac, source_ipv4, source_port, packet_sender);
+            let heartbeat = HeartBeat::new(
+                source_mac,
+                source_ipv4,
+                source_port,
+                heartbeat_packet_sender,
+            );
             let interval = Duration::from_secs(1);
             loop {
                 if let Ok(_) = heartbeat_rx.try_recv() {
@@ -132,7 +138,7 @@ impl<'net> SYNScanner<'net> {
 
                 let header = header.unwrap();
 
-                let source = net::IpAddr::V4(header.get_source());
+                let device_ip = net::IpAddr::V4(header.get_source());
                 let protocol = header.get_next_level_protocol();
                 let payload = header.payload();
 
@@ -151,6 +157,7 @@ impl<'net> SYNScanner<'net> {
                 let destination_port = tcp_packet.get_destination();
                 let matches_destination = destination_port == source_port;
                 let flags: u8 = tcp_packet.get_flags();
+                let sequence = tcp_packet.get_sequence();
                 let is_syn_ack = flags == tcp::TcpFlags::SYN + tcp::TcpFlags::ACK;
                 let is_expected_packet = matches_destination && is_syn_ack;
 
@@ -158,7 +165,7 @@ impl<'net> SYNScanner<'net> {
                     continue;
                 }
 
-                let device = devices.iter().find(|&d| d.ip == source.to_string());
+                let device = devices.iter().find(|&d| d.ip == device_ip.to_string());
 
                 if device.is_none() {
                     continue;
@@ -173,6 +180,37 @@ impl<'net> SYNScanner<'net> {
                 }
 
                 let port = port.unwrap();
+
+                // send rst packet to prevent SYN Flooding
+                // https://en.wikipedia.org/wiki/SYN_flood
+                // https://security.stackexchange.com/questions/128196/whats-the-advantage-of-sending-an-rst-packet-after-getting-a-response-in-a-syn
+                let rst_packet = RSTPacket::new(
+                    source_mac,
+                    source_ipv4,
+                    source_port,
+                    net::Ipv4Addr::from_str(device.ip.as_str()).unwrap(),
+                    util::MacAddr::from_str(device.mac.as_str()).unwrap(),
+                    port,
+                    sequence + 1,
+                );
+
+                let mut rst_sender = rst_packet_sender.lock().or_else(|e| {
+                    Err(ScanError {
+                        ip: None,
+                        port: None,
+                        error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
+                    })
+                })?;
+
+                debug!("sending RST packet to {}:{}", device.ip, port);
+
+                rst_sender.send(&rst_packet).or_else(|e| {
+                    Err(ScanError {
+                        ip: Some(device.ip.clone()),
+                        port: Some(port.to_string()),
+                        error: Box::from(e),
+                    })
+                })?;
 
                 notifier
                     .send(ScanMessage::SYNScanResult(SYNScanResult {
