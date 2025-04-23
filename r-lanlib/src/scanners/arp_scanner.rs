@@ -278,3 +278,58 @@ impl<'net> Scanner for ARPScanner<'net> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mockall::mock;
+    use mockall::predicate::*;
+    use std::sync::mpsc::channel;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use crate::network;
+    use crate::packet;
+
+    mock! {
+        ARPSender {}
+
+        impl packet::Sender for ARPSender {
+            fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
+        }
+    }
+
+    mock! {
+        ARPReceiver {}
+        impl packet::Reader for ARPReceiver {
+            fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
+        }
+    }
+
+    #[test]
+    fn test_new() {
+        let interface = network::get_default_interface().unwrap();
+        let sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(MockARPSender::new()));
+        let receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(MockARPReceiver::new()));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]);
+        let (tx, _) = channel();
+
+        let scanner = ARPScanner::new(
+            &interface,
+            receiver,
+            sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        assert!(scanner.include_host_names);
+        assert!(scanner.include_vendor);
+        assert_eq!(scanner.idle_timeout, idle_timeout);
+        assert_eq!(scanner.source_port, 54321);
+    }
+}

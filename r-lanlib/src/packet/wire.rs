@@ -72,9 +72,9 @@ pub fn default(
 
 #[cfg(test)]
 mod tests {
-    use datalink::MacAddr;
     use mockall::mock;
-    use std::{net::Ipv4Addr, str::FromStr};
+
+    use crate::network;
 
     use super::*;
 
@@ -85,26 +85,11 @@ mod tests {
         impl Reader for PacketReader {
             fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
         }
-        unsafe impl Send for PacketReader {}
-        unsafe impl Sync for PacketReader {}
-    }
-
-    fn get_default_interface() -> NetworkInterface {
-        NetworkInterface {
-            cidr: "172.17.0.1/24".to_string(),
-            description: "description".to_string(),
-            flags: 0,
-            index: 1,
-            ips: Vec::new(),
-            ipv4: Ipv4Addr::from_str("172.17.0.1").unwrap(),
-            mac: MacAddr::from_str("00:00:00:00:00:00").unwrap(),
-            name: "en0".to_string(),
-        }
     }
 
     #[test]
     fn creates_default_wire() {
-        let interface = get_default_interface();
+        let interface = network::get_default_interface().unwrap();
         let wire = default(&interface);
         assert!(wire.is_ok())
     }

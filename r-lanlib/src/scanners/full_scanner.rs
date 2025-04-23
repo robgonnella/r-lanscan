@@ -114,3 +114,62 @@ impl<'net> Scanner for FullScanner<'net> {
         syn.scan()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mockall::mock;
+    use mockall::predicate::*;
+    use std::sync::mpsc::channel;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use crate::network;
+    use crate::packet;
+
+    mock! {
+        PacketSender {}
+
+        impl packet::Sender for PacketSender {
+            fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
+        }
+    }
+
+    mock! {
+        PacketReceiver {}
+
+        impl packet::Reader for PacketReceiver {
+            fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
+        }
+    }
+
+    #[test]
+    fn test_new() {
+        let interface = network::get_default_interface().unwrap();
+        let sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(MockPacketSender::new()));
+        let receiver: Arc<Mutex<dyn packet::Reader>> =
+            Arc::new(Mutex::new(MockPacketReceiver::new()));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]);
+        let ports = PortTargets::new(vec!["2000-8000".to_string()]);
+        let (tx, _) = channel();
+
+        let scanner = FullScanner::new(
+            &interface,
+            receiver,
+            sender,
+            targets,
+            ports,
+            true,
+            true,
+            idle_timeout,
+            tx,
+            54321,
+        );
+
+        assert!(scanner.host);
+        assert!(scanner.vendor);
+        assert_eq!(scanner.idle_timeout, idle_timeout);
+        assert_eq!(scanner.source_port, 54321);
+    }
+}

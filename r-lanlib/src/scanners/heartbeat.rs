@@ -41,3 +41,44 @@ impl HeartBeat {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mockall::mock;
+    use mockall::predicate::*;
+    use std::str::FromStr;
+    use std::sync::Arc;
+
+    use crate::packet;
+
+    mock! {
+        PacketSender {}
+
+        impl packet::Sender for PacketSender {
+            fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
+        }
+    }
+
+    mock! {
+        PacketReceiver {}
+
+        impl packet::Reader for PacketReceiver {
+            fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
+        }
+    }
+
+    #[test]
+    fn test_new() {
+        let source_ip = Ipv4Addr::from_str("192.168.1.1").unwrap();
+        let source_mac = MacAddr::default();
+        let source_port = 54321;
+        let sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(MockPacketSender::new()));
+
+        let heart_beat = HeartBeat::new(source_mac, source_ip, source_port, sender);
+
+        assert_eq!(heart_beat.source_mac, source_mac);
+        assert_eq!(heart_beat.source_ipv4, source_ip);
+        assert_eq!(heart_beat.source_port, source_port);
+    }
+}
