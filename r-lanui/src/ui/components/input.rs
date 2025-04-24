@@ -1,9 +1,11 @@
 use ratatui::{
     layout::Rect,
-    style::{palette::tailwind, Style},
+    style::Style,
     text::{Line, Span},
-    widgets::{StatefulWidget, Widget},
+    widgets::Widget,
 };
+
+use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext};
 
 #[derive(Debug, Clone)]
 pub struct InputState {
@@ -23,17 +25,22 @@ impl Input {
     }
 }
 
-impl StatefulWidget for Input {
+impl CustomStatefulWidget for Input {
     type State = InputState;
 
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &mut Self::State)
-    where
+    fn render(
+        self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &mut Self::State,
+        ctx: &CustomWidgetContext,
+    ) where
         Self: Sized,
     {
         let label = Span::from(format!("{0}: ", self.label));
         let mut style = Style::default();
         if state.editing {
-            style = style.fg(tailwind::AMBER.c600);
+            style = style.fg(ctx.state.colors.input_editing);
         }
         let value = Span::from(state.value.as_str()).style(style);
         let line = Line::from(vec![label, value]);

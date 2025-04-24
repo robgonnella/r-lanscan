@@ -3,12 +3,15 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::config::{ConfigManager, DEFAULT_CONFIG_ID};
+use crate::{
+    config::{ConfigManager, DEFAULT_CONFIG_ID},
+    ui::colors::Theme,
+};
 
 use super::{
     action::Action,
     reducer::Reducer,
-    state::{Colors, State, Theme, ViewID},
+    state::{State, ViewID},
 };
 
 /**
@@ -28,7 +31,7 @@ impl Store {
             .unwrap();
 
         let theme = Theme::from_string(&config.theme);
-        let colors = Colors::new(theme.to_palette());
+        let colors = crate::ui::colors::Colors::new(theme.to_palette());
 
         Self {
             reducer: Reducer::new(config_manager),

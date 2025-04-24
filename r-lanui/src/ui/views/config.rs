@@ -1,4 +1,5 @@
 use crate::ui::{
+    colors::Theme,
     components::{
         field::Field,
         header::Header,
@@ -6,7 +7,7 @@ use crate::ui::{
     },
     store::{
         action::Action,
-        state::{State, Theme, ViewID},
+        state::{State, ViewID},
         store::Store,
     },
 };
@@ -14,11 +15,13 @@ use itertools::Itertools;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    widgets::{StatefulWidget, Widget},
+    widgets::Widget,
 };
 use std::{cell::RefCell, sync::Arc};
 
-use super::traits::{CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View};
+use super::traits::{
+    CustomStatefulWidget, CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View,
+};
 
 const THEMES: [Theme; 4] = [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
 
@@ -291,12 +294,23 @@ impl ConfigView {
         *self.focus.borrow_mut() = next_focus;
     }
 
-    fn render_ports(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+    fn render_ports(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
         let port_list = Input::new("Scanning Ports");
-        port_list.render(area, buf, &mut self.scan_ports_state.borrow_mut());
+        port_list.render(area, buf, &mut self.scan_ports_state.borrow_mut(), ctx);
     }
 
-    fn render_ssh(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+    fn render_ssh(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+        ctx: &CustomWidgetContext,
+    ) {
         let rects = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1), // spacer
@@ -318,14 +332,24 @@ impl ConfigView {
         let ssh_port = Input::new("Default SSH Port");
         let ssh_ident = Input::new("Default SSH Identity");
 
-        ssh_user.render(rects[0], buf, &mut self.ssh_user_state.borrow_mut());
-        ssh_port.render(rects[2], buf, &mut self.ssh_port_state.borrow_mut());
-        ssh_ident.render(rects[4], buf, &mut self.ssh_identity_state.borrow_mut());
+        ssh_user.render(rects[0], buf, &mut self.ssh_user_state.borrow_mut(), ctx);
+        ssh_port.render(rects[2], buf, &mut self.ssh_port_state.borrow_mut(), ctx);
+        ssh_ident.render(
+            rects[4],
+            buf,
+            &mut self.ssh_identity_state.borrow_mut(),
+            ctx,
+        );
     }
 
-    fn render_theme(&self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+    fn render_theme(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
         let input = Input::new("Theme <->");
-        input.render(area, buf, &mut self.theme_state.borrow_mut());
+        input.render(area, buf, &mut self.theme_state.borrow_mut(), ctx);
     }
 }
 
@@ -373,9 +397,9 @@ impl CustomWidgetRef for ConfigView {
 
         self.render_label(label_rects[0], buf, ctx);
         self.render_network(view_rects[2], buf, ctx);
-        self.render_ssh(view_rects[4], buf, &ctx.state);
-        self.render_theme(view_rects[6], buf);
-        self.render_ports(view_rects[8], buf);
+        self.render_ssh(view_rects[4], buf, &ctx.state, ctx);
+        self.render_theme(view_rects[6], buf, ctx);
+        self.render_ports(view_rects[8], buf, ctx);
     }
 }
 

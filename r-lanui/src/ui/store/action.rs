@@ -4,10 +4,10 @@ use r_lanlib::scanners::DeviceWithPorts;
 
 use crate::{
     config::{Config, DeviceConfig},
-    ui::events::types::Command,
+    ui::{colors::Theme, events::types::Command},
 };
 
-use super::state::{Theme, ViewID};
+use super::state::ViewID;
 
 #[derive(Debug)]
 pub enum Action {

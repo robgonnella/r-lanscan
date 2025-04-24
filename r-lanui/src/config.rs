@@ -2,7 +2,7 @@ use std::{collections::HashMap, env};
 
 use serde::{Deserialize, Serialize};
 
-use crate::ui::store::state::Theme;
+use crate::ui::colors::Theme;
 
 pub const DEFAULT_CONFIG_ID: &str = "default";
 pub const DEFAULT_PORTS_STR: &str = "22,80,443,2000-9999";
