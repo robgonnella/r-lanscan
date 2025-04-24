@@ -8,12 +8,12 @@ use std::{
 use itertools::Itertools;
 use r_lanlib::scanners::{Device, DeviceWithPorts};
 
-use crate::config::{ConfigManager, DeviceConfig};
-
-use super::{
-    action::Action,
-    state::{Colors, State, Theme},
+use crate::{
+    config::{ConfigManager, DeviceConfig},
+    ui::colors::{Colors, Theme},
 };
+
+use super::{action::Action, state::State};
 
 const MAX_ARP_MISS: i8 = 3;
 

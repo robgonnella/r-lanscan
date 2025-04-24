@@ -19,11 +19,13 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::Style,
     text::{Line, Span},
-    widgets::{Block, BorderType, Clear, Padding, Paragraph, StatefulWidget, Widget, Wrap},
+    widgets::{Block, BorderType, Clear, Padding, Paragraph, Widget, Wrap},
 };
 use std::{cell::RefCell, sync::Arc};
 
-use super::traits::{CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View};
+use super::traits::{
+    CustomStatefulWidget, CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View,
+};
 
 #[derive(Debug, Clone)]
 enum Focus {
@@ -100,9 +102,14 @@ impl DeviceView {
         let ssh_identity_input = Input::new("SSH Identity");
 
         header.render(rects[0], buf, ctx);
-        ssh_user_input.render(rects[2], buf, &mut self.ssh_user_state.borrow_mut());
-        ssh_port_input.render(rects[4], buf, &mut self.ssh_port_state.borrow_mut());
-        ssh_identity_input.render(rects[6], buf, &mut self.ssh_identity_state.borrow_mut());
+        ssh_user_input.render(rects[2], buf, &mut self.ssh_user_state.borrow_mut(), ctx);
+        ssh_port_input.render(rects[4], buf, &mut self.ssh_port_state.borrow_mut(), ctx);
+        ssh_identity_input.render(
+            rects[6],
+            buf,
+            &mut self.ssh_identity_state.borrow_mut(),
+            ctx,
+        );
     }
 
     fn render_device_info(
@@ -244,7 +251,12 @@ impl DeviceView {
             Clear.render(area, buf);
             block.render(area, buf);
             header.render(header_area, buf, ctx);
-            input.render(port_area, buf, &mut self.browser_port_state.borrow_mut());
+            input.render(
+                port_area,
+                buf,
+                &mut self.browser_port_state.borrow_mut(),
+                ctx,
+            );
             message.render(message_area, buf);
         }
     }

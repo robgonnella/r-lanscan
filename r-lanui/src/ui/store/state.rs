@@ -2,11 +2,10 @@ use core::fmt;
 use std::{collections::HashMap, process::Output};
 
 use r_lanlib::scanners::{Device, DeviceWithPorts};
-use ratatui::style::{palette::tailwind, Color};
 
 use crate::{
     config::{Config, DeviceConfig},
-    ui::events::types::Command,
+    ui::{colors::Colors, events::types::Command},
 };
 
 pub type MissedCount = i8;
@@ -26,35 +25,6 @@ impl fmt::Display for ViewID {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Colors {
-    pub buffer_bg: Color,
-    pub header_bg: Color,
-    pub header_fg: Color,
-    pub selected_row_fg: Color,
-    pub row_fg: Color,
-    pub row_bg: Color,
-    pub border_color: Color,
-    pub scroll_bar_fg: Color,
-    pub label: Color,
-}
-
-impl Colors {
-    pub fn new(color: &tailwind::Palette) -> Self {
-        Self {
-            buffer_bg: tailwind::SLATE.c950,
-            header_bg: color.c900,
-            header_fg: tailwind::SLATE.c200,
-            selected_row_fg: color.c400,
-            row_fg: tailwind::SLATE.c200,
-            row_bg: tailwind::SLATE.c950,
-            border_color: color.c400,
-            scroll_bar_fg: tailwind::SLATE.c800,
-            label: color.c400,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct State {
     pub ui_paused: bool,
@@ -71,42 +41,4 @@ pub struct State {
     pub message: Option<String>,
     pub cmd_in_progress: Option<Command>,
     pub cmd_output: Option<(Command, Output)>,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum Theme {
-    Blue,
-    Emerald,
-    Indigo,
-    Red,
-}
-
-impl Theme {
-    pub fn from_string(value: &String) -> Theme {
-        match value.as_str() {
-            "Blue" => Theme::Blue,
-            "Emerald" => Theme::Emerald,
-            "Indigo" => Theme::Indigo,
-            "Red" => Theme::Red,
-            _ => Theme::Blue,
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        match self {
-            Theme::Blue => "Blue".to_string(),
-            Theme::Emerald => "Emerald".to_string(),
-            Theme::Indigo => "Indigo".to_string(),
-            Theme::Red => "Red".to_string(),
-        }
-    }
-
-    pub fn to_palette(&self) -> &'static tailwind::Palette {
-        match self {
-            Theme::Blue => &tailwind::BLUE,
-            Theme::Emerald => &tailwind::EMERALD,
-            Theme::Indigo => &tailwind::INDIGO,
-            Theme::Red => &tailwind::RED,
-        }
-    }
 }
