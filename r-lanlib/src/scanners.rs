@@ -10,17 +10,10 @@ use std::thread::JoinHandle;
 
 pub const IDLE_TIMEOUT: u16 = 10000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PortStatus {
-    Closed,
-    Open,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Port {
     pub id: u16,
     pub service: String,
-    pub status: PortStatus,
 }
 
 // ARP Result from a single device
