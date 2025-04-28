@@ -72,20 +72,14 @@ pub fn default(
 
 #[cfg(test)]
 mod tests {
-    use mockall::mock;
-
-    use crate::network;
+    use crate::{
+        network,
+        packet::{MockPacketReader, MockPacketSender},
+    };
 
     use super::*;
 
     const SINGLE_BYTE: [u8; 1] = [1];
-
-    mock! {
-        PacketReader {}
-        impl Reader for PacketReader {
-            fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
-        }
-    }
 
     #[test]
     fn creates_default_wire() {
@@ -101,5 +95,16 @@ mod tests {
         let result = mock.next_packet();
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), &SINGLE_BYTE);
+    }
+
+    #[test]
+    fn send_packet() {
+        static PACKET: [u8; 1] = [1];
+        let mut mock = MockPacketSender::new();
+        mock.expect_send()
+            .withf(|p| *p == PACKET)
+            .returning(|_| Ok(()));
+        let result = mock.send(&PACKET);
+        assert!(result.is_ok())
     }
 }

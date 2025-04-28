@@ -282,35 +282,21 @@ impl<'net> Scanner for ARPScanner<'net> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockall::mock;
-    use mockall::predicate::*;
+    use pnet::util;
+    use std::str::FromStr;
     use std::sync::mpsc::channel;
     use std::sync::Arc;
     use std::time::Duration;
 
-    use crate::network;
-    use crate::packet;
-
-    mock! {
-        ARPSender {}
-
-        impl packet::Sender for ARPSender {
-            fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
-        }
-    }
-
-    mock! {
-        ARPReceiver {}
-        impl packet::Reader for ARPReceiver {
-            fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
-        }
-    }
+    use crate::packet::{self, arp::create_arp_reply, MockPacketReader};
+    use crate::{network, packet::MockPacketSender};
 
     #[test]
     fn test_new() {
         let interface = network::get_default_interface().unwrap();
-        let sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(MockARPSender::new()));
-        let receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(MockARPReceiver::new()));
+        let sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(MockPacketSender::new()));
+        let receiver: Arc<Mutex<dyn packet::Reader>> =
+            Arc::new(Mutex::new(MockPacketReader::new()));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]);
         let (tx, _) = channel();
@@ -331,5 +317,52 @@ mod tests {
         assert!(scanner.include_vendor);
         assert_eq!(scanner.idle_timeout, idle_timeout);
         assert_eq!(scanner.source_port, 54321);
+    }
+
+    #[test]
+    fn test_sends_and_read_packets() {
+        let interface = network::get_default_interface().unwrap();
+        let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
+        let device_mac = util::MacAddr::default();
+        let packet = create_arp_reply(device_mac, device_ip, interface.mac, interface.ipv4);
+
+        let mut receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        receiver.expect_next_packet().returning(|| Ok(packet));
+        sender.expect_send().returning(|_| Ok(()));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+        let (tx, rx) = channel();
+
+        let scanner = ARPScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        let handle = scanner.scan();
+
+        if let Ok(msg) = rx.recv() {
+            match msg {
+                ScanMessage::ARPScanResult(device) => {
+                    assert_eq!(device.mac.to_string(), device_mac.to_string());
+                    assert_eq!(device.ip.to_string(), device_ip.to_string());
+                }
+                _ => {}
+            }
+        }
+
+        let result = handle.join().unwrap().unwrap();
+        assert_eq!(result, ());
     }
 }

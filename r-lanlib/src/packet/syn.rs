@@ -70,6 +70,63 @@ impl SYNPacket {
 }
 
 #[cfg(test)]
+#[allow(warnings)]
+pub fn create_syn_reply(
+    from_mac: util::MacAddr,
+    from_ip: net::Ipv4Addr,
+    from_port: u16,
+    to_mac: util::MacAddr,
+    to_ip: net::Ipv4Addr,
+    to_port: u16,
+) -> &'static [u8; PKT_TOTAL_SIZE] {
+    static mut PACKET: [u8; PKT_TOTAL_SIZE] = [0u8; PKT_TOTAL_SIZE];
+
+    let mut eth_header = ethernet::MutableEthernetPacket::new(unsafe { &mut PACKET })
+        .expect("failed to generate ethernet header");
+    eth_header.set_ethertype(ethernet::EtherTypes::Ipv4);
+    eth_header.set_source(from_mac);
+    eth_header.set_destination(to_mac);
+
+    // set ip header
+    let mut ip_buffer = [0u8; PKT_IP4_SIZE + PKT_TCP_SIZE];
+
+    let mut ip_header =
+        ipv4::MutableIpv4Packet::new(&mut ip_buffer).expect("failed to generate ip header");
+
+    ip_header.set_next_level_protocol(ip::IpNextHeaderProtocols::Tcp);
+    ip_header.set_source(from_ip);
+    ip_header.set_destination(to_ip);
+    ip_header.set_version(4);
+    ip_header.set_ttl(64);
+    ip_header.set_identification(0);
+    ip_header.set_header_length(5);
+    ip_header.set_total_length(40);
+    ip_header.set_checksum(ipv4::checksum(&ip_header.to_immutable()));
+
+    // set tcp header
+    let mut tcp_buffer = [0u8; PKT_TCP_SIZE];
+
+    let mut tcp_header =
+        tcp::MutableTcpPacket::new(&mut tcp_buffer).expect("failed to generate tcp header");
+
+    tcp_header.set_source(from_port);
+    tcp_header.set_destination(to_port);
+    tcp_header.set_flags(tcp::TcpFlags::SYN | tcp::TcpFlags::ACK);
+    tcp_header.set_data_offset(5);
+    tcp_header.set_sequence(11111);
+    tcp_header.set_checksum(tcp::ipv4_checksum(
+        &tcp_header.to_immutable(),
+        &from_ip,
+        &to_ip,
+    ));
+
+    ip_header.set_payload(tcp_header.packet_mut());
+    eth_header.set_payload(ip_header.packet_mut());
+
+    unsafe { &PACKET }
+}
+
+#[cfg(test)]
 mod tests {
 
     use std::str::FromStr;

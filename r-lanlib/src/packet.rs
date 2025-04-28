@@ -1,5 +1,5 @@
 #[cfg(test)]
-use mockall::{automock, predicate::*};
+use mockall::{mock, predicate::*};
 
 use core::time;
 
@@ -16,7 +16,22 @@ pub trait Reader: Send + Sync {
     fn next_packet(&mut self) -> Result<&[u8], std::io::Error>;
 }
 
-#[cfg_attr(test, automock)]
+#[cfg(test)]
+mock! {
+    pub PacketReader {}
+    impl Reader for PacketReader {
+        fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
+    }
+}
+
 pub trait Sender: Send + Sync {
     fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
+}
+
+#[cfg(test)]
+mock! {
+    pub PacketSender {}
+    impl Sender for PacketSender {
+        fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
+    }
 }
