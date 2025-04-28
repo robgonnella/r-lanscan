@@ -119,6 +119,7 @@ impl<'net> Scanner for FullScanner<'net> {
 mod tests {
     use super::*;
     use pnet::util;
+    use std::collections::HashSet;
     use std::net;
     use std::str::FromStr;
     use std::sync::mpsc::channel;
@@ -129,6 +130,7 @@ mod tests {
     use crate::packet::arp::create_arp_reply;
     use crate::packet::syn::create_syn_reply;
     use crate::packet::{MockPacketReader, MockPacketSender, Reader, Sender};
+    use crate::scanners::{DeviceWithPorts, Port};
 
     #[test]
     fn test_new() {
@@ -222,21 +224,45 @@ mod tests {
 
         let handle = scanner.scan();
 
-        if let Ok(msg) = rx.recv() {
-            match msg {
-                ScanMessage::SYNScanResult(d) => {
-                    assert_eq!(d.device.hostname, device.hostname);
-                    assert_eq!(d.device.ip, device.ip);
-                    assert_eq!(d.device.mac, device.mac);
-                    assert_eq!(d.device.vendor, device.vendor);
-                    assert_eq!(d.device.is_current_host, device.is_current_host);
-                    assert_eq!(d.open_port.id, device_port);
+        let mut detected_device = DeviceWithPorts {
+            hostname: "".to_string(),
+            ip: "".to_string(),
+            is_current_host: false,
+            mac: "".to_string(),
+            vendor: "".to_string(),
+            open_ports: HashSet::new(),
+        };
+
+        let expected_open_port = Port {
+            id: device_port,
+            service: "".to_string(),
+        };
+
+        loop {
+            if let Ok(msg) = rx.recv() {
+                match msg {
+                    ScanMessage::Done(_) => break,
+                    ScanMessage::SYNScanResult(d) => {
+                        detected_device.hostname = d.device.hostname;
+                        detected_device.ip = d.device.ip;
+                        detected_device.mac = d.device.mac;
+                        detected_device.vendor = d.device.vendor;
+                        detected_device.is_current_host = d.device.is_current_host;
+                        detected_device.open_ports.insert(d.open_port);
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
 
         let result = handle.join().unwrap().unwrap();
+
         assert_eq!(result, ());
+        assert_eq!(detected_device.hostname, device.hostname);
+        assert_eq!(detected_device.ip, device.ip);
+        assert_eq!(detected_device.mac, device.mac);
+        assert_eq!(detected_device.vendor, device.vendor);
+        assert_eq!(detected_device.is_current_host, device.is_current_host);
+        assert!(detected_device.open_ports.contains(&expected_open_port));
     }
 }

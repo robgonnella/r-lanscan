@@ -352,17 +352,31 @@ mod tests {
 
         let handle = scanner.scan();
 
-        if let Ok(msg) = rx.recv() {
-            match msg {
-                ScanMessage::ARPScanResult(device) => {
-                    assert_eq!(device.mac.to_string(), device_mac.to_string());
-                    assert_eq!(device.ip.to_string(), device_ip.to_string());
+        let mut detected_device = Device {
+            hostname: "".to_string(),
+            ip: "".to_string(),
+            is_current_host: false,
+            mac: "".to_string(),
+            vendor: "".to_string(),
+        };
+
+        loop {
+            if let Ok(msg) = rx.recv() {
+                match msg {
+                    ScanMessage::Done(_) => {
+                        break;
+                    }
+                    ScanMessage::ARPScanResult(device) => {
+                        detected_device = device;
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
 
         let result = handle.join().unwrap().unwrap();
         assert_eq!(result, ());
+        assert_eq!(detected_device.mac.to_string(), device_mac.to_string());
+        assert_eq!(detected_device.ip.to_string(), device_ip.to_string());
     }
 }
