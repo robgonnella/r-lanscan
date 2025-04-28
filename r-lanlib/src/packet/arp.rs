@@ -49,6 +49,43 @@ impl ARPPacket {
 }
 
 #[cfg(test)]
+#[allow(warnings)]
+pub fn create_arp_reply(
+    from_mac: util::MacAddr,
+    from_ip: net::Ipv4Addr,
+    to_mac: util::MacAddr,
+    to_ip: net::Ipv4Addr,
+) -> &'static [u8; PKT_TOTAL_SIZE] {
+    static mut PACKET: [u8; PKT_TOTAL_SIZE] = [0u8; PKT_TOTAL_SIZE];
+
+    let mut pkt_eth = ethernet::MutableEthernetPacket::new(unsafe { &mut PACKET })
+        .expect("failed to generate ethernet packet");
+
+    let mut arp_buffer = [0u8; PKT_ARP_SIZE];
+
+    let mut pkt_arp =
+        arp::MutableArpPacket::new(&mut arp_buffer).expect("failed to generate arp packet");
+
+    pkt_eth.set_destination(to_mac);
+    pkt_eth.set_source(from_mac);
+    pkt_eth.set_ethertype(ethernet::EtherTypes::Arp);
+
+    pkt_arp.set_hardware_type(arp::ArpHardwareTypes::Ethernet);
+    pkt_arp.set_protocol_type(ethernet::EtherTypes::Ipv4);
+    pkt_arp.set_hw_addr_len(6);
+    pkt_arp.set_proto_addr_len(4);
+    pkt_arp.set_operation(arp::ArpOperations::Reply);
+    pkt_arp.set_sender_hw_addr(from_mac);
+    pkt_arp.set_sender_proto_addr(from_ip);
+    pkt_arp.set_target_hw_addr(to_mac);
+    pkt_arp.set_target_proto_addr(to_ip);
+
+    pkt_eth.set_payload(pkt_arp.packet_mut());
+
+    unsafe { &PACKET }
+}
+
+#[cfg(test)]
 mod tests {
 
     use std::str::FromStr;

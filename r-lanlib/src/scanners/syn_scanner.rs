@@ -362,37 +362,22 @@ impl<'net> Scanner for SYNScanner<'net> {
 
 #[cfg(test)]
 mod tests {
+    use packet::syn::create_syn_reply;
+
     use super::*;
-    use mockall::mock;
-    use mockall::predicate::*;
     use std::sync::mpsc::channel;
     use std::sync::Arc;
     use std::time::Duration;
 
     use crate::network;
-    use crate::packet;
-
-    mock! {
-        SYNSender {}
-
-        impl packet::Sender for SYNSender {
-            fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error>;
-        }
-    }
-
-    mock! {
-        SYNReceiver {}
-
-        impl packet::Reader for SYNReceiver {
-            fn next_packet(&mut self) -> Result<&'static [u8], std::io::Error>;
-        }
-    }
+    use crate::packet::{MockPacketReader, MockPacketSender};
 
     #[test]
     fn test_new() {
         let interface = network::get_default_interface().unwrap();
-        let sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(MockSYNSender::new()));
-        let receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(MockSYNReceiver::new()));
+        let sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(MockPacketSender::new()));
+        let receiver: Arc<Mutex<dyn packet::Reader>> =
+            Arc::new(Mutex::new(MockPacketReader::new()));
         let idle_timeout = Duration::from_secs(2);
         let devices: Vec<Device> = Vec::new();
         let ports = PortTargets::new(vec!["2000-8000".to_string()]);
@@ -412,5 +397,74 @@ mod tests {
         assert_eq!(scanner.targets, devices);
         assert_eq!(scanner.idle_timeout, idle_timeout);
         assert_eq!(scanner.source_port, 54321);
+    }
+
+    #[test]
+    fn test_sends_and_read_packets() {
+        let interface = network::get_default_interface().unwrap();
+        let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
+        let device_mac = util::MacAddr::default();
+        let device_port = 2222;
+
+        let packet = create_syn_reply(
+            device_mac,
+            device_ip,
+            device_port,
+            interface.mac,
+            interface.ipv4,
+            54321,
+        );
+
+        let device = Device {
+            hostname: "".to_string(),
+            ip: device_ip.to_string(),
+            mac: device_mac.to_string(),
+            vendor: "".to_string(),
+            is_current_host: false,
+        };
+
+        let mut receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        receiver.expect_next_packet().returning(|| Ok(packet));
+        sender.expect_send().returning(|_| Ok(()));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+
+        let idle_timeout = Duration::from_secs(2);
+        let devices: Vec<Device> = vec![device.clone()];
+        let ports = PortTargets::new(vec!["2222".to_string()]);
+        let (tx, rx) = channel();
+
+        let scanner = SYNScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            devices,
+            ports,
+            54321,
+            idle_timeout,
+            tx,
+        );
+
+        let handle = scanner.scan();
+
+        if let Ok(msg) = rx.recv() {
+            match msg {
+                ScanMessage::SYNScanResult(d) => {
+                    assert_eq!(d.device.hostname, device.hostname);
+                    assert_eq!(d.device.ip, device.ip);
+                    assert_eq!(d.device.mac, device.mac);
+                    assert_eq!(d.device.vendor, device.vendor);
+                    assert_eq!(d.device.is_current_host, device.is_current_host);
+                    assert_eq!(d.open_port.id, device_port);
+                }
+                _ => {}
+            }
+        }
+
+        let result = handle.join().unwrap().unwrap();
+        assert_eq!(result, ());
     }
 }
