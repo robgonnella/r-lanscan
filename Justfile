@@ -12,10 +12,13 @@ term *args:
 scan *args:
     cargo run -p r-lancli -- {{args}}
 
-up *args: generate-dot-env && exec-workspace
+up *args: generate-dot-env
     docker compose up --build -d {{args}}
 
-exec-workspace:
+exec-workspace: up
+    docker compose exec workspace sh
+
+exec-workspace-term: up
     docker compose exec workspace /workspace/target/debug/r-lanterm
 
 down *args:
