@@ -30,12 +30,21 @@ impl Store {
             .get_by_id(&DEFAULT_CONFIG_ID.to_string())
             .unwrap();
 
+        let true_color_enabled = match supports_color::on(supports_color::Stream::Stdout) {
+            Some(support) => support.has_16m,
+            _ => false,
+        };
+
         let theme = Theme::from_string(&config.theme);
-        let colors = crate::ui::colors::Colors::new(theme.to_palette());
+        let colors = crate::ui::colors::Colors::new(
+            theme.to_palette(true_color_enabled),
+            true_color_enabled,
+        );
 
         Self {
             reducer: Reducer::new(config_manager),
             state: Mutex::new(State {
+                true_color_enabled,
                 ui_paused: false,
                 error: None,
                 render_view_select: false,

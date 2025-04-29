@@ -15,7 +15,7 @@ pub struct Colors {
 }
 
 impl Colors {
-    pub fn new(color: &tailwind::Palette) -> Self {
+    pub fn new(color: &tailwind::Palette, true_color_enabled: bool) -> Self {
         let basic_colors = Self {
             buffer_bg: Color::Black,
             header_bg: color.c900,
@@ -30,24 +30,20 @@ impl Colors {
         };
 
         let tw_colors = Self {
-            buffer_bg: Color::Black,
+            buffer_bg: tailwind::SLATE.c950,
             header_bg: color.c900,
-            header_fg: Color::Black,
+            header_fg: tailwind::SLATE.c200,
             selected_row_fg: color.c400,
-            row_fg: Color::White,
-            row_bg: Color::Black,
+            row_fg: tailwind::SLATE.c200,
+            row_bg: tailwind::SLATE.c950,
             border_color: color.c400,
-            scroll_bar_fg: Color::Black,
+            scroll_bar_fg: tailwind::SLATE.c800,
             label: color.c400,
             input_editing: tailwind::AMBER.c600,
         };
 
-        if let Some(support) = supports_color::on(supports_color::Stream::Stdout) {
-            if support.has_16m {
-                tw_colors
-            } else {
-                basic_colors
-            }
+        if true_color_enabled {
+            tw_colors
         } else {
             basic_colors
         }
@@ -138,22 +134,13 @@ impl Theme {
         }
     }
 
-    pub fn to_palette(&self) -> &'static tailwind::Palette {
-        if let Some(support) = supports_color::on(supports_color::Stream::Stdout) {
-            if support.has_16m {
-                match self {
-                    Theme::Blue => &tailwind::BLUE,
-                    Theme::Emerald => &tailwind::EMERALD,
-                    Theme::Indigo => &tailwind::INDIGO,
-                    Theme::Red => &tailwind::RED,
-                }
-            } else {
-                match self {
-                    Theme::Blue => &BASIC_BLUE_PALLETE,
-                    Theme::Red => &BASIC_RED_PALLETE,
-                    Theme::Indigo => &BASIC_MAGENTA_PALLETE,
-                    Theme::Emerald => &BASIC_GREEN_PALLETE,
-                }
+    pub fn to_palette(&self, true_color_enabled: bool) -> &'static tailwind::Palette {
+        if true_color_enabled {
+            match self {
+                Theme::Blue => &tailwind::BLUE,
+                Theme::Emerald => &tailwind::EMERALD,
+                Theme::Indigo => &tailwind::INDIGO,
+                Theme::Red => &tailwind::RED,
             }
         } else {
             match self {
