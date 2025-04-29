@@ -13,8 +13,8 @@ rust version of [go-lanscan]
 
 ### Bin
 
-- [r-lanscan](./r-lanscan/README.md)
-- [r-lanui](./r-lanui/README.md)
+- [r-lancli](./r-lancli/README.md)
+- [r-lanterm](./r-lanterm/README.md)
 
 ### Testing
 

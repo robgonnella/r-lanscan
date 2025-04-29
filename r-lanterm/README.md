@@ -1,4 +1,4 @@
-# R-LANUI
+# R-LANTERM
 
 Terminal GUI for discovering and managing on premise LAN devices.
 
@@ -13,8 +13,8 @@ Features:
 cargo run
 
 cargo build
-../target/debug/r-lanui
+../target/debug/r-lanterm
 
 cargo build --release
-../target/release/r-lanui
+../target/release/r-lanterm
 ```
