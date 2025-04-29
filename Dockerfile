@@ -6,8 +6,8 @@ WORKDIR /workspace
 
 COPY Cargo.lock Cargo.toml ./
 COPY r-lanlib r-lanlib
-COPY r-lanscan r-lanscan
-COPY r-lanui r-lanui
+COPY r-lancli r-lancli
+COPY r-lanterm r-lanterm
 
 RUN cargo build
 
