@@ -4,7 +4,6 @@ rust version of [go-lanscan]
 **Table of contents**
 - [Libs](#libs)
 - [Bin](#bin)
-- [Usage](#usage)
 - [Testing](#testing)
 
 ### Libs
