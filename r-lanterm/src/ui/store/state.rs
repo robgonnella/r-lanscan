@@ -27,6 +27,7 @@ impl fmt::Display for ViewID {
 
 #[derive(Debug, Clone)]
 pub struct State {
+    pub true_color_enabled: bool,
     pub ui_paused: bool,
     pub error: Option<String>,
     pub render_view_select: bool,

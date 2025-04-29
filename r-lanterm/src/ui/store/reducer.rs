@@ -55,7 +55,10 @@ impl Reducer {
             }
             Action::PreviewTheme(theme) => {
                 let mut state = prev_state.clone();
-                state.colors = Colors::new(theme.to_palette());
+                state.colors = Colors::new(
+                    theme.to_palette(state.true_color_enabled),
+                    state.true_color_enabled,
+                );
                 state
             }
             Action::UpdateConfig(config) => {
@@ -142,7 +145,10 @@ impl Reducer {
                 {
                     let theme = Theme::from_string(&conf.theme);
                     state.config = conf;
-                    state.colors = Colors::new(theme.to_palette());
+                    state.colors = Colors::new(
+                        theme.to_palette(state.true_color_enabled),
+                        state.true_color_enabled,
+                    );
                 }
                 state
             }
@@ -152,7 +158,10 @@ impl Reducer {
                 manager.create(&config);
                 let theme = Theme::from_string(&config.theme);
                 state.config = config.clone();
-                state.colors = Colors::new(theme.to_palette());
+                state.colors = Colors::new(
+                    theme.to_palette(state.true_color_enabled),
+                    state.true_color_enabled,
+                );
                 state
             }
             Action::UpdateSelectedDevice(i) => {

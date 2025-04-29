@@ -1063,23 +1063,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "r-lanlib"
-version = "0.1.0"
-dependencies = [
- "dns-lookup",
- "ipnet",
- "log",
- "mockall",
- "oui-data",
- "paris",
- "pnet",
- "serde",
- "serde_json",
- "simplelog",
-]
-
-[[package]]
-name = "r-lanscan"
+name = "r-lancli"
 version = "0.1.0"
 dependencies = [
  "clap",
@@ -1096,7 +1080,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "r-lanui"
+name = "r-lanlib"
+version = "0.1.0"
+dependencies = [
+ "dns-lookup",
+ "ipnet",
+ "log",
+ "mockall",
+ "oui-data",
+ "paris",
+ "pnet",
+ "serde",
+ "serde_json",
+ "simplelog",
+]
+
+[[package]]
+name = "r-lanterm"
 version = "0.1.0"
 dependencies = [
  "clap",
