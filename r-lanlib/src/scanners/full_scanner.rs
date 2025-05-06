@@ -118,7 +118,10 @@ impl<'net> Scanner for FullScanner<'net> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pnet::util;
+    use pnet::{
+        packet::{arp, ethernet, ipv4, tcp},
+        util,
+    };
     use std::collections::HashSet;
     use std::net;
     use std::str::FromStr;
@@ -128,15 +131,23 @@ mod tests {
 
     use crate::network;
     use crate::packet::arp::create_arp_reply;
+    use crate::packet::mocks::{MockPacketReader, MockPacketSender};
     use crate::packet::syn::create_syn_reply;
-    use crate::packet::{MockPacketReader, MockPacketSender, Reader, Sender};
     use crate::scanners::{DeviceWithPorts, Port};
 
+    const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
+    const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
+    const PKT_TOTAL_ARP_SIZE: usize = PKT_ETH_SIZE + PKT_ARP_SIZE;
+
+    const PKT_IP4_SIZE: usize = ipv4::Ipv4Packet::minimum_packet_size();
+    const PKT_TCP_SIZE: usize = tcp::TcpPacket::minimum_packet_size();
+    const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
+
     #[test]
-    fn test_new() {
+    fn new() {
         let interface = network::get_default_interface().unwrap();
-        let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(MockPacketSender::new()));
-        let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(MockPacketReader::new()));
+        let sender = Arc::new(Mutex::new(MockPacketSender::new()));
+        let receiver = Arc::new(Mutex::new(MockPacketReader::new()));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]);
         let ports = PortTargets::new(vec!["2000-8000".to_string()]);
@@ -162,13 +173,23 @@ mod tests {
     }
 
     #[test]
-    fn test_sends_and_reads_packets() {
+    #[allow(warnings)]
+    fn sends_and_reads_packets() {
+        static mut ARP_PACKET: [u8; PKT_TOTAL_ARP_SIZE] = [0u8; PKT_TOTAL_ARP_SIZE];
+        static mut SYN_PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
+
         let interface = network::get_default_interface().unwrap();
         let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
         let device_mac = util::MacAddr::default();
         let device_port = 2222;
 
-        let arp_packet = create_arp_reply(device_mac, device_ip, interface.mac, interface.ipv4);
+        let arp_packet = create_arp_reply(
+            device_mac,
+            device_ip,
+            interface.mac,
+            interface.ipv4,
+            unsafe { &mut ARP_PACKET },
+        );
 
         let syn_packet = create_syn_reply(
             device_mac,
@@ -177,6 +198,7 @@ mod tests {
             interface.mac,
             interface.ipv4,
             54321,
+            unsafe { &mut SYN_PACKET },
         );
 
         let device = Device {
@@ -194,15 +216,15 @@ mod tests {
         receiver.expect_next_packet().returning(move || {
             if next_type == "arp" {
                 next_type = "syn";
-                Ok(arp_packet)
+                Ok(unsafe { &ARP_PACKET })
             } else {
-                Ok(syn_packet)
+                Ok(unsafe { &SYN_PACKET })
             }
         });
         sender.expect_send().returning(|_| Ok(()));
 
-        let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
-        let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
 
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);

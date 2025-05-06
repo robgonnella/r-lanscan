@@ -199,8 +199,6 @@ impl<'net> Scanner for ARPScanner<'net> {
 
         // prevent blocking thread so messages can be freely sent to consumer
         thread::spawn(move || -> Result<(), ScanError> {
-            let mut scan_error: Option<ScanError> = None;
-
             let process_target = |target_ipv4: net::Ipv4Addr| {
                 // throttle packet sending to prevent packet loss
                 thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
@@ -243,6 +241,8 @@ impl<'net> Scanner for ARPScanner<'net> {
                 Ok(())
             };
 
+            let mut scan_error: Option<ScanError> = None;
+
             if let Err(err) = targets.lazy_loop(process_target) {
                 scan_error = Some(err);
             }
@@ -281,22 +281,33 @@ impl<'net> Scanner for ARPScanner<'net> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pnet::util;
+    use pnet::{
+        packet::{arp, ethernet, ipv4, tcp},
+        util,
+    };
     use std::str::FromStr;
     use std::sync::mpsc::channel;
     use std::sync::Arc;
     use std::time::Duration;
 
+    use crate::network;
+    use crate::packet::arp::create_arp_reply;
+    use crate::packet::mocks::{MockPacketReader, MockPacketSender};
     use crate::packet::syn::create_syn_reply;
-    use crate::packet::{self, arp::create_arp_reply, MockPacketReader};
-    use crate::{network, packet::MockPacketSender};
+
+    const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
+    const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
+    const PKT_TOTAL_ARP_SIZE: usize = PKT_ETH_SIZE + PKT_ARP_SIZE;
+
+    const PKT_IP4_SIZE: usize = ipv4::Ipv4Packet::minimum_packet_size();
+    const PKT_TCP_SIZE: usize = tcp::TcpPacket::minimum_packet_size();
+    const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 
     #[test]
-    fn test_new() {
+    fn new() {
         let interface = network::get_default_interface().unwrap();
-        let sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(MockPacketSender::new()));
-        let receiver: Arc<Mutex<dyn packet::Reader>> =
-            Arc::new(Mutex::new(MockPacketReader::new()));
+        let sender = Arc::new(Mutex::new(MockPacketSender::new()));
+        let receiver = Arc::new(Mutex::new(MockPacketReader::new()));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]);
         let (tx, _) = channel();
@@ -320,22 +331,33 @@ mod tests {
     }
 
     #[test]
-    fn test_sends_and_reads_packets() {
+    #[allow(warnings)]
+    fn sends_and_reads_packets() {
+        static mut PACKET: [u8; PKT_TOTAL_ARP_SIZE] = [0u8; PKT_TOTAL_ARP_SIZE];
         let interface = network::get_default_interface().unwrap();
         let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
         let device_mac = util::MacAddr::default();
-        let packet = create_arp_reply(device_mac, device_ip, interface.mac, interface.ipv4);
+
+        create_arp_reply(
+            device_mac,
+            device_ip,
+            interface.mac,
+            interface.ipv4,
+            unsafe { &mut PACKET },
+        );
 
         let mut receiver = MockPacketReader::new();
         let mut sender = MockPacketSender::new();
 
-        receiver.expect_next_packet().returning(|| Ok(packet));
+        receiver
+            .expect_next_packet()
+            .returning(|| Ok(unsafe { &PACKET }));
         sender.expect_send().returning(|_| Ok(()));
 
-        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
-        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
         let idle_timeout = Duration::from_secs(2);
-        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+        let targets = IPTargets::new(vec![device_ip.to_string()]);
         let (tx, rx) = channel();
 
         let scanner = ARPScanner::new(
@@ -381,7 +403,9 @@ mod tests {
     }
 
     #[test]
-    fn test_ignores_unrelated_packets() {
+    #[allow(warnings)]
+    fn ignores_unrelated_packets() {
+        static mut PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
         let interface = network::get_default_interface().unwrap();
         let mut receiver = MockPacketReader::new();
         let mut sender = MockPacketSender::new();
@@ -389,14 +413,26 @@ mod tests {
         for i in 0..5 {
             let mac = util::MacAddr::default();
             let ip = net::Ipv4Addr::from_str(format!("192.168.0.{}", 1 + i).as_str()).unwrap();
-            let pkt = create_syn_reply(mac, ip, 8080, interface.mac, interface.ipv4, 54321);
-            receiver.expect_next_packet().returning(|| Ok(pkt));
+
+            create_syn_reply(
+                mac,
+                ip,
+                8080,
+                interface.mac,
+                interface.ipv4,
+                54321,
+                unsafe { &mut PACKET },
+            );
+
+            receiver
+                .expect_next_packet()
+                .returning(|| Ok(unsafe { &PACKET }));
         }
 
         sender.expect_send().returning(|_| Ok(()));
 
-        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
-        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
 
@@ -447,7 +483,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reports_error_on_packet_reader_lock() {
+    fn reports_error_on_packet_reader_lock() {
         let interface = network::get_default_interface().unwrap();
 
         let receiver = MockPacketReader::new();
@@ -455,9 +491,9 @@ mod tests {
 
         sender.expect_send().returning(|_| Ok(()));
 
-        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
         let arc_receiver_clone = Arc::clone(&arc_receiver);
-        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_sender = Arc::new(Mutex::new(sender));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
         let (tx, _rx) = channel();
@@ -494,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reports_error_on_packet_read_error() {
+    fn reports_error_on_packet_read_error() {
         let interface = network::get_default_interface().unwrap();
         let mut receiver = MockPacketReader::new();
         let mut sender = MockPacketSender::new();
@@ -502,10 +538,11 @@ mod tests {
         receiver
             .expect_next_packet()
             .returning(|| Err(Box::from("oh no an error")));
+
         sender.expect_send().returning(|_| Ok(()));
 
-        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
-        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
         let (tx, _rx) = channel();
@@ -532,15 +569,16 @@ mod tests {
     }
 
     #[test]
-    fn test_reports_error_on_notifier_send_errors() {
+    fn reports_error_on_notifier_send_errors() {
         let interface = network::get_default_interface().unwrap();
         let mut receiver = MockPacketReader::new();
-        let sender = MockPacketSender::new();
+        let mut sender = MockPacketSender::new();
 
         receiver.expect_next_packet().returning(|| Ok(&[1]));
+        sender.expect_send().returning(|_| Ok(()));
 
-        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
-        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
         let (tx, rx) = channel();
@@ -568,15 +606,15 @@ mod tests {
     }
 
     #[test]
-    fn test_reports_error_on_packet_sender_lock_errors() {
+    fn reports_error_on_packet_sender_lock_errors() {
         let interface = network::get_default_interface().unwrap();
         let mut receiver = MockPacketReader::new();
         let sender = MockPacketSender::new();
 
         receiver.expect_next_packet().returning(|| Ok(&[1]));
 
-        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
-        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
         let arc_sender_clone = Arc::clone(&arc_sender);
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
@@ -619,7 +657,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reports_error_on_packet_send_errors() {
+    fn reports_error_on_packet_send_errors() {
         let interface = network::get_default_interface().unwrap();
         let mut receiver = MockPacketReader::new();
         let mut sender = MockPacketSender::new();
@@ -629,8 +667,8 @@ mod tests {
             .expect_send()
             .returning(|_| Err(Box::from("oh no a send error")));
 
-        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
-        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
         let (tx, rx) = channel();
@@ -666,7 +704,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reports_errors_from_read_handle() {
+    fn reports_errors_from_read_handle() {
         let interface = network::get_default_interface().unwrap();
         let mut receiver = MockPacketReader::new();
         let mut sender = MockPacketSender::new();
@@ -674,10 +712,11 @@ mod tests {
         receiver
             .expect_next_packet()
             .returning(|| Err(Box::from("oh no a read error")));
+
         sender.expect_send().returning(|_| Ok(()));
 
-        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
-        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
         let idle_timeout = Duration::from_secs(2);
         let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
         let (tx, rx) = channel();

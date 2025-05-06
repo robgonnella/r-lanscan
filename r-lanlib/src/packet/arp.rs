@@ -55,11 +55,10 @@ pub fn create_arp_reply(
     from_ip: net::Ipv4Addr,
     to_mac: util::MacAddr,
     to_ip: net::Ipv4Addr,
-) -> &'static [u8; PKT_TOTAL_SIZE] {
-    static mut PACKET: [u8; PKT_TOTAL_SIZE] = [0u8; PKT_TOTAL_SIZE];
-
-    let mut pkt_eth = ethernet::MutableEthernetPacket::new(unsafe { &mut PACKET })
-        .expect("failed to generate ethernet packet");
+    packet: &'static mut [u8; PKT_TOTAL_SIZE],
+) {
+    let mut pkt_eth =
+        ethernet::MutableEthernetPacket::new(packet).expect("failed to generate ethernet packet");
 
     let mut arp_buffer = [0u8; PKT_ARP_SIZE];
 
@@ -81,8 +80,6 @@ pub fn create_arp_reply(
     pkt_arp.set_target_proto_addr(to_ip);
 
     pkt_eth.set_payload(pkt_arp.packet_mut());
-
-    unsafe { &PACKET }
 }
 
 #[cfg(test)]

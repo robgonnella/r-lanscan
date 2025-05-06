@@ -71,37 +71,34 @@ pub fn default(
 mod tests {
     use crate::{
         network,
-        packet::{MockPacketReader, MockPacketSender},
+        packet::mocks::{MockPacketReader, MockPacketSender},
     };
 
     use super::*;
-
-    const SINGLE_BYTE: [u8; 1] = [1];
 
     #[test]
     fn creates_default_wire() {
         let interface = network::get_default_interface().unwrap();
         let wire = default(&interface);
-        assert!(wire.is_ok())
+        assert!(wire.is_ok());
     }
 
     #[test]
     fn returns_packet_result() {
         let mut mock = MockPacketReader::new();
-        mock.expect_next_packet().return_once(|| Ok(&SINGLE_BYTE));
+        mock.expect_next_packet().returning(|| Ok(&[1]));
         let result = mock.next_packet();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), &SINGLE_BYTE);
+        assert_eq!(result.unwrap(), &[1]);
     }
 
     #[test]
     fn send_packet() {
-        static PACKET: [u8; 1] = [1];
         let mut mock = MockPacketSender::new();
         mock.expect_send()
-            .withf(|p| *p == PACKET)
+            .withf(|p| *p == [1])
             .returning(|_| Ok(()));
-        let result = mock.send(&PACKET);
+        let result = mock.send(&[1]);
         assert!(result.is_ok())
     }
 }
