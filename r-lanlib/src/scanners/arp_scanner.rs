@@ -95,7 +95,7 @@ impl<'net> ARPScanner<'net> {
                 Err(ScanError {
                     ip: None,
                     port: None,
-                    error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
+                    error: Box::from(e.to_string()),
                 })
             })?;
 
@@ -112,7 +112,7 @@ impl<'net> ARPScanner<'net> {
                     Err(ScanError {
                         ip: None,
                         port: None,
-                        error: Box::new(e),
+                        error: e,
                     })
                 })?;
 
@@ -199,6 +199,8 @@ impl<'net> Scanner for ARPScanner<'net> {
 
         // prevent blocking thread so messages can be freely sent to consumer
         thread::spawn(move || -> Result<(), ScanError> {
+            let mut scan_error: Option<ScanError> = None;
+
             let process_target = |target_ipv4: net::Ipv4Addr| {
                 // throttle packet sending to prevent packet loss
                 thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
@@ -242,18 +244,10 @@ impl<'net> Scanner for ARPScanner<'net> {
             };
 
             if let Err(err) = targets.lazy_loop(process_target) {
-                return Err(err);
+                scan_error = Some(err);
             }
 
             thread::sleep(idle_timeout);
-
-            done_tx.send(()).or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from(e),
-                })
-            })?;
 
             notifier.send(ScanMessage::Done(())).or_else(|e| {
                 Err(ScanError {
@@ -263,16 +257,21 @@ impl<'net> Scanner for ARPScanner<'net> {
                 })
             })?;
 
+            // ignore errors here as the thread may already be dead due to error
+            // we'll catch any errors from that thread below and report
+            let _ = done_tx.send(());
+
             let read_result = read_handle.join().or_else(|_| {
                 Err(ScanError {
                     ip: None,
                     port: None,
-                    error: Box::from(IOError::new(
-                        ErrorKind::Other,
-                        "error encountered in arp packet reading thread",
-                    )),
+                    error: Box::from("error encountered in arp packet reading thread"),
                 })
             })?;
+
+            if let Some(err) = scan_error {
+                return Err(err);
+            }
 
             read_result
         })
@@ -288,6 +287,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
 
+    use crate::packet::syn::create_syn_reply;
     use crate::packet::{self, arp::create_arp_reply, MockPacketReader};
     use crate::{network, packet::MockPacketSender};
 
@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sends_and_read_packets() {
+    fn test_sends_and_reads_packets() {
         let interface = network::get_default_interface().unwrap();
         let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
         let device_mac = util::MacAddr::default();
@@ -378,5 +378,337 @@ mod tests {
         assert_eq!(result, ());
         assert_eq!(detected_device.mac.to_string(), device_mac.to_string());
         assert_eq!(detected_device.ip.to_string(), device_ip.to_string());
+    }
+
+    #[test]
+    fn test_ignores_unrelated_packets() {
+        let interface = network::get_default_interface().unwrap();
+        let mut receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        for i in 0..5 {
+            let mac = util::MacAddr::default();
+            let ip = net::Ipv4Addr::from_str(format!("192.168.0.{}", 1 + i).as_str()).unwrap();
+            let pkt = create_syn_reply(mac, ip, 8080, interface.mac, interface.ipv4, 54321);
+            receiver.expect_next_packet().returning(|| Ok(pkt));
+        }
+
+        sender.expect_send().returning(|_| Ok(()));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+
+        let (tx, rx) = channel();
+
+        let scanner = ARPScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        let (done_tx, done_rx) = channel();
+
+        scanner.read_packets(done_rx);
+
+        let mut detected_devices: Vec<Device> = Vec::new();
+
+        let mut count = 0;
+        loop {
+            if count >= 8 {
+                done_tx.send(()).unwrap();
+                break;
+            }
+
+            if let Ok(msg) = rx.try_recv() {
+                match msg {
+                    ScanMessage::Done(_) => {
+                        break;
+                    }
+                    ScanMessage::ARPScanResult(device) => {
+                        detected_devices.push(device);
+                    }
+                    _ => {}
+                }
+            } else {
+                count += 1;
+                thread::sleep(Duration::from_secs(1));
+            }
+        }
+
+        assert_eq!(detected_devices.len(), 0);
+    }
+
+    #[test]
+    fn test_reports_error_on_packet_reader_lock() {
+        let interface = network::get_default_interface().unwrap();
+
+        let receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        sender.expect_send().returning(|_| Ok(()));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_receiver_clone = Arc::clone(&arc_receiver);
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+        let (tx, _rx) = channel();
+
+        // Spawn a thread that will panic while holding the lock
+        let _ = thread::spawn(move || {
+            let _guard = arc_receiver_clone.lock().unwrap(); // Acquire the lock
+            panic!("Simulated panic"); // Simulate a panic
+        });
+
+        let scanner = ARPScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        let (_done_tx, done_rx) = channel();
+
+        let handle = scanner.read_packets(done_rx);
+
+        let result = handle.join();
+
+        if result.is_err() {
+            assert!(result.is_err());
+        } else {
+            assert!(result.unwrap().is_err());
+        }
+    }
+
+    #[test]
+    fn test_reports_error_on_packet_read_error() {
+        let interface = network::get_default_interface().unwrap();
+        let mut receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        receiver
+            .expect_next_packet()
+            .returning(|| Err(Box::from("oh no an error")));
+        sender.expect_send().returning(|_| Ok(()));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+        let (tx, _rx) = channel();
+
+        let scanner = ARPScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        let (_done_tx, done_rx) = channel();
+
+        let handle = scanner.read_packets(done_rx);
+
+        let result = handle.join().unwrap();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reports_error_on_notifier_send_errors() {
+        let interface = network::get_default_interface().unwrap();
+        let mut receiver = MockPacketReader::new();
+        let sender = MockPacketSender::new();
+
+        receiver.expect_next_packet().returning(|| Ok(&[1]));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+        let (tx, rx) = channel();
+
+        // this will cause an error when scanner tries to notify
+        drop(rx);
+
+        let scanner = ARPScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        let handle = scanner.scan();
+
+        let result = handle.join().unwrap();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reports_error_on_packet_sender_lock_errors() {
+        let interface = network::get_default_interface().unwrap();
+        let mut receiver = MockPacketReader::new();
+        let sender = MockPacketSender::new();
+
+        receiver.expect_next_packet().returning(|| Ok(&[1]));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let arc_sender_clone = Arc::clone(&arc_sender);
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+        let (tx, rx) = channel();
+
+        // Spawn a thread that will panic while holding the lock
+        let _ = thread::spawn(move || {
+            let _guard = arc_sender_clone.lock().unwrap(); // Acquire the lock
+            panic!("Simulated panic"); // Simulate a panic
+        });
+
+        let scanner = ARPScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        let handle = scanner.scan();
+
+        loop {
+            if let Ok(msg) = rx.recv() {
+                match msg {
+                    ScanMessage::Done(_) => {
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let result = handle.join().unwrap();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reports_error_on_packet_send_errors() {
+        let interface = network::get_default_interface().unwrap();
+        let mut receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        receiver.expect_next_packet().returning(|| Ok(&[1]));
+        sender
+            .expect_send()
+            .returning(|_| Err(Box::from("oh no a send error")));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+        let (tx, rx) = channel();
+
+        let scanner = ARPScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        let handle = scanner.scan();
+
+        loop {
+            if let Ok(msg) = rx.recv() {
+                match msg {
+                    ScanMessage::Done(_) => {
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let result = handle.join().unwrap();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reports_errors_from_read_handle() {
+        let interface = network::get_default_interface().unwrap();
+        let mut receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        receiver
+            .expect_next_packet()
+            .returning(|| Err(Box::from("oh no a read error")));
+        sender.expect_send().returning(|_| Ok(()));
+
+        let arc_receiver: Arc<Mutex<dyn packet::Reader>> = Arc::new(Mutex::new(receiver));
+        let arc_sender: Arc<Mutex<dyn packet::Sender>> = Arc::new(Mutex::new(sender));
+        let idle_timeout = Duration::from_secs(2);
+        let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+        let (tx, rx) = channel();
+
+        let scanner = ARPScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            targets,
+            54321,
+            true,
+            true,
+            idle_timeout,
+            tx,
+        );
+
+        let handle = scanner.scan();
+
+        loop {
+            if let Ok(msg) = rx.recv() {
+                match msg {
+                    ScanMessage::Done(_) => {
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let result = handle.join().unwrap();
+
+        assert!(result.is_err());
     }
 }

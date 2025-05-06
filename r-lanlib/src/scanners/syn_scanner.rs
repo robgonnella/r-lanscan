@@ -101,7 +101,7 @@ impl<'net> SYNScanner<'net> {
                 Err(ScanError {
                     ip: None,
                     port: None,
-                    error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
+                    error: Box::from(e.to_string()),
                 })
             })?;
 
@@ -119,7 +119,7 @@ impl<'net> SYNScanner<'net> {
                     Err(ScanError {
                         ip: None,
                         port: None,
-                        error: Box::new(e),
+                        error: e,
                     })
                 })?;
 
@@ -401,7 +401,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sends_and_read_packets() {
+    fn test_sends_and_reads_packets() {
         let interface = network::get_default_interface().unwrap();
         let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
         let device_mac = util::MacAddr::default();
