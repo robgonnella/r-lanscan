@@ -120,6 +120,7 @@ mod tests {
         };
 
         println!("{}", err);
+        assert!(true);
     }
 
     #[test]

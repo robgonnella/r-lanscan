@@ -78,11 +78,10 @@ pub fn create_syn_reply(
     to_mac: util::MacAddr,
     to_ip: net::Ipv4Addr,
     to_port: u16,
-) -> &'static [u8; PKT_TOTAL_SIZE] {
-    static mut PACKET: [u8; PKT_TOTAL_SIZE] = [0u8; PKT_TOTAL_SIZE];
-
-    let mut eth_header = ethernet::MutableEthernetPacket::new(unsafe { &mut PACKET })
-        .expect("failed to generate ethernet header");
+    packet: &'static mut [u8; PKT_TOTAL_SIZE],
+) {
+    let mut eth_header =
+        ethernet::MutableEthernetPacket::new(packet).expect("failed to generate ethernet header");
     eth_header.set_ethertype(ethernet::EtherTypes::Ipv4);
     eth_header.set_source(from_mac);
     eth_header.set_destination(to_mac);
@@ -122,8 +121,6 @@ pub fn create_syn_reply(
 
     ip_header.set_payload(tcp_header.packet_mut());
     eth_header.set_payload(ip_header.packet_mut());
-
-    unsafe { &PACKET }
 }
 
 #[cfg(test)]

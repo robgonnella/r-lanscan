@@ -49,10 +49,11 @@ mod tests {
 
     use super::*;
 
-    use crate::packet::{MockPacketSender, Sender};
+    use crate::packet::mocks::MockPacketSender;
+    use crate::packet::Sender;
 
     #[test]
-    fn test_new() {
+    fn new() {
         let source_ip = Ipv4Addr::from_str("192.168.1.1").unwrap();
         let source_mac = MacAddr::default();
         let source_port = 54321;
@@ -66,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sends_heartbeat_packets() {
+    fn sends_heartbeat_packets() {
         let source_ip = Ipv4Addr::from_str("192.168.1.1").unwrap();
         let source_mac = MacAddr::default();
         let source_port = 54321;
@@ -81,7 +82,7 @@ mod tests {
             .withf(move |p| p == expected_packet)
             .returning(|_| Ok(()));
 
-        let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(packet_sender));
+        let sender = Arc::new(Mutex::new(packet_sender));
 
         let heart_beat = HeartBeat::new(source_mac, source_ip, source_port, sender);
         heart_beat.beat();
