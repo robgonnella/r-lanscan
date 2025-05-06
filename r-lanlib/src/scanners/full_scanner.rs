@@ -162,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sends_and_read_packets() {
+    fn test_sends_and_reads_packets() {
         let interface = network::get_default_interface().unwrap();
         let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
         let device_mac = util::MacAddr::default();

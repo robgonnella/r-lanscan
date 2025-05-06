@@ -18,8 +18,8 @@ pub struct PNetReader {
 
 // Implements the Reader trait for our PNet implementation
 impl Reader for PNetReader {
-    fn next_packet(&mut self) -> Result<&[u8], std::io::Error> {
-        self.receiver.next()
+    fn next_packet(&mut self) -> Result<&[u8], Box<dyn Error>> {
+        self.receiver.next().or_else(|e| Err(Box::from(e)))
     }
 }
 
@@ -34,14 +34,11 @@ pub struct PNetSender {
 
 // Implements the Sender trait for our PNet implementation
 impl Sender for PNetSender {
-    fn send(&mut self, packet: &[u8]) -> Result<(), std::io::Error> {
+    fn send(&mut self, packet: &[u8]) -> Result<(), Box<dyn Error>> {
         let opt = self.sender.send_to(packet, None);
         match opt {
-            Some(res) => res,
-            None => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to send packet",
-            )),
+            Some(res) => Ok(res?),
+            None => Err(Box::from("failed to send packet")),
         }
     }
 }
