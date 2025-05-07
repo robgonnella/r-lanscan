@@ -446,6 +446,7 @@ mod tests {
         receiver
             .expect_next_packet()
             .returning(|| Ok(unsafe { &PACKET }));
+
         sender.expect_send().returning(|_| Ok(()));
 
         let arc_receiver = Arc::new(Mutex::new(receiver));
@@ -660,10 +661,12 @@ mod tests {
         let (tx, _rx) = channel();
 
         // Spawn a thread that will panic while holding the lock
-        let _ = thread::spawn(move || {
+        let handle = thread::spawn(move || {
             let _guard = arc_receiver_clone.lock().unwrap(); // Acquire the lock
             panic!("Simulated panic"); // Simulate a panic
         });
+
+        let _ = handle.join();
 
         let scanner = SYNScanner::new(
             &interface,
@@ -680,13 +683,155 @@ mod tests {
 
         let handle = scanner.read_packets(done_rx);
 
-        let result = handle.join();
+        let result = handle.join().unwrap();
 
-        if result.is_err() {
-            assert!(result.is_err());
-        } else {
-            assert!(result.unwrap().is_err());
-        }
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[allow(warnings)]
+    fn reports_error_on_rst_packet_sender_lock() {
+        static mut PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
+        let interface = network::get_default_interface().unwrap();
+        let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
+        let device_mac = util::MacAddr::default();
+
+        let device = Device {
+            hostname: "".to_string(),
+            ip: device_ip.to_string(),
+            mac: device_mac.to_string(),
+            vendor: "".to_string(),
+            is_current_host: false,
+        };
+
+        create_syn_reply(
+            device_mac.clone(),
+            device_ip.clone(),
+            2222,
+            interface.mac,
+            interface.ipv4,
+            54321,
+            unsafe { &mut PACKET },
+        );
+
+        let devices: Vec<Device> = vec![device.clone()];
+        let ports = PortTargets::new(vec!["2222".to_string()]);
+
+        let mut receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        receiver
+            .expect_next_packet()
+            .return_once(|| Ok(unsafe { &PACKET }));
+
+        sender.expect_send().returning(|_| Ok(()));
+
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
+        let arc_sender_clone = Arc::clone(&arc_sender);
+        let idle_timeout = Duration::from_secs(2);
+        let (tx, _rx) = channel();
+
+        // Spawn a thread that will panic while holding the lock
+        let handle = thread::spawn(move || {
+            let _guard = arc_sender_clone.lock().unwrap(); // Acquire the lock
+            panic!("Simulated panic"); // Simulate a panic
+        });
+
+        let _ = handle.join();
+
+        let scanner = SYNScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            devices,
+            ports,
+            54321,
+            idle_timeout,
+            tx,
+        );
+
+        let (_done_tx, done_rx) = channel();
+
+        let handle = scanner.read_packets(done_rx);
+
+        let result = handle.join().unwrap();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[allow(warnings)]
+    fn reports_error_on_rst_packet_send_errors() {
+        static mut PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
+        let interface = network::get_default_interface().unwrap();
+        let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
+        let device_mac = util::MacAddr::default();
+
+        let device = Device {
+            hostname: "".to_string(),
+            ip: device_ip.to_string(),
+            mac: device_mac.to_string(),
+            vendor: "".to_string(),
+            is_current_host: false,
+        };
+
+        create_syn_reply(
+            device_mac.clone(),
+            device_ip.clone(),
+            2222,
+            interface.mac,
+            interface.ipv4,
+            54321,
+            unsafe { &mut PACKET },
+        );
+
+        let devices: Vec<Device> = vec![device.clone()];
+        let ports = PortTargets::new(vec!["2222".to_string()]);
+
+        let mut receiver = MockPacketReader::new();
+        let mut sender = MockPacketSender::new();
+
+        receiver
+            .expect_next_packet()
+            .return_once(|| Ok(unsafe { &PACKET }));
+
+        sender
+            .expect_send()
+            .returning(|_| Err(Box::from("oh no packet send error")));
+
+        let arc_receiver = Arc::new(Mutex::new(receiver));
+        let arc_sender = Arc::new(Mutex::new(sender));
+        let arc_sender_clone = Arc::clone(&arc_sender);
+        let idle_timeout = Duration::from_secs(2);
+        let (tx, _rx) = channel();
+
+        // Spawn a thread that will panic while holding the lock
+        let handle = thread::spawn(move || {
+            let _guard = arc_sender_clone.lock().unwrap(); // Acquire the lock
+            panic!("Simulated panic"); // Simulate a panic
+        });
+
+        let _ = handle.join();
+
+        let scanner = SYNScanner::new(
+            &interface,
+            arc_receiver,
+            arc_sender,
+            devices,
+            ports,
+            54321,
+            idle_timeout,
+            tx,
+        );
+
+        let (_done_tx, done_rx) = channel();
+
+        let handle = scanner.read_packets(done_rx);
+
+        let result = handle.join().unwrap();
+
+        assert!(result.is_err());
     }
 
     #[test]
@@ -712,6 +857,7 @@ mod tests {
         receiver
             .expect_next_packet()
             .returning(|| Err(Box::from("oh no an error")));
+
         sender.expect_send().returning(|_| Ok(()));
 
         let arc_receiver = Arc::new(Mutex::new(receiver));
@@ -805,10 +951,8 @@ mod tests {
         let devices: Vec<Device> = vec![device.clone()];
         let ports = PortTargets::new(vec!["2222".to_string()]);
 
-        let mut receiver = MockPacketReader::new();
+        let receiver = MockPacketReader::new();
         let sender = MockPacketSender::new();
-
-        receiver.expect_next_packet().returning(|| Ok(&[1]));
 
         let arc_receiver = Arc::new(Mutex::new(receiver));
         let arc_sender = Arc::new(Mutex::new(sender));
@@ -817,10 +961,12 @@ mod tests {
         let (tx, rx) = channel();
 
         // Spawn a thread that will panic while holding the lock
-        let _ = thread::spawn(move || {
+        let handle = thread::spawn(move || {
             let _guard = arc_sender_clone.lock().unwrap(); // Acquire the lock
             panic!("Simulated panic"); // Simulate a panic
         });
+
+        let _ = handle.join();
 
         let scanner = SYNScanner::new(
             &interface,

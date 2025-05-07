@@ -499,10 +499,12 @@ mod tests {
         let (tx, _rx) = channel();
 
         // Spawn a thread that will panic while holding the lock
-        let _ = thread::spawn(move || {
+        let handle = thread::spawn(move || {
             let _guard = arc_receiver_clone.lock().unwrap(); // Acquire the lock
             panic!("Simulated panic"); // Simulate a panic
         });
+
+        let _ = handle.join();
 
         let scanner = ARPScanner::new(
             &interface,
@@ -520,13 +522,9 @@ mod tests {
 
         let handle = scanner.read_packets(done_rx);
 
-        let result = handle.join();
+        let result = handle.join().unwrap();
 
-        if result.is_err() {
-            assert!(result.is_err());
-        } else {
-            assert!(result.unwrap().is_err());
-        }
+        assert!(result.is_err());
     }
 
     #[test]
@@ -621,10 +619,12 @@ mod tests {
         let (tx, rx) = channel();
 
         // Spawn a thread that will panic while holding the lock
-        let _ = thread::spawn(move || {
+        let handle = thread::spawn(move || {
             let _guard = arc_sender_clone.lock().unwrap(); // Acquire the lock
             panic!("Simulated panic"); // Simulate a panic
         });
+
+        let _ = handle.join();
 
         let scanner = ARPScanner::new(
             &interface,
