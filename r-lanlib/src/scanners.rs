@@ -27,7 +27,7 @@ pub struct Device {
 }
 
 // Device with open ports
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DeviceWithPorts {
     pub ip: String,
     pub mac: String,

@@ -1070,6 +1070,7 @@ dependencies = [
  "color-eyre",
  "itertools 0.14.0",
  "log",
+ "mockall",
  "paris",
  "pnet",
  "prettytable-rs",
