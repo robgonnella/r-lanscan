@@ -52,11 +52,11 @@ pub fn default(
 
     let channel = match pnet::datalink::channel(&interface.into(), cfg) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
-        Ok(_) => Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "failed to create packet reader",
-        )),
-        Err(e) => Err(e),
+        Ok(_) => {
+            let e: Box<dyn Error> = Box::from("failed to create packet reader");
+            Err(e)
+        }
+        Err(e) => Err(Box::from(e.to_string())),
     }?;
 
     Ok((
