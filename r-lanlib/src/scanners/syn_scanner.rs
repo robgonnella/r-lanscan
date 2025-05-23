@@ -258,8 +258,10 @@ impl<'net> Scanner for SYNScanner<'net> {
         thread::spawn(move || -> Result<(), ScanError> {
             let mut scan_error: Option<ScanError> = None;
 
-            for device in targets.iter() {
-                let process_port = |port: u16| -> Result<(), ScanError> {
+            let process_port = |port: u16| -> Result<(), ScanError> {
+                let mut res: Result<(), ScanError> = Ok(());
+
+                for device in targets.iter() {
                     // throttle packet sending to prevent packet loss
                     thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
 
@@ -271,7 +273,12 @@ impl<'net> Scanner for SYNScanner<'net> {
                             port: Some(port.to_string()),
                             error: Box::from(e),
                         })
-                    })?;
+                    });
+
+                    if dest_ipv4.is_err() {
+                        res = Err(dest_ipv4.unwrap_err());
+                        break;
+                    }
 
                     let dest_mac = util::MacAddr::from_str(&device.mac).or_else(|e| {
                         Err(ScanError {
@@ -279,19 +286,24 @@ impl<'net> Scanner for SYNScanner<'net> {
                             port: Some(port.to_string()),
                             error: Box::from(e),
                         })
-                    })?;
+                    });
+
+                    if dest_mac.is_err() {
+                        res = Err(dest_mac.unwrap_err());
+                        break;
+                    }
 
                     let pkt_buf = SYNPacket::new(
                         source_mac,
                         source_ipv4,
                         source_port,
-                        dest_ipv4,
-                        dest_mac,
+                        dest_ipv4.unwrap(),
+                        dest_mac.unwrap(),
                         port,
                     );
 
                     // send info message to consumer
-                    notifier
+                    let maybe_err = notifier
                         .send(ScanMessage::Info(Scanning {
                             ip: device.ip.clone(),
                             port: Some(port.to_string()),
@@ -302,31 +314,44 @@ impl<'net> Scanner for SYNScanner<'net> {
                                 port: Some(port.to_string()),
                                 error: Box::from(e),
                             })
-                        })?;
+                        });
 
-                    let mut sender = packet_sender.lock().or_else(|e| {
-                        Err(ScanError {
+                    if maybe_err.is_err() {
+                        res = maybe_err;
+                        break;
+                    }
+
+                    let sender = packet_sender.lock();
+
+                    if sender.is_err() {
+                        res = Err(ScanError {
                             ip: None,
                             port: None,
-                            error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
-                        })
-                    })?;
+                            error: Box::from("failed to unlock sender"),
+                        });
+                        break;
+                    }
 
                     // scan device @ port
-                    sender.send(&pkt_buf).or_else(|e| {
+                    let sent = sender.unwrap().send(&pkt_buf).or_else(|e| {
                         Err(ScanError {
                             ip: Some(device.ip.clone()),
                             port: Some(port.to_string()),
                             error: Box::from(e),
                         })
-                    })?;
+                    });
 
-                    Ok(())
-                };
-
-                if let Err(err) = ports.lazy_loop(process_port) {
-                    scan_error = Some(err);
+                    if sent.is_err() {
+                        res = sent;
+                        break;
+                    }
                 }
+
+                res
+            };
+
+            if let Err(err) = ports.lazy_loop(process_port) {
+                scan_error = Some(err);
             }
 
             thread::sleep(idle_timeout);
