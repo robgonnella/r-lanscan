@@ -1,0 +1,7 @@
+---
+source: r-lanterm/src/ui/components/scrollbar.rs
+expression: terminal.backend()
+---
+"                                                                                "
+"                                                                              █ "
+"                                                                                "

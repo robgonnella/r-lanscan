@@ -20,9 +20,11 @@ rust version of [go-lanscan]
 Prerequisites
 
 - install llvm-cov
+- install cargo-insta
 
 ```zsh
 cargo +stable install cargo-llvm-cov --locked
+cargo install cargo-insta
 ```
 
 Run tests

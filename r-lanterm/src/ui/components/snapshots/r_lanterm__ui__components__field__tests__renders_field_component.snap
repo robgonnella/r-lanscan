@@ -1,0 +1,5 @@
+---
+source: r-lanterm/src/ui/components/field.rs
+expression: terminal.backend()
+---
+"Test: value                                                                     "

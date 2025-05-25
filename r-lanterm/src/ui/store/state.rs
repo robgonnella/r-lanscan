@@ -5,7 +5,10 @@ use r_lanlib::scanners::{Device, DeviceWithPorts};
 
 use crate::{
     config::{Config, DeviceConfig},
-    ui::{colors::Colors, events::types::Command},
+    ui::{
+        colors::{Colors, Theme},
+        events::types::Command,
+    },
 };
 
 pub type MissedCount = i8;
@@ -42,4 +45,35 @@ pub struct State {
     pub message: Option<String>,
     pub cmd_in_progress: Option<Command>,
     pub cmd_output: Option<(Command, Output)>,
+}
+
+#[cfg(test)]
+impl State {
+    pub fn default() -> Self {
+        let config = Config::default();
+        let theme = Theme::from_string(&config.theme);
+        let true_color_enabled = true;
+        let colors = crate::ui::colors::Colors::new(
+            theme.to_palette(true_color_enabled),
+            true_color_enabled,
+        );
+
+        Self {
+            true_color_enabled,
+            ui_paused: false,
+            error: None,
+            render_view_select: false,
+            view_id: ViewID::Devices,
+            config,
+            arp_history: HashMap::new(),
+            devices: Vec::new(),
+            device_map: HashMap::new(),
+            selected_device: None,
+            selected_device_config: None,
+            colors,
+            message: None,
+            cmd_in_progress: None,
+            cmd_output: None,
+        }
+    }
 }

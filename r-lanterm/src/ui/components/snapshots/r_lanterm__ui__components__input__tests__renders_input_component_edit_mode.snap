@@ -1,0 +1,7 @@
+---
+source: r-lanterm/src/ui/components/input.rs
+expression: terminal.backend()
+---
+"Test: value                                                                     "
+"                                                                                "
+"                                                                                "
