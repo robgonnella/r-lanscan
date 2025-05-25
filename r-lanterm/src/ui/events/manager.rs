@@ -1,5 +1,6 @@
 use std::{
-    process::Command as ShellCommand,
+    io::{BufReader, Read},
+    process::{Command as ShellCommand, Stdio},
     sync::{
         mpsc::{Receiver, Sender},
         Arc, Mutex, MutexGuard,
@@ -76,10 +77,33 @@ impl EventManager {
                     .arg(format!("{}@{}", device_config.ssh_user, device.ip))
                     .arg("-p")
                     .arg(device_config.ssh_port.to_string())
+                    .stderr(Stdio::piped())
                     .spawn()
                     .wrap_err("failed to start ssh command")?;
-                handle.wait().wrap_err("command failed")?;
+
+                let res = handle.wait();
+
                 self.tx.send(Event::ResumeUI)?;
+
+                match res {
+                    Ok(status) => {
+                        if !status.success() {
+                            if handle.stderr.is_some() {
+                                let mut stderr_output = String::new();
+                                let stderr = handle.stderr.unwrap();
+                                let mut stderr_reader = BufReader::new(stderr);
+                                stderr_reader.read_to_string(&mut stderr_output).unwrap();
+                                self.store.dispatch(Action::SetError(Some(stderr_output)));
+                            } else {
+                                let err = String::from("ssh command failed");
+                                self.store.dispatch(Action::SetError(Some(err)));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        self.store.dispatch(Action::SetError(Some(e.to_string())));
+                    }
+                }
             }
             AppCommand::TRACEROUTE(device) => {
                 let exec = ShellCommand::new("traceroute").arg(device.ip).output();
@@ -105,10 +129,33 @@ impl EventManager {
                 }
                 let mut handle = ShellCommand::new("lynx")
                     .arg(format!("{}:{}", device.ip, port))
+                    .stderr(Stdio::piped())
                     .spawn()
                     .wrap_err("failed to start lynx browser")?;
-                handle.wait().wrap_err("shell command failed")?;
+
+                let res = handle.wait();
+
                 self.tx.send(Event::ResumeUI)?;
+
+                match res {
+                    Ok(status) => {
+                        if !status.success() {
+                            if handle.stderr.is_some() {
+                                let mut stderr_output = String::new();
+                                let stderr = handle.stderr.unwrap();
+                                let mut stderr_reader = BufReader::new(stderr);
+                                stderr_reader.read_to_string(&mut stderr_output).unwrap();
+                                self.store.dispatch(Action::SetError(Some(stderr_output)));
+                            } else {
+                                let err = String::from("lynx command failed");
+                                self.store.dispatch(Action::SetError(Some(err)));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        self.store.dispatch(Action::SetError(Some(e.to_string())));
+                    }
+                }
             }
         }
 
