@@ -130,6 +130,7 @@ impl EventManager {
                 let mut handle = ShellCommand::new("lynx")
                     .arg(format!("{}:{}", device.ip, port))
                     .stderr(Stdio::piped())
+                    .env("TERM", "xterm")
                     .spawn()
                     .wrap_err("failed to start lynx browser")?;
 
