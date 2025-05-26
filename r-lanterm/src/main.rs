@@ -4,6 +4,15 @@ use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
 use log::*;
+use r_lanlib::{
+    network::{self, NetworkInterface},
+    packet,
+    scanners::{
+        arp_scanner::ARPScanner, syn_scanner::SYNScanner, DeviceWithPorts, ScanError, ScanMessage,
+        Scanner, IDLE_TIMEOUT,
+    },
+    targets::{ips::IPTargets, ports::PortTargets},
+};
 use simplelog;
 use std::{
     collections::HashSet,
@@ -18,16 +27,6 @@ use std::{
 use ui::{
     app, events,
     store::{action::Action, derived::get_detected_devices, store::Store},
-};
-
-use r_lanlib::{
-    network::{self, NetworkInterface},
-    packet,
-    scanners::{
-        arp_scanner::ARPScanner, syn_scanner::SYNScanner, DeviceWithPorts, ScanError, ScanMessage,
-        Scanner, IDLE_TIMEOUT,
-    },
-    targets::{ips::IPTargets, ports::PortTargets},
 };
 
 mod config;

@@ -5,11 +5,11 @@ use r_lanlib::scanners::{Device, DeviceWithPorts};
 
 use crate::{
     config::{Config, DeviceConfig},
-    ui::{
-        colors::{Colors, Theme},
-        events::types::Command,
-    },
+    ui::{colors::Colors, events::types::Command},
 };
+
+#[cfg(test)]
+use crate::ui::colors::Theme;
 
 pub type MissedCount = i8;
 
