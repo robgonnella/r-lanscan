@@ -1,5 +1,5 @@
 use pnet::util::MacAddr;
-use r_lanlib::scanners::{Device, DeviceWithPorts};
+use r_lanlib::scanners::Device;
 
 use crate::config::DeviceConfig;
 
@@ -37,6 +37,7 @@ pub fn get_detected_devices(state: &State) -> Vec<Device> {
 mod tests {
     use nanoid::nanoid;
     use pnet::util::MacAddr;
+    use r_lanlib::scanners::DeviceWithPorts;
     use std::{
         collections::HashSet,
         fs,
