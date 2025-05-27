@@ -157,6 +157,13 @@ impl EventManager {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        fs::File,
+        io::{Seek, SeekFrom, Write},
+        os::{fd::OwnedFd, unix::process::ExitStatusExt},
+        process::{ChildStderr, ExitStatus, Output},
+    };
+
     use r_lanlib::scanners::Device;
 
     use crate::config::{ConfigManager, DeviceConfig};
@@ -199,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn handles_ssh_command() {
+    fn handles_ssh_command_err() {
         let mut mock_commander = Commander::default();
 
         mock_commander
@@ -235,7 +242,90 @@ mod tests {
     }
 
     #[test]
-    fn handles_traceroute_command() {
+    fn handles_ssh_command_ok() {
+        let mut mock_commander = Commander::default();
+
+        mock_commander
+            .expect_ssh()
+            .returning(|_, _| Ok((ExitStatus::default(), None)));
+
+        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+
+        let device = Device {
+            hostname: "Hostname".to_string(),
+            ip: "IP".to_string(),
+            mac: "MAC".to_string(),
+            vendor: "Vendor".to_string(),
+            is_current_host: false,
+        };
+
+        let device_config = DeviceConfig {
+            id: "device_id".to_string(),
+            ssh_port: 22,
+            ssh_identity_file: "id_rsa".to_string(),
+            ssh_user: "user".to_string(),
+        };
+
+        let res = sender.send(Event::UIPaused);
+        assert!(res.is_ok());
+
+        let rx = receiver.lock().unwrap();
+        let res = evt_manager.handle_cmd(rx, AppCommand::SSH(device, device_config));
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn handles_ssh_command_ok_err() {
+        let mut mock_commander = Commander::default();
+
+        mock_commander.expect_ssh().returning(|_, _| {
+            let mut tmpfile: File = tempfile::tempfile().unwrap();
+            writeln!(tmpfile, "test error").unwrap();
+            tmpfile.seek(SeekFrom::Start(0)).unwrap();
+
+            let status = ExitStatusExt::from_raw(1);
+            let fd = OwnedFd::from(tmpfile);
+            let mock_stderr = ChildStderr::from(fd);
+
+            Ok((status, Some(mock_stderr)))
+        });
+
+        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+
+        let device = Device {
+            hostname: "Hostname".to_string(),
+            ip: "IP".to_string(),
+            mac: "MAC".to_string(),
+            vendor: "Vendor".to_string(),
+            is_current_host: false,
+        };
+
+        let device_config = DeviceConfig {
+            id: "device_id".to_string(),
+            ssh_port: 22,
+            ssh_identity_file: "id_rsa".to_string(),
+            ssh_user: "user".to_string(),
+        };
+
+        let res = sender.send(Event::UIPaused);
+        assert!(res.is_ok());
+
+        let rx = receiver.lock().unwrap();
+        let res = evt_manager.handle_cmd(rx, AppCommand::SSH(device, device_config));
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+        assert!(state.error.is_some());
+
+        let err = state.error.unwrap();
+        assert_eq!(err, "test error\n")
+    }
+
+    #[test]
+    fn handles_traceroute_command_err() {
         let mut mock_commander = Commander::default();
 
         mock_commander
@@ -261,7 +351,50 @@ mod tests {
     }
 
     #[test]
-    fn handles_browse_command() {
+    fn handles_traceroute_command_ok() {
+        let mut mock_commander = Commander::default();
+
+        let expected_output = Output {
+            status: ExitStatusExt::from_raw(0),
+            stdout: "this is some output".as_bytes().to_vec(),
+            stderr: vec![],
+        };
+
+        mock_commander.expect_traceroute().returning(|_| {
+            let o = Output {
+                status: ExitStatusExt::from_raw(0),
+                stdout: "this is some output".as_bytes().to_vec(),
+                stderr: vec![],
+            };
+            Ok(o)
+        });
+
+        let (_sender, receiver, store, evt_manager) = setup(mock_commander);
+
+        let device = Device {
+            hostname: "Hostname".to_string(),
+            ip: "IP".to_string(),
+            mac: "MAC".to_string(),
+            vendor: "Vendor".to_string(),
+            is_current_host: false,
+        };
+
+        let rx = receiver.lock().unwrap();
+        let res = evt_manager.handle_cmd(rx, AppCommand::TRACEROUTE(device.clone()));
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+        assert!(state.error.is_none());
+
+        assert!(state.cmd_output.is_some());
+
+        let output = state.cmd_output.unwrap();
+        assert_eq!(output.0, AppCommand::TRACEROUTE(device));
+        assert_eq!(output.1, expected_output);
+    }
+
+    #[test]
+    fn handles_browse_command_err() {
         let mut mock_commander = Commander::default();
 
         mock_commander
@@ -287,5 +420,74 @@ mod tests {
 
         let state = store.get_state();
         assert!(state.error.is_some());
+    }
+
+    #[test]
+    fn handles_browse_command_ok() {
+        let mut mock_commander = Commander::default();
+
+        mock_commander
+            .expect_lynx()
+            .returning(|_, _| Ok((ExitStatus::default(), None)));
+
+        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+
+        let device = Device {
+            hostname: "Hostname".to_string(),
+            ip: "IP".to_string(),
+            mac: "MAC".to_string(),
+            vendor: "Vendor".to_string(),
+            is_current_host: false,
+        };
+
+        let res = sender.send(Event::UIPaused);
+        assert!(res.is_ok());
+
+        let rx = receiver.lock().unwrap();
+        let res = evt_manager.handle_cmd(rx, AppCommand::BROWSE(device, 80));
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn handles_browse_command_ok_err() {
+        let mut mock_commander = Commander::default();
+
+        mock_commander.expect_lynx().returning(|_, _| {
+            let mut tmpfile: File = tempfile::tempfile().unwrap();
+            writeln!(tmpfile, "test error").unwrap();
+            tmpfile.seek(SeekFrom::Start(0)).unwrap();
+
+            let status = ExitStatusExt::from_raw(1);
+            let fd = OwnedFd::from(tmpfile);
+            let mock_stderr = ChildStderr::from(fd);
+
+            Ok((status, Some(mock_stderr)))
+        });
+
+        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+
+        let device = Device {
+            hostname: "Hostname".to_string(),
+            ip: "IP".to_string(),
+            mac: "MAC".to_string(),
+            vendor: "Vendor".to_string(),
+            is_current_host: false,
+        };
+
+        let res = sender.send(Event::UIPaused);
+        assert!(res.is_ok());
+
+        let rx = receiver.lock().unwrap();
+        let res = evt_manager.handle_cmd(rx, AppCommand::BROWSE(device, 80));
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+        assert!(state.error.is_some());
+
+        let err = state.error.unwrap();
+        assert_eq!(err, "test error\n")
     }
 }
