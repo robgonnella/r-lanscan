@@ -1,0 +1,19 @@
+---
+source: r-lanterm/src/ui/views/view_select.rs
+expression: terminal.backend()
+---
+"                                                                                "
+"  Devices                                                                     █ "
+"                                                                              █ "
+"                                                                              █ "
+"  Config                                                                      █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              ║ "
+"                                                                              ║ "
+"                                                                                "

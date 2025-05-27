@@ -1,0 +1,19 @@
+---
+source: r-lanterm/src/ui/views/device.rs
+expression: terminal.backend()
+---
+"Device SSH Config                                                               "
+"                                                                                "
+"SSH User: user                                                                  "
+"                                                                                "
+"SSH Port: 22                                                                    "
+"                                                                                "
+"SSH Identity: id_rsa                                                            "
+"                                                                                "
+"                                                                                "
+"Device Info                                                                     "
+"                                                                                "
+"Hostname: hostname                                                              "
+"IP: 10.10.10.1                                                                  "
+"MAC: 00:00:00:00:00:00                                                          "
+"Vendor: mac                                                                     "

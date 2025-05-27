@@ -1,0 +1,19 @@
+---
+source: r-lanterm/src/ui/views/config.rs
+expression: terminal.backend()
+---
+"Config                                                                          "
+"                                                                                "
+"Network: 192.168.1.1/24                                                         "
+"                                                                                "
+"Default SSH User: user                                                          "
+"                                                                                "
+"Default SSH Port: 22                                                            "
+"                                                                                "
+"Default SSH Identity: id_rsa                                                    "
+"                                                                                "
+"Theme <->: Blue                                                                 "
+"                                                                                "
+"Scanning Ports:                                                                 "
+"                                                                                "
+"                                                                                "

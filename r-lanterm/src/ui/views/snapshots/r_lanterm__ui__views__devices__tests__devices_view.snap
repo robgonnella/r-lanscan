@@ -1,0 +1,19 @@
+---
+source: r-lanterm/src/ui/views/devices.rs
+expression: terminal.backend()
+---
+"                                                                                "
+"IP              HOSTNAME       VENDOR          MAC            OPEN PORTS        "
+"                                                                              █ "
+"10.10.10.1      hostname       mac             00:00:00:00:00 80              █ "
+"                                                                              █ "
+"                                                                              █ "
+"10.10.10.2 [YOU dev2_hostname  linux           ff:ff:ff:ff:ff 80              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              █ "
+"                                                                              ║ "
+"                                                                              ║ "
+"                                                                                "
