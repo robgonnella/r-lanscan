@@ -12,6 +12,7 @@ use crate::ui::store::{action::Action, store::Store};
 
 use super::types::{Command as AppCommand, Event};
 
+// double allows tests to use the mocked version of Commander
 #[double]
 use super::commander::Commander;
 

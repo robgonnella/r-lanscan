@@ -11,6 +11,7 @@ use crate::config::DeviceConfig;
 
 pub struct Commander {}
 
+// generates mocked implementation of Commander when in test
 #[cfg_attr(test, automock, allow(warnings))]
 impl Commander {
     pub fn new() -> Self {
