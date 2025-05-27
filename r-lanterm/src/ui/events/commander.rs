@@ -11,7 +11,7 @@ use crate::config::DeviceConfig;
 
 pub struct Commander {}
 
-#[cfg_attr(test, automock)]
+#[cfg_attr(test, automock, allow(warnings))]
 impl Commander {
     pub fn new() -> Self {
         Self {}

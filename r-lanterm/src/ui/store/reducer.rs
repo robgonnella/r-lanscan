@@ -97,6 +97,8 @@ impl Reducer {
                     }
                 }
 
+                println!("arp_history ---> {:?}", arp_history);
+
                 state.arp_history = arp_history;
                 state
             }

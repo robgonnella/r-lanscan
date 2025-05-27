@@ -29,4 +29,5 @@ mockall_double = "0.3.1"
 [dev-dependencies]
 insta = "1.43.1"
 mockall = "0.13.1"
+nanoid = "0.4.0"
 tempfile = "3.20.0"

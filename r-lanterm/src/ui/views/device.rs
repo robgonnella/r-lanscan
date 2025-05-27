@@ -7,7 +7,7 @@ use crate::ui::{
     events::types::{Command, Event},
     store::{
         action::Action,
-        derived::get_device_config_from_state,
+        derived::get_selected_device_config_from_state,
         state::{State, ViewID},
         store::Store,
     },
@@ -74,11 +74,10 @@ impl DeviceView {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        device: &DeviceWithPorts,
         ctx: &CustomWidgetContext,
     ) {
         if !*self.editing.borrow() || self.browser_port_state.borrow().editing {
-            let device_config = get_device_config_from_state(device, &ctx.state);
+            let device_config = get_selected_device_config_from_state(&ctx.state);
             self.ssh_user_state.borrow_mut().value = device_config.ssh_user.clone();
             self.ssh_port_state.borrow_mut().value = device_config.ssh_port.to_string();
             self.ssh_identity_state.borrow_mut().value = device_config.ssh_identity_file.clone();
@@ -425,7 +424,7 @@ impl CustomWidgetRef for DeviceView {
         let popover_area = get_popover_area(ctx.app_area, 40, 30);
 
         if let Some(device) = ctx.state.selected_device.clone() {
-            self.render_device_ssh_config(ssh_area, buf, &device, ctx);
+            self.render_device_ssh_config(ssh_area, buf, ctx);
             self.render_device_info(info_area, buf, &device, ctx);
             self.render_cmd_output(right_area, buf, ctx);
             // important that this is last so it properly layers on top
@@ -486,14 +485,10 @@ impl EventHandler for DeviceView {
                         } else if let Some(device) = ctx.state.selected_device.clone() {
                             // save config
                             let mut device_config =
-                                get_device_config_from_state(&device, &ctx.state);
+                                get_selected_device_config_from_state(&ctx.state);
                             device_config.ssh_user = self.ssh_user_state.borrow().value.clone();
-                            let mut port =
-                                self.ssh_port_state.borrow().value.clone().parse::<u16>();
-                            if port.is_err() {
-                                port = Ok(22);
-                            }
-                            device_config.ssh_port = port.unwrap();
+                            let port = self.ssh_port_state.borrow().value.clone().parse::<u16>();
+                            device_config.ssh_port = port.unwrap_or(22);
                             device_config.ssh_identity_file =
                                 self.ssh_identity_state.borrow().value.clone();
                             self.store

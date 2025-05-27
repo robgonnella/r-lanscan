@@ -157,14 +157,14 @@ impl EventManager {
 
 #[cfg(test)]
 mod tests {
+    use nanoid::nanoid;
+    use r_lanlib::scanners::Device;
     use std::{
-        fs::File,
+        fs::{self, File},
         io::{Seek, SeekFrom, Write},
         os::{fd::OwnedFd, unix::process::ExitStatusExt},
         process::{ChildStderr, ExitStatus, Output},
     };
-
-    use r_lanlib::scanners::Device;
 
     use crate::config::{ConfigManager, DeviceConfig};
 
@@ -185,6 +185,7 @@ mod tests {
     }
 
     fn setup(
+        conf_manager: ConfigManager,
         commander: Commander,
     ) -> (
         Sender<Event>,
@@ -192,7 +193,6 @@ mod tests {
         Arc<Store>,
         EventManager,
     ) {
-        let conf_manager = ConfigManager::new("./generated");
         let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager))));
         let (tx, rx) = std::sync::mpsc::channel::<Event>();
         let arc_rx = Arc::new(Mutex::new(rx));
@@ -205,15 +205,23 @@ mod tests {
         return (tx, arc_rx, store, evt_manager);
     }
 
+    fn tear_down(path: &str) {
+        fs::remove_file(path).unwrap();
+    }
+
     #[test]
     fn handles_ssh_command_err() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
         let mut mock_commander = Commander::default();
 
         mock_commander
             .expect_ssh()
             .returning(|_, _| Err(Box::from("mock error")));
 
-        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+        let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
 
         let device = Device {
             hostname: "Hostname".to_string(),
@@ -239,17 +247,23 @@ mod tests {
 
         let state = store.get_state();
         assert!(state.error.is_some());
+
+        tear_down(tmp_path.as_str());
     }
 
     #[test]
     fn handles_ssh_command_ok() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
         let mut mock_commander = Commander::default();
 
         mock_commander
             .expect_ssh()
             .returning(|_, _| Ok((ExitStatus::default(), None)));
 
-        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+        let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
 
         let device = Device {
             hostname: "Hostname".to_string(),
@@ -275,10 +289,16 @@ mod tests {
 
         let state = store.get_state();
         assert!(state.error.is_none());
+
+        tear_down(tmp_path.as_str());
     }
 
     #[test]
     fn handles_ssh_command_ok_err() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
         let mut mock_commander = Commander::default();
 
         mock_commander.expect_ssh().returning(|_, _| {
@@ -293,7 +313,7 @@ mod tests {
             Ok((status, Some(mock_stderr)))
         });
 
-        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+        let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
 
         let device = Device {
             hostname: "Hostname".to_string(),
@@ -321,18 +341,67 @@ mod tests {
         assert!(state.error.is_some());
 
         let err = state.error.unwrap();
-        assert_eq!(err, "test error\n")
+        assert_eq!(err, "test error\n");
+
+        tear_down(tmp_path.as_str());
+    }
+
+    #[test]
+    fn handles_ssh_command_ok_err_empty() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
+        let mut mock_commander = Commander::default();
+
+        mock_commander.expect_ssh().returning(|_, _| {
+            let status = ExitStatusExt::from_raw(1);
+            Ok((status, None))
+        });
+
+        let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+
+        let device = Device {
+            hostname: "Hostname".to_string(),
+            ip: "IP".to_string(),
+            mac: "MAC".to_string(),
+            vendor: "Vendor".to_string(),
+            is_current_host: false,
+        };
+
+        let device_config = DeviceConfig {
+            id: "device_id".to_string(),
+            ssh_port: 22,
+            ssh_identity_file: "id_rsa".to_string(),
+            ssh_user: "user".to_string(),
+        };
+
+        let res = sender.send(Event::UIPaused);
+        assert!(res.is_ok());
+
+        let rx = receiver.lock().unwrap();
+        let res = evt_manager.handle_cmd(rx, AppCommand::SSH(device, device_config));
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+        assert!(state.error.is_some());
+
+        tear_down(tmp_path.as_str());
     }
 
     #[test]
     fn handles_traceroute_command_err() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
         let mut mock_commander = Commander::default();
 
         mock_commander
             .expect_traceroute()
             .returning(|_| Err(Box::from("mock error")));
 
-        let (_sender, receiver, store, evt_manager) = setup(mock_commander);
+        let (_sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
 
         let device = Device {
             hostname: "Hostname".to_string(),
@@ -348,10 +417,16 @@ mod tests {
 
         let state = store.get_state();
         assert!(state.error.is_some());
+
+        tear_down(tmp_path.as_str());
     }
 
     #[test]
     fn handles_traceroute_command_ok() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
         let mut mock_commander = Commander::default();
 
         let expected_output = Output {
@@ -369,7 +444,7 @@ mod tests {
             Ok(o)
         });
 
-        let (_sender, receiver, store, evt_manager) = setup(mock_commander);
+        let (_sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
 
         let device = Device {
             hostname: "Hostname".to_string(),
@@ -391,17 +466,23 @@ mod tests {
         let output = state.cmd_output.unwrap();
         assert_eq!(output.0, AppCommand::TRACEROUTE(device));
         assert_eq!(output.1, expected_output);
+
+        tear_down(tmp_path.as_str());
     }
 
     #[test]
     fn handles_browse_command_err() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
         let mut mock_commander = Commander::default();
 
         mock_commander
             .expect_lynx()
             .returning(|_, _| Err(Box::from("mock error")));
 
-        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+        let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
 
         let device = Device {
             hostname: "Hostname".to_string(),
@@ -420,17 +501,23 @@ mod tests {
 
         let state = store.get_state();
         assert!(state.error.is_some());
+
+        tear_down(tmp_path.as_str());
     }
 
     #[test]
     fn handles_browse_command_ok() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
         let mut mock_commander = Commander::default();
 
         mock_commander
             .expect_lynx()
             .returning(|_, _| Ok((ExitStatus::default(), None)));
 
-        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+        let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
 
         let device = Device {
             hostname: "Hostname".to_string(),
@@ -449,10 +536,16 @@ mod tests {
 
         let state = store.get_state();
         assert!(state.error.is_none());
+
+        tear_down(tmp_path.as_str());
     }
 
     #[test]
     fn handles_browse_command_ok_err() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
         let mut mock_commander = Commander::default();
 
         mock_commander.expect_lynx().returning(|_, _| {
@@ -467,7 +560,7 @@ mod tests {
             Ok((status, Some(mock_stderr)))
         });
 
-        let (sender, receiver, store, evt_manager) = setup(mock_commander);
+        let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
 
         let device = Device {
             hostname: "Hostname".to_string(),
@@ -488,6 +581,83 @@ mod tests {
         assert!(state.error.is_some());
 
         let err = state.error.unwrap();
-        assert_eq!(err, "test error\n")
+        assert_eq!(err, "test error\n");
+
+        tear_down(tmp_path.as_str());
+    }
+
+    #[test]
+    fn handles_browse_command_ok_err_empty() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
+        let mut mock_commander = Commander::default();
+
+        mock_commander.expect_lynx().returning(|_, _| {
+            let status = ExitStatusExt::from_raw(1);
+            Ok((status, None))
+        });
+
+        let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+
+        let device = Device {
+            hostname: "Hostname".to_string(),
+            ip: "IP".to_string(),
+            mac: "MAC".to_string(),
+            vendor: "Vendor".to_string(),
+            is_current_host: false,
+        };
+
+        let res = sender.send(Event::UIPaused);
+        assert!(res.is_ok());
+
+        let rx = receiver.lock().unwrap();
+        let res = evt_manager.handle_cmd(rx, AppCommand::BROWSE(device, 80));
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+        assert!(state.error.is_some());
+
+        tear_down(tmp_path.as_str());
+    }
+
+    #[test]
+    fn listens_for_events() {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = ConfigManager::new(tmp_path.as_str());
+
+        let mut mock_commander = Commander::default();
+
+        mock_commander
+            .expect_traceroute()
+            .returning(|_| Err(Box::from("mock error")));
+
+        let (sender, _receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+
+        let device = Device {
+            hostname: "Hostname".to_string(),
+            ip: "IP".to_string(),
+            mac: "MAC".to_string(),
+            vendor: "Vendor".to_string(),
+            is_current_host: false,
+        };
+
+        sender
+            .send(Event::ExecCommand(AppCommand::TRACEROUTE(device)))
+            .unwrap();
+
+        sender.send(Event::Quit).unwrap();
+
+        let res = evt_manager.start_event_loop();
+
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+
+        assert!(state.error.is_some());
+
+        tear_down(tmp_path.as_str());
     }
 }
