@@ -228,5 +228,6 @@ mod tests {
         let arp_devices = get_detected_devices(&store.get_state());
         assert_eq!(arp_devices.len(), 1);
         assert_eq!(arp_devices[0], device_1.into());
+        tear_down(tmp_path.as_str());
     }
 }
