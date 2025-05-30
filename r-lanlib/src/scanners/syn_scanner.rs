@@ -356,7 +356,7 @@ impl<'net> Scanner for SYNScanner<'net> {
 
             thread::sleep(idle_timeout);
 
-            notifier.send(ScanMessage::Done(())).or_else(|e| {
+            notifier.send(ScanMessage::Done).or_else(|e| {
                 Err(ScanError {
                     ip: None,
                     port: None,
@@ -512,7 +512,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     ScanMessage::SYNScanResult(d) => {
@@ -640,7 +640,7 @@ mod tests {
 
             if let Ok(msg) = rx.try_recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     ScanMessage::SYNScanResult(result) => {
@@ -1009,7 +1009,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     _ => {}
@@ -1068,7 +1068,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     _ => {}
@@ -1128,7 +1128,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     _ => {}

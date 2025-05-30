@@ -80,7 +80,7 @@ impl<'net> FullScanner<'net> {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         debug!("arp sending complete");
                         break;
                     }
@@ -263,7 +263,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => break,
+                    ScanMessage::Done => break,
                     ScanMessage::SYNScanResult(d) => {
                         detected_device.hostname = d.device.hostname;
                         detected_device.ip = d.device.ip;

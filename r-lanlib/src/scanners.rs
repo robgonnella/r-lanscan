@@ -87,7 +87,7 @@ pub struct SYNScanResult {
 
 #[derive(Debug)]
 pub enum ScanMessage {
-    Done(()),
+    Done,
     Info(Scanning),
     ARPScanResult(Device),
     SYNScanResult(SYNScanResult),

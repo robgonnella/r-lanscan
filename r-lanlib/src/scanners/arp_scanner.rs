@@ -249,7 +249,7 @@ impl<'net> Scanner for ARPScanner<'net> {
 
             thread::sleep(idle_timeout);
 
-            notifier.send(ScanMessage::Done(())).or_else(|e| {
+            notifier.send(ScanMessage::Done).or_else(|e| {
                 Err(ScanError {
                     ip: None,
                     port: None,
@@ -385,7 +385,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     ScanMessage::ARPScanResult(device) => {
@@ -465,7 +465,7 @@ mod tests {
 
             if let Ok(msg) = rx.try_recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     ScanMessage::ARPScanResult(device) => {
@@ -643,7 +643,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     _ => {}
@@ -690,7 +690,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     _ => {}
@@ -738,7 +738,7 @@ mod tests {
         loop {
             if let Ok(msg) = rx.recv() {
                 match msg {
-                    ScanMessage::Done(_) => {
+                    ScanMessage::Done => {
                         break;
                     }
                     _ => {}

@@ -42,7 +42,7 @@ fn main() {
         let msg = rx.recv().expect("failed to poll for messages");
 
         match msg {
-            ScanMessage::Done(_) => {
+            ScanMessage::Done => {
                 println!("scanning complete");
                 break;
             }

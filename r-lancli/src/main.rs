@@ -128,7 +128,7 @@ fn process_arp(
         })?;
 
         match msg {
-            ScanMessage::Done(_) => {
+            ScanMessage::Done => {
                 debug!("scanning complete");
                 break;
             }
@@ -209,7 +209,7 @@ fn process_syn(
         })?;
 
         match msg {
-            ScanMessage::Done(_) => {
+            ScanMessage::Done => {
                 debug!("scanning complete");
                 break;
             }
@@ -564,7 +564,7 @@ mod tests {
         thread::spawn(move || {
             let _ = tx.send(ScanMessage::ARPScanResult(device_clone));
             thread::sleep(Duration::from_millis(500));
-            let _ = tx.send(ScanMessage::Done(()));
+            let _ = tx.send(ScanMessage::Done);
         });
 
         arp.expect_scan().returning(|| {
@@ -609,7 +609,7 @@ mod tests {
                 open_port: port_clone,
             }));
             thread::sleep(Duration::from_millis(500));
-            let _ = tx.send(ScanMessage::Done(()));
+            let _ = tx.send(ScanMessage::Done);
         });
 
         syn.expect_scan().returning(|| {

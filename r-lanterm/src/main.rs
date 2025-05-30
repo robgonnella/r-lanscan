@@ -110,7 +110,7 @@ fn process_arp(
         })?;
 
         match msg {
-            ScanMessage::Done(_) => {
+            ScanMessage::Done => {
                 debug!("scanning complete");
                 break;
             }
@@ -192,7 +192,7 @@ fn process_syn(
         })?;
 
         match msg {
-            ScanMessage::Done(_) => {
+            ScanMessage::Done => {
                 debug!("scanning complete");
                 break;
             }
