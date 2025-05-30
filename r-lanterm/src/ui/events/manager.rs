@@ -34,9 +34,6 @@ impl EventManager {
     }
 
     pub fn start_event_loop(&self) -> Result<()> {
-        ctrlc::set_handler(move || println!("captured ctrl-c in event thread!"))
-            .expect("Error setting Ctrl-C handler");
-
         let rx = Arc::clone(&self.rx);
 
         loop {
