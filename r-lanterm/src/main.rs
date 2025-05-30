@@ -349,3 +349,193 @@ fn main() -> Result<()> {
     application.launch()?;
     handle.join().unwrap()
 }
+
+#[cfg(test)]
+mod tests {
+    use mockall::mock;
+    use nanoid::nanoid;
+    use pnet::util::MacAddr;
+    use r_lanlib::packet::{Reader, Sender};
+    use r_lanlib::scanners::{Device, Port, SYNScanResult};
+    use std::error::Error;
+    use std::net::Ipv4Addr;
+    use std::str::FromStr;
+
+    use super::*;
+
+    mock! {
+            pub PacketReader {}
+            impl Reader for PacketReader {
+                fn next_packet(&mut self) -> Result<&'static [u8], Box<dyn Error>>;
+            }
+    }
+
+    mock! {
+        pub PacketSender {}
+        impl Sender for PacketSender {
+            fn send(&mut self, packet: &[u8]) -> Result<(), Box<dyn Error>>;
+        }
+    }
+
+    fn default_args(debug: bool) -> Args {
+        Args {
+            debug,
+            ports: vec!["80".to_string()],
+        }
+    }
+
+    fn setup() -> (String, NetworkInterface, Arc<Store>) {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
+        let store = Arc::new(Store::new(conf_manager));
+        let interface = NetworkInterface {
+            cidr: "192.168.1.1/24".to_string(),
+            description: "test interface".to_string(),
+            flags: 0,
+            index: 0,
+            ips: vec![],
+            ipv4: Ipv4Addr::from_str("192.168.1.2").unwrap(),
+            mac: MacAddr::default(),
+            name: "test_iface".to_string(),
+        };
+        (tmp_path, interface, store)
+    }
+
+    fn tear_down(conf_path: String) {
+        fs::remove_file(conf_path).unwrap();
+    }
+
+    #[test]
+    fn test_initialize_logger() {
+        let args = default_args(false);
+        initialize_logger(&args);
+    }
+
+    #[test]
+    fn test_get_project_config_path() {
+        let p = get_project_config_path();
+        assert_ne!(p, "");
+    }
+
+    #[test]
+    fn test_process_arp() {
+        let (conf_path, interface, store) = setup();
+        let mut mock_packet_reader = MockPacketReader::new();
+        let mut mock_packet_sender = MockPacketSender::new();
+        let source_port = 54321;
+        let (tx, rx) = channel();
+
+        mock_packet_sender.expect_send().returning(|_| Ok(()));
+        mock_packet_reader
+            .expect_next_packet()
+            .returning(|| Ok(&[1]));
+
+        let device = Device {
+            hostname: "hostname".to_string(),
+            ip: "192.168.1.1".to_string(),
+            mac: MacAddr::default().to_string(),
+            is_current_host: false,
+            vendor: "vendor".to_string(),
+        };
+
+        tx.send(ScanMessage::ARPScanResult(device.clone())).unwrap();
+        tx.send(ScanMessage::Done).unwrap();
+
+        let res = process_arp(
+            Arc::new(Mutex::new(mock_packet_reader)),
+            Arc::new(Mutex::new(mock_packet_sender)),
+            &interface,
+            interface.cidr.clone(),
+            source_port,
+            rx,
+            tx,
+            Arc::clone(&store),
+        );
+
+        assert!(res.is_ok());
+
+        let state = store.get_state();
+
+        let expected_devices = vec![DeviceWithPorts {
+            hostname: device.hostname,
+            ip: device.ip,
+            mac: device.mac,
+            is_current_host: device.is_current_host,
+            vendor: device.vendor,
+            open_ports: HashSet::new(),
+        }];
+
+        assert_eq!(state.devices, expected_devices);
+
+        tear_down(conf_path);
+    }
+
+    #[test]
+    fn test_process_syn() {
+        let (conf_path, interface, store) = setup();
+        let mut mock_packet_reader = MockPacketReader::new();
+        let mut mock_packet_sender = MockPacketSender::new();
+        let source_port = 54321;
+        let (tx, rx) = channel();
+
+        mock_packet_sender.expect_send().returning(|_| Ok(()));
+        mock_packet_reader
+            .expect_next_packet()
+            .returning(|| Ok(&[1]));
+
+        let device = Device {
+            hostname: "hostname".to_string(),
+            ip: "192.168.1.1".to_string(),
+            mac: MacAddr::default().to_string(),
+            is_current_host: false,
+            vendor: "vendor".to_string(),
+        };
+
+        let mut open_ports = HashSet::new();
+
+        let open_port = Port {
+            id: 80,
+            service: "http".to_string(),
+        };
+
+        open_ports.insert(open_port.clone());
+
+        let device_with_ports = DeviceWithPorts {
+            hostname: device.hostname.clone(),
+            ip: device.ip.clone(),
+            mac: device.mac.clone(),
+            is_current_host: device.is_current_host.clone(),
+            vendor: device.vendor.clone(),
+            open_ports: open_ports.clone(),
+        };
+
+        tx.send(ScanMessage::SYNScanResult(SYNScanResult {
+            device: device.clone(),
+            open_port: open_port.clone(),
+        }))
+        .unwrap();
+        tx.send(ScanMessage::Done).unwrap();
+
+        store.dispatch(Action::AddDevice(device_with_ports.clone()));
+
+        let res = process_syn(
+            Arc::new(Mutex::new(mock_packet_reader)),
+            Arc::new(Mutex::new(mock_packet_sender)),
+            &interface,
+            vec!["80".to_string()],
+            rx,
+            tx,
+            source_port,
+            Arc::clone(&store),
+        );
+
+        assert!(res.is_ok());
+
+        let devices = res.unwrap();
+
+        assert_eq!(devices, vec![device_with_ports]);
+
+        tear_down(conf_path);
+    }
+}
