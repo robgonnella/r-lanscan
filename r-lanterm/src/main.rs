@@ -6,7 +6,7 @@ use directories::ProjectDirs;
 use log::*;
 use r_lanlib::{
     network::{self, NetworkInterface},
-    packet,
+    packet::{self, Reader as WireReader, Sender as WireSender},
     scanners::{
         arp_scanner::ARPScanner, syn_scanner::SYNScanner, DeviceWithPorts, ScanError, ScanMessage,
         Scanner, IDLE_TIMEOUT,
@@ -221,6 +221,9 @@ fn process_syn(
 }
 
 fn monitor_network(
+    exit: Receiver<()>,
+    packet_reader: Arc<Mutex<dyn WireReader>>,
+    packet_sender: Arc<Mutex<dyn WireSender>>,
     config: Arc<Config>,
     interface: Arc<NetworkInterface>,
     store: Arc<Store>,
@@ -228,53 +231,51 @@ fn monitor_network(
     info!("starting network monitor");
 
     thread::spawn(move || -> Result<(), ScanError> {
-        let source_port = network::get_available_port().or_else(|e| {
-            Err(ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(e),
-            })
-        })?;
+        loop {
+            let res = exit.try_recv();
 
-        let (tx, rx) = mpsc::channel::<ScanMessage>();
+            if res.is_ok() {
+                return Ok(());
+            }
 
-        let wire = packet::wire::default(&interface).or_else(|e| {
-            Err(ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(e),
-            })
-        })?;
+            let source_port = network::get_available_port().or_else(|e| {
+                Err(ScanError {
+                    ip: None,
+                    port: None,
+                    error: Box::from(e),
+                })
+            })?;
 
-        let rx = process_arp(
-            Arc::clone(&wire.0),
-            Arc::clone(&wire.1),
-            &interface,
-            interface.cidr.clone(),
-            source_port,
-            rx,
-            tx.clone(),
-            Arc::clone(&store),
-        )?;
+            let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-        let results = process_syn(
-            Arc::clone(&wire.0),
-            Arc::clone(&wire.1),
-            &interface,
-            config.ports.clone(),
-            rx,
-            tx.clone(),
-            source_port,
-            Arc::clone(&store),
-        )?;
+            let rx = process_arp(
+                Arc::clone(&packet_reader),
+                Arc::clone(&packet_sender),
+                &interface,
+                interface.cidr.clone(),
+                source_port,
+                rx,
+                tx.clone(),
+                Arc::clone(&store),
+            )?;
 
-        store.dispatch(Action::UpdateAllDevices(results));
+            let results = process_syn(
+                Arc::clone(&packet_reader),
+                Arc::clone(&packet_sender),
+                &interface,
+                config.ports.clone(),
+                rx,
+                tx.clone(),
+                source_port,
+                Arc::clone(&store),
+            )?;
 
-        debug!("network scan completed");
+            store.dispatch(Action::UpdateAllDevices(results));
 
-        thread::sleep(time::Duration::from_secs(15));
-        let handle = monitor_network(config, interface, store);
-        handle.join().unwrap()
+            debug!("network scan completed");
+
+            thread::sleep(time::Duration::from_secs(15));
+        }
     })
 }
 
@@ -325,13 +326,35 @@ fn main() -> Result<()> {
 
     let interface = network::get_default_interface().expect("could not get default interface");
     let (config, store) = init(&args, &interface);
-    // don't do anything with handle here as this call is recursive
-    // so if we join our main process will never exit
-    monitor_network(Arc::new(config), Arc::new(interface), Arc::clone(&store));
+    let (_, exit_rx) = mpsc::channel();
+
+    let wire = packet::wire::default(&interface).or_else(|e| {
+        Err(ScanError {
+            ip: None,
+            port: None,
+            error: Box::from(e),
+        })
+    })?;
+
+    monitor_network(
+        exit_rx,
+        wire.0,
+        wire.1,
+        Arc::new(config),
+        Arc::new(interface),
+        Arc::clone(&store),
+    );
 
     if args.debug {
         loop {}
     }
+
+    // captures ctrl-c only in main thread so when we drop down to shell
+    // commands like ssh, we will pause the key handler for ctrl-c in app
+    // and capture ctrl-c here to prevent exiting app and just let ctrl-c
+    // be handled by the command being executed, which should return us
+    // to our app where we can restart our ui and key-handlers
+    ctrlc::set_handler(move || println!("captured ctrl-c!")).expect("Error setting Ctrl-C handler");
 
     let event_manager_channel = channel();
     let app_channel = channel();
@@ -360,6 +383,7 @@ mod tests {
     use std::error::Error;
     use std::net::Ipv4Addr;
     use std::str::FromStr;
+    use std::time::Duration;
 
     use super::*;
 
@@ -384,12 +408,8 @@ mod tests {
         }
     }
 
-    fn setup() -> (String, NetworkInterface, Arc<Store>) {
-        fs::create_dir_all("generated").unwrap();
-        let tmp_path = format!("generated/{}.yml", nanoid!());
-        let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
-        let store = Arc::new(Store::new(conf_manager));
-        let interface = NetworkInterface {
+    fn mock_interface() -> NetworkInterface {
+        NetworkInterface {
             cidr: "192.168.1.1/24".to_string(),
             description: "test interface".to_string(),
             flags: 0,
@@ -397,8 +417,16 @@ mod tests {
             ips: vec![],
             ipv4: Ipv4Addr::from_str("192.168.1.2").unwrap(),
             mac: MacAddr::default(),
-            name: "test_iface".to_string(),
-        };
+            name: "test_interface".to_string(),
+        }
+    }
+
+    fn setup() -> (String, NetworkInterface, Arc<Store>) {
+        fs::create_dir_all("generated").unwrap();
+        let tmp_path = format!("generated/{}.yml", nanoid!());
+        let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
+        let store = Arc::new(Store::new(conf_manager));
+        let interface = mock_interface();
         (tmp_path, interface, store)
     }
 
@@ -537,5 +565,47 @@ mod tests {
         assert_eq!(devices, vec![device_with_ports]);
 
         tear_down(conf_path);
+    }
+
+    #[test]
+    fn test_monitor_network() {
+        let (conf_path, interface, store) = setup();
+        let mut mock_packet_reader = MockPacketReader::new();
+        let mut mock_packet_sender = MockPacketSender::new();
+        let config = Config::default();
+        let (exit_tx, exit_rx) = channel();
+
+        mock_packet_sender.expect_send().returning(|_| Ok(()));
+        mock_packet_reader
+            .expect_next_packet()
+            .returning(|| Ok(&[1]));
+
+        let _ = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(1000));
+            exit_tx.send(())
+        })
+        .join()
+        .unwrap();
+
+        let handle = monitor_network(
+            exit_rx,
+            Arc::new(Mutex::new(mock_packet_reader)),
+            Arc::new(Mutex::new(mock_packet_sender)),
+            Arc::new(config),
+            Arc::new(interface),
+            store,
+        );
+
+        let _ = handle.join().unwrap();
+
+        tear_down(conf_path);
+    }
+
+    #[test]
+    fn test_init() {
+        let args = default_args(false);
+        let interface = mock_interface();
+        let (_config, _store) = init(&args, &interface);
+        assert!(true);
     }
 }
