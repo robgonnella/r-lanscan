@@ -247,7 +247,7 @@ mod tests {
         let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
         let store = Arc::new(Store::new(conf_manager));
         let (tx, rx) = mpsc::channel();
-        let mut stdout = io::stdout();
+        let stdout = io::stdout();
         let real_terminal = Terminal::new(CrosstermBackend::new(stdout)).unwrap();
         let test_terminal = Terminal::new(TestBackend::new(80, 40)).unwrap();
         let app = App::new_test(tx, rx, real_terminal, test_terminal, Arc::clone(&store));
