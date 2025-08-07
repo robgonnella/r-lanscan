@@ -39,6 +39,10 @@ impl Commander {
 
     pub fn traceroute(&self, device: Device) -> Result<Output, Box<dyn Error>> {
         ShellCommand::new("traceroute")
+            .arg("-w")
+            .arg("2")
+            .arg("-I")
+            .arg("-v")
             .arg(device.ip)
             .output()
             .map_err(|e| Box::from(e.to_string()))
