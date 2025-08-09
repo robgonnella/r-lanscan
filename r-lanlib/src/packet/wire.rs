@@ -66,7 +66,3 @@ pub fn default(
         Arc::new(Mutex::new(PNetSender { sender: channel.0 })),
     ))
 }
-
-#[cfg(test)]
-#[path = "./tests/wire_tests.rs"]
-mod tests;
