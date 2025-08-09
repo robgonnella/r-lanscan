@@ -18,14 +18,22 @@ use std::{net, str::FromStr, sync::Arc};
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```
+/// # use std::net;
+/// # use r_lanlib::scanners::ScanError;
+/// # use r_lanlib::targets::ips::IPTargets;
+/// let print_ip = |ip: net::Ipv4Addr| -> Result<(), ScanError> {
+///   println!("ip: {}", ip);
+///   Ok(())
+/// };
 /// let ips = IPTargets::new(
 ///     vec![
-///         "192.168.0.1".to_string(),
-///         "172.17.0.1-172.17.0.24".to_string(),
-///         "192.168.68.1/24".to_string(),
+///       "192.168.0.1".to_string(),
+///       "172.17.0.1-172.17.0.24".to_string(),
+///       "192.168.68.1/24".to_string(),
 ///     ]
-/// )?;
+/// );
+/// ips.lazy_loop(print_ip).unwrap();
 /// ```
 pub struct IPTargets(Vec<String>, usize);
 

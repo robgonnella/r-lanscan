@@ -18,8 +18,15 @@ use crate::scanners::ScanError;
 ///
 /// # Examples
 ///
-/// ```rust
-/// let ports = PortTargets::new(vec!["1-65535".to_string()])?;
+/// ```
+/// # use r_lanlib::scanners::ScanError;
+/// # use r_lanlib::targets::ports::PortTargets;
+/// let print_port = |port: u16| -> Result<(), ScanError> {
+///   println!("port: {}", port);
+///   Ok(())
+/// };
+/// let ports = PortTargets::new(vec!["1-65535".to_string()]);
+/// ports.lazy_loop(print_port).unwrap();
 /// ```
 pub struct PortTargets(Vec<String>, usize);
 

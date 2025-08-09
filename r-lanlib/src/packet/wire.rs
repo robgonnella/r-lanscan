@@ -46,9 +46,12 @@ unsafe impl Sync for PNetSender {}
 /// Returns the default wire for current host
 ///
 /// Example
-/// ```rust
-/// let interface = network::get_default_interface()?;
-/// let wire = packet::wire::default(&interface)?;
+/// ```should_panic
+/// # use std::io;
+/// # use r_lanlib::network;
+/// # use r_lanlib::packet::wire;
+/// let interface = network::get_default_interface().unwrap();
+/// let packet_wire = wire::default(&interface).unwrap();
 /// ```
 pub fn default(
     interface: &NetworkInterface,
@@ -71,3 +74,7 @@ pub fn default(
         Arc::new(Mutex::new(PNetSender { sender: channel.0 })),
     ))
 }
+
+#[cfg(test)]
+#[path = "./wire_tests.rs"]
+mod tests;
