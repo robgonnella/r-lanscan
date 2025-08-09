@@ -46,7 +46,7 @@ unsafe impl Sync for PNetSender {}
 /// Returns the default wire for current host
 ///
 /// Example
-/// ```should_panic
+/// ```no_run
 /// # use std::io;
 /// # use r_lanlib::network;
 /// # use r_lanlib::packet::wire;
