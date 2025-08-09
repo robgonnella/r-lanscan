@@ -30,3 +30,7 @@ pub enum Event {
     ExecCommand(Command),
     Quit,
 }
+
+#[cfg(test)]
+#[path = "./tests/types_tests.rs"]
+mod tests;

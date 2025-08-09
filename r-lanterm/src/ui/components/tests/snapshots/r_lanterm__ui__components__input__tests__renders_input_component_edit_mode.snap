@@ -1,5 +1,5 @@
 ---
-source: r-lanterm/src/ui/components/input.rs
+source: r-lanterm/src/ui/components/./tests/input_tests.rs
 expression: terminal.backend()
 ---
 "Test: value                                                                     "

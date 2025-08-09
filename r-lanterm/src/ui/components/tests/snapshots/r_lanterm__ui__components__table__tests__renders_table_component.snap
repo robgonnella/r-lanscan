@@ -1,5 +1,5 @@
 ---
-source: r-lanterm/src/ui/components/table.rs
+source: r-lanterm/src/ui/components/./tests/table_tests.rs
 expression: terminal.backend()
 ---
 "Items                                                                           "

@@ -1,7 +1,7 @@
 ---
-source: r-lanterm/src/ui/components/header.rs
+source: r-lanterm/src/ui/components/./tests/scrollbar_tests.rs
 expression: terminal.backend()
 ---
-"Test                                                                            "
 "                                                                                "
+"                                                                              █ "
 "                                                                                "

@@ -86,7 +86,7 @@ impl MainView {
         ctx: &CustomWidgetContext,
     ) {
         let logo =
-            Paragraph::new("\nr-lanui").style(Style::new().fg(ctx.state.colors.border_color));
+            Paragraph::new("\nr-lanterm").style(Style::new().fg(ctx.state.colors.border_color));
         let logo_block: Block<'_> = Block::bordered()
             .border_style(Style::new().fg(ctx.state.colors.border_color))
             .border_type(BorderType::Double)
