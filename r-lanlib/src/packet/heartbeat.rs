@@ -1,3 +1,5 @@
+//! Provides helpers for creating heartbeat packets
+
 use std::net;
 
 use pnet::{
@@ -10,9 +12,12 @@ const PKT_IP4_SIZE: usize = ipv4::Ipv4Packet::minimum_packet_size();
 const PKT_TCP_SIZE: usize = tcp::TcpPacket::minimum_packet_size();
 const PKT_TOTAL_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 
+/// Represents a heartbeat packet. This is an arbitrary bit of
+/// information sent on an interval as a TCP packet as a heartbeat indicator
 pub struct HeartBeatPacket {}
 
 impl HeartBeatPacket {
+    /// Returns a new heartbeat packet targeting the provided source
     pub fn new(
         source_mac: util::MacAddr,
         source_ipv4: net::Ipv4Addr,

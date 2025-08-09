@@ -1,3 +1,5 @@
+//! Provides helpers for creating SYN packets
+
 use std::net;
 
 use pnet::{
@@ -10,9 +12,11 @@ const PKT_IP4_SIZE: usize = ipv4::Ipv4Packet::minimum_packet_size();
 const PKT_TCP_SIZE: usize = tcp::TcpPacket::minimum_packet_size();
 const PKT_TOTAL_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 
+/// Represents a SYN request packet for a specific port
 pub struct SYNPacket {}
 
 impl SYNPacket {
+    /// Returns a new SYN request packet using the provided information
     pub fn new(
         source_mac: util::MacAddr,
         source_ipv4: net::Ipv4Addr,
@@ -71,6 +75,7 @@ impl SYNPacket {
 
 #[cfg(test)]
 #[allow(warnings)]
+#[doc(hidden)]
 pub fn create_syn_reply(
     from_mac: util::MacAddr,
     from_ip: net::Ipv4Addr,
@@ -122,7 +127,5 @@ pub fn create_syn_reply(
     ip_header.set_payload(tcp_header.packet_mut());
     eth_header.set_payload(ip_header.packet_mut());
 }
-
-#[cfg(test)]
 #[path = "./tests/syn_tests.rs"]
 mod tests;

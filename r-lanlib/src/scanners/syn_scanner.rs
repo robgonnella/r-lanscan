@@ -1,3 +1,5 @@
+//! Provides Scanner implementation for SYN scanning
+
 use log::*;
 use pnet::{
     packet::{ethernet, ip, ipv4, tcp, Packet},
@@ -21,7 +23,7 @@ use crate::{
 
 use super::{Device, Port, SYNScanResult, ScanMessage, Scanner};
 
-// Data structure representing an ARP scanner
+/// Data structure representing an ARP scanner
 pub struct SYNScanner<'net> {
     interface: &'net NetworkInterface,
     packet_reader: Arc<Mutex<dyn Reader>>,
@@ -34,6 +36,7 @@ pub struct SYNScanner<'net> {
 }
 
 impl<'net> SYNScanner<'net> {
+    /// Returns a new instance of SYNScanner using provided info
     pub fn new(
         interface: &'net NetworkInterface,
         packet_reader: Arc<Mutex<dyn Reader>>,

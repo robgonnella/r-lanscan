@@ -2,12 +2,20 @@
 
 CLI for performing ARP and SYN scanning of LAN
 
-```bash
-cargo run -- --help
+# Install
 
+## Build from source
+
+```bash
 cargo build
 ../target/debug/r-lancli --help
 
 cargo build --release
 ../target/release/r-lancli --help
+```
+
+## Run from source
+
+```bash
+cargo run -- --help
 ```

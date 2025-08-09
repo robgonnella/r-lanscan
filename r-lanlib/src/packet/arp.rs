@@ -1,3 +1,5 @@
+//! Provides helpers for creating ARP packets
+
 use pnet::{
     packet::{arp, ethernet, MutablePacket},
     util,
@@ -9,9 +11,14 @@ const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
 const PKT_TOTAL_SIZE: usize = PKT_ETH_SIZE + PKT_ARP_SIZE;
 
+/// Represents and ARP request packet
+///
+/// This is what the internals of the arp_scanner will send when scanning
+/// for devices on the network
 pub struct ARPPacket {}
 
 impl ARPPacket {
+    /// Returns a new ARP request packet based on provided information
     pub fn new(
         source_ipv4: net::Ipv4Addr,
         source_mac: util::MacAddr,
@@ -50,6 +57,7 @@ impl ARPPacket {
 
 #[cfg(test)]
 #[allow(warnings)]
+#[doc(hidden)]
 pub fn create_arp_reply(
     from_mac: util::MacAddr,
     from_ip: net::Ipv4Addr,
@@ -81,7 +89,5 @@ pub fn create_arp_reply(
 
     pkt_eth.set_payload(pkt_arp.packet_mut());
 }
-
-#[cfg(test)]
 #[path = "./tests/arp_tests.rs"]
 mod tests;

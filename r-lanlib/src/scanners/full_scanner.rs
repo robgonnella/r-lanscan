@@ -1,3 +1,5 @@
+//! Provides Scanner implementation for Full scanning (ARP + SYN)
+
 use log::*;
 use std::{
     sync::{mpsc, Arc, Mutex},
@@ -15,7 +17,7 @@ use super::{
     arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, ScanError, ScanMessage, Scanner,
 };
 
-// Data structure representing a Full scanner (ARP + SYN)
+/// Data structure representing a Full scanner (ARP + SYN)
 pub struct FullScanner<'net> {
     interface: &'net NetworkInterface,
     packet_reader: Arc<Mutex<dyn Reader>>,
@@ -30,6 +32,7 @@ pub struct FullScanner<'net> {
 }
 
 impl<'net> FullScanner<'net> {
+    /// Returns a new instance of FullScanner using provided info
     pub fn new(
         interface: &'net NetworkInterface,
         packet_reader: Arc<Mutex<dyn Reader>>,

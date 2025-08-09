@@ -9,12 +9,20 @@ Features:
 - Run `traceroute` for device found on network (requires traceroute to be installed)
 - Open terminal web browser on any port for any device found on network (requires lynx browser to be installed)
 
-```bash
-cargo run
+# Install
 
+## Build from source
+
+```bash
 cargo build
-../target/debug/r-lanterm
+../target/debug/r-lanterm --help
 
 cargo build --release
-../target/release/r-lanterm
+../target/release/r-lanterm --help
+```
+
+## Run from source
+
+```bash
+cargo run -- --help
 ```

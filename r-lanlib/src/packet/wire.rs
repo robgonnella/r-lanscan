@@ -1,3 +1,5 @@
+//! Implements a default Wire using pnet
+
 use pnet::datalink;
 use std::{
     error::Error,
@@ -9,9 +11,7 @@ use crate::{
     packet::{Reader, Sender},
 };
 
-/**
- * A PNetReader implementation of packet Reader
- */
+/// A PNetReader implementation of packet Reader
 pub struct PNetReader {
     receiver: Box<dyn datalink::DataLinkReceiver>,
 }
@@ -25,9 +25,7 @@ impl Reader for PNetReader {
 
 unsafe impl Sync for PNetReader {}
 
-/**
- * A PNetSender implementation of packet Sender
- */
+/// A PNetSender implementation of packet Sender
 pub struct PNetSender {
     sender: Box<dyn datalink::DataLinkSender>,
 }
@@ -45,6 +43,13 @@ impl Sender for PNetSender {
 
 unsafe impl Sync for PNetSender {}
 
+/// Returns the default wire for current host
+///
+/// Example
+/// ```rust
+/// let interface = network::get_default_interface()?;
+/// let wire = packet::wire::default(&interface)?;
+/// ```
 pub fn default(
     interface: &NetworkInterface,
 ) -> Result<(Arc<Mutex<dyn Reader>>, Arc<Mutex<dyn Sender>>), Box<dyn Error>> {

@@ -1,3 +1,6 @@
+//! Provides helpers for selecting a network interface on the current host
+//! through which to preform network scanning
+
 use pnet::{
     datalink::NetworkInterface as PNetNetworkInterface, ipnetwork::IpNetwork, util::MacAddr,
 };
@@ -8,14 +11,23 @@ use std::{
     str::FromStr,
 };
 
+/// Represents a network interface on current host
 pub struct NetworkInterface {
+    /// The name of the network interface i.e. "en0"
     pub name: String,
+    /// A description of the network interface
     pub description: String,
+    /// The cidr block associated with interface
     pub cidr: String,
+    /// The assigned IPV4 address on the interface
     pub ipv4: Ipv4Addr,
+    /// The IpNetwork of the interface
     pub ips: Vec<IpNetwork>,
+    /// The MAC address of the interface
     pub mac: MacAddr,
+    /// Any defined flags on the interface
     pub flags: u32,
+    /// The index of the interface
     pub index: u32,
 }
 
@@ -54,6 +66,7 @@ impl From<&NetworkInterface> for PNetNetworkInterface {
     }
 }
 
+/// Finds and returns a NetworkInterface by name for current host
 pub fn get_interface(name: &str) -> Option<NetworkInterface> {
     let iface = pnet::datalink::interfaces()
         .into_iter()
@@ -61,6 +74,7 @@ pub fn get_interface(name: &str) -> Option<NetworkInterface> {
     NetworkInterface::try_from(iface).ok()
 }
 
+/// Finds and returns the default NetworkInterface for current host
 pub fn get_default_interface() -> Option<NetworkInterface> {
     let iface = pnet::datalink::interfaces()
         .into_iter()
@@ -68,6 +82,8 @@ pub fn get_default_interface() -> Option<NetworkInterface> {
     NetworkInterface::try_from(iface).ok()
 }
 
+/// Finds an available port on the current host. This is useful when setting the
+/// listening port on a scanner where packets will be received.
 pub fn get_available_port() -> Result<u16, io::Error> {
     let listener = TcpListener::bind(("127.0.0.1", 0))?;
     let addr = listener.local_addr()?;

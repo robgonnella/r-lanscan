@@ -1,3 +1,5 @@
+//! Provides helpers for creating RST packets
+
 use std::net;
 
 use pnet::{
@@ -10,9 +12,13 @@ const PKT_IP4_SIZE: usize = ipv4::Ipv4Packet::minimum_packet_size();
 const PKT_TCP_SIZE: usize = tcp::TcpPacket::minimum_packet_size();
 const PKT_TOTAL_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 
+/// Represents a RST (reset) request packet which is sent when a response is
+/// found for a SYN request indicating that we want to reset the connection.
+/// This is called "half open" scanning and helps to keep things stealthy
 pub struct RSTPacket {}
 
 impl RSTPacket {
+    /// Returns a new RST request packet based on provided info
     pub fn new(
         source_mac: util::MacAddr,
         source_ipv4: net::Ipv4Addr,

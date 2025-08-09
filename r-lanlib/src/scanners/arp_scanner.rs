@@ -1,3 +1,5 @@
+//! Provides Scanner implementation for ARP scanning
+
 use log::*;
 use pnet::packet::{arp, ethernet, Packet};
 use std::{
@@ -17,7 +19,7 @@ use crate::{
 
 use super::{heartbeat::HeartBeat, ScanMessage, Scanner};
 
-// Data structure representing an ARP scanner
+/// Data structure representing an ARP scanner
 pub struct ARPScanner<'net> {
     interface: &'net NetworkInterface,
     packet_reader: Arc<Mutex<dyn Reader>>,
@@ -31,6 +33,7 @@ pub struct ARPScanner<'net> {
 }
 
 impl<'net> ARPScanner<'net> {
+    /// Returns an instance of ARPScanner
     pub fn new(
         interface: &'net NetworkInterface,
         packet_reader: Arc<Mutex<dyn Reader>>,
