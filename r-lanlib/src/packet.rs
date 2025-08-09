@@ -4,10 +4,12 @@ use core::time;
 use std::error::Error;
 
 pub mod arp;
-pub mod heartbeat;
+mod heartbeat;
 pub mod rst;
 pub mod syn;
 pub mod wire;
+
+pub use heartbeat::HeartBeatPacket;
 
 /// Default timing for throttling packet sends to prevent packet loss
 pub const DEFAULT_PACKET_SEND_TIMING: time::Duration = time::Duration::from_micros(50);

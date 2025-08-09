@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::packet::{heartbeat::HeartBeatPacket, Sender};
+use crate::packet::{HeartBeatPacket, Sender};
 
 pub struct HeartBeat {
     source_mac: MacAddr,
