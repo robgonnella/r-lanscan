@@ -92,5 +92,5 @@ impl PortTargets {
 }
 
 #[cfg(test)]
-#[path = "./tests/ports_tests.rs"]
+#[path = "./ports_tests.rs"]
 mod tests;

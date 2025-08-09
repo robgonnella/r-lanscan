@@ -1,5 +1,5 @@
 ---
-source: r-lanterm/src/ui/components/./tests/field_tests.rs
+source: r-lanterm/src/ui/components/./field_tests.rs
 expression: terminal.backend()
 ---
 "Test: value                                                                     "

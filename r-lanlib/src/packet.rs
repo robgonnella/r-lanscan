@@ -27,6 +27,6 @@ pub trait Sender: Send + Sync {
 }
 
 #[cfg(test)]
-#[path = "./tests/packet_tests.rs"]
+#[path = "./packet_tests.rs"]
 #[doc(hidden)]
 pub mod mocks;

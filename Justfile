@@ -31,4 +31,4 @@ test *args:
     cargo test {{args}}
 
 test-report *args:
-    cargo llvm-cov {{args}}
+    cargo llvm-cov --ignore-filename-regex "(_test.rs$)|(_tests.rs$)" {{args}}

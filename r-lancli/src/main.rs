@@ -352,5 +352,5 @@ fn main() -> Result<(), Report> {
 }
 
 #[cfg(test)]
-#[path = "./tests/tests.rs"]
+#[path = "./main_tests.rs"]
 mod tests;

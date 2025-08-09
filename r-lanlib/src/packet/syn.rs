@@ -127,5 +127,7 @@ pub fn create_syn_reply(
     ip_header.set_payload(tcp_header.packet_mut());
     eth_header.set_payload(ip_header.packet_mut());
 }
-#[path = "./tests/syn_tests.rs"]
+
+#[cfg(test)]
+#[path = "./syn_tests.rs"]
 mod tests;

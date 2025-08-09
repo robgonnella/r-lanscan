@@ -145,5 +145,5 @@ mod heartbeat;
 pub mod syn_scanner;
 
 #[cfg(test)]
-#[path = "./tests/scanners_tests.rs"]
+#[path = "./scanners_tests.rs"]
 mod tests;

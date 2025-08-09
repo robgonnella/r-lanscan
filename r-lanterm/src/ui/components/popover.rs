@@ -9,5 +9,5 @@ pub fn get_popover_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
 }
 
 #[cfg(test)]
-#[path = "./tests/popover_tests.rs"]
+#[path = "./popover_tests.rs"]
 mod tests;

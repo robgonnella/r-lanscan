@@ -49,5 +49,5 @@ impl CustomStatefulWidget for Input {
 }
 
 #[cfg(test)]
-#[path = "./tests/input_tests.rs"]
+#[path = "./input_tests.rs"]
 mod tests;

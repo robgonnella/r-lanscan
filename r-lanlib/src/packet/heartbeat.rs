@@ -73,5 +73,5 @@ impl HeartBeatPacket {
 }
 
 #[cfg(test)]
-#[path = "./tests/heartbeat_tests.rs"]
+#[path = "./heartbeat_tests.rs"]
 mod tests;

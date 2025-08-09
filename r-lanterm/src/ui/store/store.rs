@@ -75,5 +75,5 @@ impl Store {
 }
 
 #[cfg(test)]
-#[path = "./tests/store_tests.rs"]
+#[path = "./store_tests.rs"]
 mod tests;

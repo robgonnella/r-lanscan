@@ -44,5 +44,5 @@ impl CustomStatefulWidget for ScrollBar {
 }
 
 #[cfg(test)]
-#[path = "./tests/scrollbar_tests.rs"]
+#[path = "./scrollbar_tests.rs"]
 mod tests;

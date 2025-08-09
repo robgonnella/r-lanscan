@@ -392,5 +392,5 @@ impl<'net> Scanner for SYNScanner<'net> {
 }
 
 #[cfg(test)]
-#[path = "./tests/syn_scanner_tests.rs"]
+#[path = "./syn_scanner_tests.rs"]
 mod tests;

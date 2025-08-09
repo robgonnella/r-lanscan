@@ -123,5 +123,5 @@ impl ConfigManager {
 }
 
 #[cfg(test)]
-#[path = "./tests/config_tests.rs"]
+#[path = "./config_tests.rs"]
 mod tests;

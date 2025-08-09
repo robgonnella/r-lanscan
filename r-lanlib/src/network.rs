@@ -100,5 +100,5 @@ fn get_interface_ipv4_and_cidr(interface: &PNetNetworkInterface) -> Option<(Stri
 }
 
 #[cfg(test)]
-#[path = "./tests/network_tests.rs"]
+#[path = "./network_tests.rs"]
 mod tests;

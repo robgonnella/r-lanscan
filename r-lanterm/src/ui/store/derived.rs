@@ -34,5 +34,5 @@ pub fn get_detected_devices(state: &State) -> Vec<Device> {
 }
 
 #[cfg(test)]
-#[path = "./tests/derived_tests.rs"]
+#[path = "./derived_tests.rs"]
 mod tests;

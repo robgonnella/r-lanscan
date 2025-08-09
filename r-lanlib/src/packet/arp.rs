@@ -89,5 +89,7 @@ pub fn create_arp_reply(
 
     pkt_eth.set_payload(pkt_arp.packet_mut());
 }
-#[path = "./tests/arp_tests.rs"]
+
+#[cfg(test)]
+#[path = "./arp_tests.rs"]
 mod tests;

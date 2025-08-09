@@ -216,5 +216,5 @@ fn fit_to_width(item: &Vec<String>, col_widths: Vec<usize>) -> Vec<String> {
 }
 
 #[cfg(test)]
-#[path = "./tests/table_tests.rs"]
+#[path = "./table_tests.rs"]
 mod tests;

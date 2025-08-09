@@ -154,5 +154,5 @@ impl EventManager {
 }
 
 #[cfg(test)]
-#[path = "./tests/manager_tests.rs"]
+#[path = "./manager_tests.rs"]
 mod tests;

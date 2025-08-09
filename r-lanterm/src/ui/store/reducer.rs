@@ -231,5 +231,5 @@ impl Reducer {
 }
 
 #[cfg(test)]
-#[path = "./tests/reducer_tests.rs"]
+#[path = "./reducer_tests.rs"]
 mod tests;

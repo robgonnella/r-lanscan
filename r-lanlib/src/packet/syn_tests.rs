@@ -1,8 +1,8 @@
-use std::str::FromStr;
-
-use util::MacAddr;
-
 use super::*;
+
+use pnet::util::MacAddr;
+
+use std::str::FromStr;
 
 #[test]
 fn creates_syn_packet() {

@@ -119,5 +119,5 @@ impl<'net> Scanner for FullScanner<'net> {
 }
 
 #[cfg(test)]
-#[path = "./tests/full_scanner_tests.rs"]
+#[path = "./full_scanner_tests.rs"]
 mod tests;

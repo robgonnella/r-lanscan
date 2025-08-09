@@ -32,5 +32,5 @@ pub enum Event {
 }
 
 #[cfg(test)]
-#[path = "./tests/types_tests.rs"]
+#[path = "./types_tests.rs"]
 mod tests;

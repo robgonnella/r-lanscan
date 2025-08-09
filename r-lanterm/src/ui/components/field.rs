@@ -29,5 +29,5 @@ impl Widget for Field {
 }
 
 #[cfg(test)]
-#[path = "./tests/field_tests.rs"]
+#[path = "./field_tests.rs"]
 mod tests;

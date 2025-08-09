@@ -40,5 +40,5 @@ impl CustomWidget for InfoFooter {
 }
 
 #[cfg(test)]
-#[path = "./tests/footer_tests.rs"]
+#[path = "./footer_tests.rs"]
 mod tests;

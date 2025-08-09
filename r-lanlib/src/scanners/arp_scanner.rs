@@ -282,5 +282,5 @@ impl<'net> Scanner for ARPScanner<'net> {
 }
 
 #[cfg(test)]
-#[path = "./tests/arp_scanner_tests.rs"]
+#[path = "./arp_scanner_tests.rs"]
 mod tests;

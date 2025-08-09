@@ -77,5 +77,5 @@ impl RSTPacket {
 }
 
 #[cfg(test)]
-#[path = "./tests/rst_tests.rs"]
+#[path = "./rst_tests.rs"]
 mod tests;

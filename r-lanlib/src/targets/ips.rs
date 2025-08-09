@@ -23,7 +23,7 @@ use std::{net, str::FromStr, sync::Arc};
 ///     vec![
 ///         "192.168.0.1".to_string(),
 ///         "172.17.0.1-172.17.0.24".to_string(),
-///         "192.168.68.1/24",
+///         "192.168.68.1/24".to_string(),
 ///     ]
 /// )?;
 /// ```
@@ -121,5 +121,5 @@ impl IPTargets {
 }
 
 #[cfg(test)]
-#[path = "./tests/ips_tests.rs"]
+#[path = "./ips_tests.rs"]
 mod tests;

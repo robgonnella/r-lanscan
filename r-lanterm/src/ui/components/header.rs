@@ -33,5 +33,5 @@ impl CustomWidget for Header {
 }
 
 #[cfg(test)]
-#[path = "./tests/header_tests.rs"]
+#[path = "./header_tests.rs"]
 mod tests;
