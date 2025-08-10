@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Modify the rust toolchain version
-        run: rustup override set 1.85.1
+        run: rustup override set 1.89.0
       - name: Output cargo version
         run: cargo --version
       - name: Build
@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Modify the rust toolchain version
-        run: rustup override set 1.85.1
+        run: rustup override set 1.89.0
       - name: Output cargo version
         run: cargo --version
       - name: Add clippy component
@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Modify the rust toolchain version
-        run: rustup override set 1.85.1
+        run: rustup override set 1.89.0
       - name: Output cargo version
         run: cargo --version
       - uses: taiki-e/install-action@cargo-llvm-cov
