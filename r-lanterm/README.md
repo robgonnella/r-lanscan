@@ -1,6 +1,6 @@
 # R-LANTERM
 
-Terminal GUI for discovering and managing on premise LAN devices.
+Terminal UI (TUI) for discovering and managing on premise LAN devices.
 
 Features:
 - Save global ssh configuration used for all devices

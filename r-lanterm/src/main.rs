@@ -1,4 +1,4 @@
-//! Terminal GUI app for managing networked LAN devices
+//! Terminal UI (TUI) app for managing networked LAN devices
 //!
 //! This is the new and improved rust version of [ops](https://github.com/robgonnella/ops)
 //!
