@@ -10,13 +10,13 @@ rust version of [go-lanscan]
 
 ## Libs
 
-- [r-lanlib](./r-lanlib/README.md): provides access to arp and syn scanning
+- [r-lanlib](./lib/README.md): provides access to arp and syn scanning
   tools to allow you to build your own network scanning tools
 
 ## Bin
 
-- [r-lancli](./r-lancli/README.md): cli for scanning LAN in terminal
-- [r-lanterm](./r-lanterm/README.md): terminal UI for discovering and managing
+- [r-lancli](./cli/README.md): cli for scanning LAN in terminal
+- [r-lanterm](./term/README.md): terminal UI for discovering and managing
   devices on LAN
 
 ## Testing
