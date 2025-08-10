@@ -45,7 +45,7 @@ pub struct SYNScannerArgs<'net> {
     /// A packet Sender implementation (can use default provided in packet
     /// crate)
     pub packet_sender: Arc<Mutex<dyn Sender>>,
-    /// [`IPTargets`] to scan
+    /// [`Device`] list to scan
     pub targets: Vec<Device>,
     /// [`PortTargets`] to scan for each detected device
     pub ports: Arc<PortTargets>,
