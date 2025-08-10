@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Modify the rust toolchain version
+        run: rustup override set 1.85.1
+      - name: Output rust versio
+        run: rustup --version
       - name: Build
         run: cargo build --verbose
 
@@ -21,6 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Modify the rust toolchain version
+        run: rustup override set 1.85.1
+      - name: Output rust versio
+        run: rustup --version
       - name: Lint
         run: cargo clippy --all-targets --all-features
 
@@ -28,6 +36,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Modify the rust toolchain version
+        run: rustup override set 1.85.1
+      - name: Output rust versio
+        run: rustup --version
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Test
         run: script -q /dev/null -c "cargo llvm-cov"
