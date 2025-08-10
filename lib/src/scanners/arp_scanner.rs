@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     network::NetworkInterface,
-    packet::{self, arp::ARPPacket, Reader, Sender},
+    packet::{self, arp_packet, Reader, Sender},
     scanners::{Device, ScanError, Scanning},
     targets::ips::IPTargets,
 };
@@ -32,41 +32,58 @@ pub struct ARPScanner<'net> {
     notifier: sync::mpsc::Sender<ScanMessage>,
 }
 
+/// Data structure holding parameters needed to create instance of ARPScanner
+pub struct ARPScannerArgs<'net> {
+    /// The network interface to use when scanning
+    pub interface: &'net NetworkInterface,
+    /// A packet Reader implementation (can use default provided in packet
+    /// crate)
+    pub packet_reader: Arc<Mutex<dyn Reader>>,
+    /// A packet Sender implementation (can use default provided in packet
+    /// crate)
+    pub packet_sender: Arc<Mutex<dyn Sender>>,
+    /// [`IPTargets`] to scan
+    pub targets: Arc<IPTargets>,
+    /// An open source port to listen for incoming packets (can use network
+    /// packet to find open port)
+    pub source_port: u16,
+    /// Whether or not to include vendor look-ups for detected devices
+    pub include_vendor: bool,
+    /// Whether or not to include hostname look-ups for detected devices
+    pub include_host_names: bool,
+    /// The amount of time to wait for incoming packets after scanning all
+    /// targets
+    pub idle_timeout: Duration,
+    /// Channel to send messages regarding devices being scanned, and detected
+    /// devices
+    pub notifier: sync::mpsc::Sender<ScanMessage>,
+}
+
 impl<'net> ARPScanner<'net> {
     /// Returns an instance of ARPScanner
-    pub fn new(
-        interface: &'net NetworkInterface,
-        packet_reader: Arc<Mutex<dyn Reader>>,
-        packet_sender: Arc<Mutex<dyn Sender>>,
-        targets: Arc<IPTargets>,
-        source_port: u16,
-        vendor: bool,
-        host: bool,
-        idle_timeout: Duration,
-        notifier: sync::mpsc::Sender<ScanMessage>,
-    ) -> Self {
+    pub fn new(args: ARPScannerArgs<'net>) -> Self {
         Self {
-            interface,
-            packet_reader,
-            packet_sender,
-            targets,
-            source_port,
-            include_vendor: vendor,
-            include_host_names: host,
-            idle_timeout,
-            notifier,
+            interface: args.interface,
+            packet_reader: args.packet_reader,
+            packet_sender: args.packet_sender,
+            targets: args.targets,
+            source_port: args.source_port,
+            include_vendor: args.include_vendor,
+            include_host_names: args.include_host_names,
+            idle_timeout: args.idle_timeout,
+            notifier: args.notifier,
         }
     }
 }
 
-impl<'net> ARPScanner<'net> {
+impl ARPScanner<'_> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(&self, done: sync::mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let packet_sender = Arc::clone(&self.packet_sender);
-        let include_host_names = self.include_host_names.clone();
-        let include_vendor = self.include_vendor.clone();
+        let include_host_names = self.include_host_names;
+        let include_vendor = self.include_vendor;
         let source_ipv4 = self.interface.ipv4;
         let source_mac = self.interface.mac;
         let source_port = self.source_port.to_owned();
@@ -83,7 +100,7 @@ impl<'net> ARPScanner<'net> {
             let heartbeat = HeartBeat::new(source_mac, source_ipv4, source_port, packet_sender);
             let interval = Duration::from_secs(1);
             loop {
-                if let Ok(_) = heartbeat_rx.try_recv() {
+                if heartbeat_rx.try_recv().is_ok() {
                     debug!("stopping arp heartbeat");
                     break;
                 }
@@ -94,29 +111,25 @@ impl<'net> ARPScanner<'net> {
         });
 
         thread::spawn(move || -> Result<(), ScanError> {
-            let mut reader = packet_reader.lock().or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from(e.to_string()),
-                })
+            let mut reader = packet_reader.lock().map_err(|e| ScanError {
+                ip: None,
+                port: None,
+                error: Box::from(e.to_string()),
             })?;
 
             loop {
-                if let Ok(_) = done.try_recv() {
+                if done.try_recv().is_ok() {
                     debug!("exiting arp packet reader");
                     if let Err(e) = heartbeat_tx.send(()) {
-                        error!("failed to stop heartbeat: {}", e.to_string());
+                        error!("failed to stop heartbeat: {}", e);
                     }
                     break;
                 }
 
-                let pkt = reader.next_packet().or_else(|e| {
-                    Err(ScanError {
-                        ip: None,
-                        port: None,
-                        error: e,
-                    })
+                let pkt = reader.next_packet().map_err(|e| ScanError {
+                    ip: None,
+                    port: None,
+                    error: e,
                 })?;
 
                 let eth = ethernet::EthernetPacket::new(pkt);
@@ -155,7 +168,7 @@ impl<'net> ARPScanner<'net> {
                 thread::spawn(move || {
                     let mut hostname: String = String::from("");
                     if include_host_names {
-                        debug!("looking up hostname for {}", ip4.to_string());
+                        debug!("looking up hostname for {}", ip4);
                         if let Ok(host) = dns_lookup::lookup_addr(&ip4.into()) {
                             hostname = host;
                         }
@@ -184,7 +197,7 @@ impl<'net> ARPScanner<'net> {
 }
 
 // Implements the Scanner trait for ARPScanner
-impl<'net> Scanner for ARPScanner<'net> {
+impl Scanner for ARPScanner<'_> {
     fn scan(&self) -> JoinHandle<Result<(), ScanError>> {
         debug!("performing ARP scan on targets: {:?}", self.targets);
         debug!("include_vendor: {}", self.include_vendor);
@@ -208,7 +221,7 @@ impl<'net> Scanner for ARPScanner<'net> {
 
                 debug!("scanning ARP target: {}", target_ipv4);
 
-                let pkt_buf = ARPPacket::new(source_ipv4, source_mac, target_ipv4);
+                let pkt_buf = arp_packet::build(source_ipv4, source_mac, target_ipv4);
 
                 // inform consumer we are scanning this target (ignore error on failure to notify)
                 notifier
@@ -216,29 +229,23 @@ impl<'net> Scanner for ARPScanner<'net> {
                         ip: target_ipv4.to_string(),
                         port: None,
                     }))
-                    .or_else(|e| {
-                        Err(ScanError {
-                            ip: Some(target_ipv4.to_string()),
-                            port: None,
-                            error: Box::from(e),
-                        })
-                    })?;
-
-                let mut pkt_sender = packet_sender.lock().or_else(|e| {
-                    Err(ScanError {
-                        ip: Some(target_ipv4.to_string()),
-                        port: None,
-                        error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
-                    })
-                })?;
-
-                // Send to the broadcast address
-                pkt_sender.send(&pkt_buf).or_else(|e| {
-                    Err(ScanError {
+                    .map_err(|e| ScanError {
                         ip: Some(target_ipv4.to_string()),
                         port: None,
                         error: Box::from(e),
-                    })
+                    })?;
+
+                let mut pkt_sender = packet_sender.lock().map_err(|e| ScanError {
+                    ip: Some(target_ipv4.to_string()),
+                    port: None,
+                    error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
+                })?;
+
+                // Send to the broadcast address
+                pkt_sender.send(&pkt_buf).map_err(|e| ScanError {
+                    ip: Some(target_ipv4.to_string()),
+                    port: None,
+                    error: e,
                 })?;
 
                 Ok(())
@@ -252,24 +259,20 @@ impl<'net> Scanner for ARPScanner<'net> {
 
             thread::sleep(idle_timeout);
 
-            notifier.send(ScanMessage::Done).or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from(e),
-                })
+            notifier.send(ScanMessage::Done).map_err(|e| ScanError {
+                ip: None,
+                port: None,
+                error: Box::from(e),
             })?;
 
             // ignore errors here as the thread may already be dead due to error
             // we'll catch any errors from that thread below and report
             let _ = done_tx.send(());
 
-            let read_result = read_handle.join().or_else(|_| {
-                Err(ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from("error encountered in arp packet reading thread"),
-                })
+            let read_result = read_handle.join().map_err(|_| ScanError {
+                ip: None,
+                port: None,
+                error: Box::from("error encountered in arp packet reading thread"),
             })?;
 
             if let Some(err) = scan_error {

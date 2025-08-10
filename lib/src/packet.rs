@@ -3,13 +3,13 @@
 use core::time;
 use std::error::Error;
 
-pub mod arp;
-mod heartbeat;
-pub mod rst;
-pub mod syn;
+pub mod arp_packet;
+mod heartbeat_packet;
+pub mod rst_packet;
+pub mod syn_packet;
 pub mod wire;
 
-pub use heartbeat::HeartBeatPacket;
+pub use heartbeat_packet::build as build_heartbeat_packet;
 
 /// Default timing for throttling packet sends to prevent packet loss
 pub const DEFAULT_PACKET_SEND_TIMING: time::Duration = time::Duration::from_micros(50);

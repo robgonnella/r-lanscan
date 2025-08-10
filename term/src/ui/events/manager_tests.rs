@@ -25,15 +25,14 @@ fn new_with_commander(
     }
 }
 
-fn setup(
-    conf_manager: ConfigManager,
-    commander: Commander,
-) -> (
-    Sender<Event>,
-    Arc<Mutex<Receiver<Event>>>,
-    Arc<Store>,
-    EventManager,
-) {
+struct SetUpReturn {
+    sender: Sender<Event>,
+    receiver: Arc<Mutex<Receiver<Event>>>,
+    store: Arc<Store>,
+    manager: EventManager,
+}
+
+fn setup(conf_manager: ConfigManager, commander: Commander) -> SetUpReturn {
     let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager))));
     let (tx, rx) = std::sync::mpsc::channel::<Event>();
     let arc_rx = Arc::new(Mutex::new(rx));
@@ -43,7 +42,12 @@ fn setup(
         Arc::clone(&store),
         commander,
     );
-    return (tx, arc_rx, store, evt_manager);
+    SetUpReturn {
+        sender: tx,
+        receiver: arc_rx,
+        store,
+        manager: evt_manager,
+    }
 }
 
 fn tear_down(path: &str) {
@@ -62,7 +66,7 @@ fn handles_ssh_command_err() {
         .expect_ssh()
         .returning(|_, _| Err(Box::from("mock error")));
 
-    let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -79,14 +83,16 @@ fn handles_ssh_command_err() {
         ssh_user: "user".to_string(),
     };
 
-    let res = sender.send(Event::UIPaused);
+    let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::SSH(device, device_config));
+    let rx = test.receiver.lock().unwrap();
+    let res = test
+        .manager
+        .handle_cmd(rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -104,7 +110,7 @@ fn handles_ssh_command_ok() {
         .expect_ssh()
         .returning(|_, _| Ok((ExitStatus::default(), None)));
 
-    let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -121,14 +127,16 @@ fn handles_ssh_command_ok() {
         ssh_user: "user".to_string(),
     };
 
-    let res = sender.send(Event::UIPaused);
+    let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::SSH(device, device_config));
+    let rx = test.receiver.lock().unwrap();
+    let res = test
+        .manager
+        .handle_cmd(rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_none());
 
     tear_down(tmp_path.as_str());
@@ -154,7 +162,7 @@ fn handles_ssh_command_ok_err() {
         Ok((status, Some(mock_stderr)))
     });
 
-    let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -171,14 +179,16 @@ fn handles_ssh_command_ok_err() {
         ssh_user: "user".to_string(),
     };
 
-    let res = sender.send(Event::UIPaused);
+    let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::SSH(device, device_config));
+    let rx = test.receiver.lock().unwrap();
+    let res = test
+        .manager
+        .handle_cmd(rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_some());
 
     let err = state.error.unwrap();
@@ -200,7 +210,7 @@ fn handles_ssh_command_ok_err_empty() {
         Ok((status, None))
     });
 
-    let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -217,14 +227,16 @@ fn handles_ssh_command_ok_err_empty() {
         ssh_user: "user".to_string(),
     };
 
-    let res = sender.send(Event::UIPaused);
+    let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::SSH(device, device_config));
+    let rx = test.receiver.lock().unwrap();
+    let res = test
+        .manager
+        .handle_cmd(rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -242,7 +254,7 @@ fn handles_traceroute_command_err() {
         .expect_traceroute()
         .returning(|_| Err(Box::from("mock error")));
 
-    let (_sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -252,11 +264,11 @@ fn handles_traceroute_command_err() {
         is_current_host: false,
     };
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::TRACEROUTE(device));
+    let rx = test.receiver.lock().unwrap();
+    let res = test.manager.handle_cmd(rx, AppCommand::TraceRoute(device));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -285,7 +297,7 @@ fn handles_traceroute_command_ok() {
         Ok(o)
     });
 
-    let (_sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -295,17 +307,19 @@ fn handles_traceroute_command_ok() {
         is_current_host: false,
     };
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::TRACEROUTE(device.clone()));
+    let rx = test.receiver.lock().unwrap();
+    let res = test
+        .manager
+        .handle_cmd(rx, AppCommand::TraceRoute(device.clone()));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_none());
 
     assert!(state.cmd_output.is_some());
 
     let output = state.cmd_output.unwrap();
-    assert_eq!(output.0, AppCommand::TRACEROUTE(device));
+    assert_eq!(output.0, AppCommand::TraceRoute(device));
     assert_eq!(output.1, expected_output);
 
     tear_down(tmp_path.as_str());
@@ -323,7 +337,7 @@ fn handles_browse_command_err() {
         .expect_lynx()
         .returning(|_, _| Err(Box::from("mock error")));
 
-    let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -333,14 +347,14 @@ fn handles_browse_command_err() {
         is_current_host: false,
     };
 
-    let res = sender.send(Event::UIPaused);
+    let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::BROWSE(device, 80));
+    let rx = test.receiver.lock().unwrap();
+    let res = test.manager.handle_cmd(rx, AppCommand::Browse(device, 80));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -358,7 +372,7 @@ fn handles_browse_command_ok() {
         .expect_lynx()
         .returning(|_, _| Ok((ExitStatus::default(), None)));
 
-    let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -368,14 +382,14 @@ fn handles_browse_command_ok() {
         is_current_host: false,
     };
 
-    let res = sender.send(Event::UIPaused);
+    let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::BROWSE(device, 80));
+    let rx = test.receiver.lock().unwrap();
+    let res = test.manager.handle_cmd(rx, AppCommand::Browse(device, 80));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_none());
 
     tear_down(tmp_path.as_str());
@@ -401,7 +415,7 @@ fn handles_browse_command_ok_err() {
         Ok((status, Some(mock_stderr)))
     });
 
-    let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -411,14 +425,14 @@ fn handles_browse_command_ok_err() {
         is_current_host: false,
     };
 
-    let res = sender.send(Event::UIPaused);
+    let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::BROWSE(device, 80));
+    let rx = test.receiver.lock().unwrap();
+    let res = test.manager.handle_cmd(rx, AppCommand::Browse(device, 80));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_some());
 
     let err = state.error.unwrap();
@@ -440,7 +454,7 @@ fn handles_browse_command_ok_err_empty() {
         Ok((status, None))
     });
 
-    let (sender, receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -450,14 +464,14 @@ fn handles_browse_command_ok_err_empty() {
         is_current_host: false,
     };
 
-    let res = sender.send(Event::UIPaused);
+    let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = receiver.lock().unwrap();
-    let res = evt_manager.handle_cmd(rx, AppCommand::BROWSE(device, 80));
+    let rx = test.receiver.lock().unwrap();
+    let res = test.manager.handle_cmd(rx, AppCommand::Browse(device, 80));
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -475,7 +489,7 @@ fn listens_for_events() {
         .expect_traceroute()
         .returning(|_| Err(Box::from("mock error")));
 
-    let (sender, _receiver, store, evt_manager) = setup(conf_manager, mock_commander);
+    let test = setup(conf_manager, mock_commander);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -485,17 +499,17 @@ fn listens_for_events() {
         is_current_host: false,
     };
 
-    sender
-        .send(Event::ExecCommand(AppCommand::TRACEROUTE(device)))
+    test.sender
+        .send(Event::ExecCommand(AppCommand::TraceRoute(device)))
         .unwrap();
 
-    sender.send(Event::Quit).unwrap();
+    test.sender.send(Event::Quit).unwrap();
 
-    let res = evt_manager.start_event_loop();
+    let res = test.manager.start_event_loop();
 
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = test.store.get_state();
 
     assert!(state.error.is_some());
 

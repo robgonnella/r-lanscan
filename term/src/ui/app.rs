@@ -26,7 +26,7 @@ use std::{
 
 use super::{
     events::types::Event,
-    store::{action::Action, store::Store},
+    store::{action::Action, Store},
     views::{
         main::MainView,
         traits::{CustomWidgetContext, View},
@@ -105,25 +105,19 @@ impl App {
 
             if state.ui_paused {
                 if let Ok(evt) = self.event_loop_receiver.recv() {
-                    match evt {
-                        Event::ResumeUI => {
-                            self.restart()?;
-                            self.store.dispatch(Action::SetUIPaused(false));
-                            self.event_loop_sender.send(Event::UIResumed)?;
-                            continue;
-                        }
-                        _ => {}
+                    if evt == Event::ResumeUI {
+                        self.restart()?;
+                        self.store.dispatch(Action::SetUIPaused(false));
+                        self.event_loop_sender.send(Event::UIResumed)?;
+                        continue;
                     }
                 }
             } else if let Ok(evt) = self.event_loop_receiver.try_recv() {
-                match evt {
-                    Event::PauseUI => {
-                        self.pause()?;
-                        self.store.dispatch(Action::SetUIPaused(true));
-                        self.event_loop_sender.send(Event::UIPaused)?;
-                        continue;
-                    }
-                    _ => {}
+                if evt == Event::PauseUI {
+                    self.pause()?;
+                    self.store.dispatch(Action::SetUIPaused(true));
+                    self.event_loop_sender.send(Event::UIPaused)?;
+                    continue;
                 }
             }
 
@@ -140,7 +134,7 @@ impl App {
                 let _ = terminal.draw(|f| {
                     ctx = CustomWidgetContext {
                         state,
-                        app_area: f.area().clone(),
+                        app_area: f.area(),
                         events: self.event_loop_sender.clone(),
                     };
                     self.main_view.render_ref(f.area(), f.buffer_mut(), &ctx)
@@ -151,7 +145,7 @@ impl App {
             self.terminal.borrow_mut().draw(|f| {
                 ctx = CustomWidgetContext {
                     state,
-                    app_area: f.area().clone(),
+                    app_area: f.area(),
                     events: self.event_loop_sender.clone(),
                 };
                 self.main_view.render_ref(f.area(), f.buffer_mut(), &ctx)
@@ -165,8 +159,8 @@ impl App {
 
                     let handled = self.main_view.process_event(&evt, &ctx);
 
-                    match evt {
-                        CrossTermEvent::Key(key) => match key.code {
+                    if let CrossTermEvent::Key(key) = evt {
+                        match key.code {
                             KeyCode::Char('q') => {
                                 // allow overriding q key
                                 if !handled {
@@ -183,8 +177,7 @@ impl App {
                                 }
                             }
                             _ => {}
-                        },
-                        _ => {}
+                        }
                     }
                 }
             }

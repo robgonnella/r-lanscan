@@ -10,7 +10,7 @@ use crate::ui::{
     store::{
         action::Action,
         state::{State, ViewID},
-        store::Store,
+        Store,
     },
 };
 
@@ -45,7 +45,7 @@ impl DevicesView {
 
         let mut height = table::DEFAULT_ITEM_HEIGHT;
 
-        if state.devices.len() > 0 {
+        if !state.devices.is_empty() {
             height = (state.devices.len() - 1) * table::DEFAULT_ITEM_HEIGHT;
         }
 
@@ -75,7 +75,7 @@ impl DevicesView {
     }
 
     fn set_store_selected(&self, i: usize, state: &State) {
-        if state.devices.len() > 0 && i < state.devices.len() {
+        if !state.devices.is_empty() && i < state.devices.len() {
             let mac = state.devices[i].mac.clone();
             self.store.dispatch(Action::UpdateSelectedDevice(mac));
         }

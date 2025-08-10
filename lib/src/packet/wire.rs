@@ -11,6 +11,9 @@ use crate::{
     packet::{Reader, Sender},
 };
 
+/// Represents a packet Reader and packet Sender tuple
+pub type Wire = (Arc<Mutex<dyn Reader>>, Arc<Mutex<dyn Sender>>);
+
 /// A PNetReader implementation of packet Reader
 pub struct PNetReader {
     receiver: Box<dyn datalink::DataLinkReceiver>,
@@ -19,7 +22,7 @@ pub struct PNetReader {
 // Implements the Reader trait for our PNet implementation
 impl Reader for PNetReader {
     fn next_packet(&mut self) -> Result<&[u8], Box<dyn Error>> {
-        self.receiver.next().or_else(|e| Err(Box::from(e)))
+        self.receiver.next().map_err(Box::from)
     }
 }
 
@@ -53,9 +56,7 @@ unsafe impl Sync for PNetSender {}
 /// let interface = network::get_default_interface().unwrap();
 /// let packet_wire = wire::default(&interface).unwrap();
 /// ```
-pub fn default(
-    interface: &NetworkInterface,
-) -> Result<(Arc<Mutex<dyn Reader>>, Arc<Mutex<dyn Sender>>), Box<dyn Error>> {
+pub fn default(interface: &NetworkInterface) -> Result<Wire, Box<dyn Error>> {
     let cfg = pnet::datalink::Config::default();
 
     let channel = match pnet::datalink::channel(&interface.into(), cfg) {

@@ -281,11 +281,11 @@ fn test_set_command_in_progress() {
     let port: u16 = 80;
     let state = reducer.reduce(
         starting_state,
-        Action::SetCommandInProgress(Some(Command::BROWSE(dev.clone(), port))),
+        Action::SetCommandInProgress(Some(Command::Browse(dev.clone(), port))),
     );
     assert!(state.cmd_in_progress.is_some());
     let cmd = state.cmd_in_progress.unwrap();
-    assert_eq!(cmd, Command::BROWSE(dev, port));
+    assert_eq!(cmd, Command::Browse(dev, port));
     tear_down(conf_path);
 }
 
@@ -300,7 +300,7 @@ fn test_update_command_output() {
         vendor: "dev_vendor".to_string(),
     };
     let port: u16 = 80;
-    let cmd = Command::BROWSE(dev.clone(), port);
+    let cmd = Command::Browse(dev.clone(), port);
 
     let output = Output {
         status: ExitStatusExt::from_raw(0),
@@ -351,6 +351,6 @@ fn test_updates_device_with_new_info() {
     assert_eq!(state.devices.len(), 1);
     assert_eq!(state.devices[0], dev);
     assert_eq!(state.devices[0].open_ports.len(), 1);
-    assert!(state.devices[0].open_ports.get(&port).is_some());
+    assert!(state.devices[0].open_ports.contains(&port));
     tear_down(conf_path);
 }

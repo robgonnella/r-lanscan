@@ -31,36 +31,30 @@ use crate::scanners::ScanError;
 pub struct PortTargets(Vec<String>, usize);
 
 fn loop_ports<F: FnMut(u16) -> Result<(), ScanError>>(
-    list: &Vec<String>,
+    list: &[String],
     mut cb: F,
 ) -> Result<(), ScanError> {
     for target in list.iter() {
         if target.contains("-") {
             let parts: Vec<&str> = target.split("-").collect();
-            let begin = parts[0].parse::<u16>().or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: Some(target.to_string()),
-                    error: Box::from(e),
-                })
+            let begin = parts[0].parse::<u16>().map_err(|e| ScanError {
+                ip: None,
+                port: Some(target.to_string()),
+                error: Box::from(e),
             })?;
-            let end = parts[1].parse::<u16>().or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: Some(target.to_string()),
-                    error: Box::from(e),
-                })
+            let end = parts[1].parse::<u16>().map_err(|e| ScanError {
+                ip: None,
+                port: Some(target.to_string()),
+                error: Box::from(e),
             })?;
             for port in begin..=end {
                 cb(port)?;
             }
         } else {
-            let port = target.parse::<u16>().or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: Some(target.to_string()),
-                    error: Box::from(e),
-                })
+            let port = target.parse::<u16>().map_err(|e| ScanError {
+                ip: None,
+                port: Some(target.to_string()),
+                error: Box::from(e),
             })?;
             cb(port)?;
         }
@@ -79,6 +73,11 @@ impl PortTargets {
         })
         .unwrap();
         Arc::new(Self(list, len))
+    }
+
+    /// Returns true if the list is empty
+    pub fn is_empty(&self) -> bool {
+        self.1 == 0
     }
 
     /// Returns the true length of the target list. If the underlying

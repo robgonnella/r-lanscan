@@ -32,7 +32,7 @@ impl Commander {
             .stderr(Stdio::piped())
             .spawn()?;
 
-        let status = handle.wait().or_else(|e| Err(Box::new(e)))?;
+        let status = handle.wait().map_err(Box::new)?;
 
         Ok((status, handle.stderr))
     }
@@ -59,7 +59,7 @@ impl Commander {
             .env("TERM", "xterm")
             .spawn()?;
 
-        let status = handle.wait().or_else(|e| Err(Box::new(e)))?;
+        let status = handle.wait().map_err(Box::new)?;
 
         Ok((status, handle.stderr))
     }

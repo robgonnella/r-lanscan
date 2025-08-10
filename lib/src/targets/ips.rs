@@ -38,7 +38,7 @@ use std::{net, str::FromStr, sync::Arc};
 pub struct IPTargets(Vec<String>, usize);
 
 fn loop_ips<F: FnMut(net::Ipv4Addr) -> Result<(), ScanError>>(
-    list: &Vec<String>,
+    list: &[String],
     mut cb: F,
 ) -> Result<(), ScanError> {
     for target in list.iter() {
@@ -46,37 +46,31 @@ fn loop_ips<F: FnMut(net::Ipv4Addr) -> Result<(), ScanError>>(
             // target is range
             let parts: Vec<&str> = target.split("-").collect();
 
-            let begin = net::Ipv4Addr::from_str(parts[0]).or_else(|e| {
-                Err(ScanError {
-                    ip: Some(target.to_string()),
-                    port: None,
-                    error: Box::from(e),
-                })
+            let begin = net::Ipv4Addr::from_str(parts[0]).map_err(|e| ScanError {
+                ip: Some(target.to_string()),
+                port: None,
+                error: Box::from(e),
             })?;
 
-            let end = net::Ipv4Addr::from_str(parts[1]).or_else(|e| {
-                Err(ScanError {
-                    ip: Some(target.to_string()),
-                    port: None,
-                    error: Box::from(e),
-                })
+            let end = net::Ipv4Addr::from_str(parts[1]).map_err(|e| ScanError {
+                ip: Some(target.to_string()),
+                port: None,
+                error: Box::from(e),
             })?;
 
             let subnet = ipnet::Ipv4Subnets::new(begin, end, 32);
 
-            for (_, ip_net) in subnet.enumerate() {
+            for ip_net in subnet {
                 for ip in ip_net.hosts() {
                     cb(ip)?;
                 }
             }
         } else if target.contains("/") {
             // target is cidr block
-            let ip_net = ipnet::Ipv4Net::from_str(&target).or_else(|e| {
-                Err(ScanError {
-                    ip: Some(target.to_string()),
-                    port: None,
-                    error: Box::from(e),
-                })
+            let ip_net = ipnet::Ipv4Net::from_str(target).map_err(|e| ScanError {
+                ip: Some(target.to_string()),
+                port: None,
+                error: Box::from(e),
             })?;
 
             for ip in ip_net.hosts() {
@@ -84,12 +78,10 @@ fn loop_ips<F: FnMut(net::Ipv4Addr) -> Result<(), ScanError>>(
             }
         } else {
             // target is ip
-            let ip: net::Ipv4Addr = net::Ipv4Addr::from_str(&target).or_else(|e| {
-                Err(ScanError {
-                    ip: Some(target.to_string()),
-                    port: None,
-                    error: Box::from(e),
-                })
+            let ip: net::Ipv4Addr = net::Ipv4Addr::from_str(target).map_err(|e| ScanError {
+                ip: Some(target.to_string()),
+                port: None,
+                error: Box::from(e),
             })?;
             cb(ip)?;
         }
@@ -116,6 +108,11 @@ impl IPTargets {
     /// return 256
     pub fn len(&self) -> usize {
         self.1
+    }
+
+    /// Returns true if the list is empty
+    pub fn is_empty(&self) -> bool {
+        self.1 == 0
     }
 
     /// loops over all targets including those that are not explicitly in the

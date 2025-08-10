@@ -17,12 +17,12 @@ fn displays_command() {
         ssh_user: "user".to_string(),
     };
 
-    let ssh = Command::SSH(device.clone(), device_config.clone());
+    let ssh = Command::Ssh(device.clone(), device_config.clone());
     assert_eq!("ssh", ssh.to_string());
 
-    let traceroute = Command::TRACEROUTE(device.clone());
+    let traceroute = Command::TraceRoute(device.clone());
     assert_eq!("traceroute", traceroute.to_string());
 
-    let browse = Command::BROWSE(device, 80);
+    let browse = Command::Browse(device, 80);
     assert_eq!("browse", browse.to_string());
 }

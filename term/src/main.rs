@@ -30,17 +30,18 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet::{self, Reader as WireReader, Sender as WireSender},
     scanners::{
-        arp_scanner::ARPScanner, syn_scanner::SYNScanner, DeviceWithPorts, ScanError, ScanMessage,
-        Scanner, IDLE_TIMEOUT,
+        arp_scanner::{ARPScanner, ARPScannerArgs},
+        syn_scanner::{SYNScanner, SYNScannerArgs},
+        DeviceWithPorts, ScanError, ScanMessage, Scanner, IDLE_TIMEOUT,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
-use simplelog;
+use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
     collections::HashSet,
     env, fs,
     sync::{
-        mpsc::{self, channel, Receiver, Sender},
+        mpsc::{self, channel, Receiver},
         Arc, Mutex,
     },
     thread::{self, JoinHandle},
@@ -48,7 +49,7 @@ use std::{
 
 use ui::{
     app, events,
-    store::{action::Action, derived::get_detected_devices, store::Store},
+    store::{action::Action, derived::get_detected_devices, Store},
 };
 
 #[doc(hidden)]
@@ -100,26 +101,11 @@ fn get_project_config_path() -> String {
 
 #[doc(hidden)]
 fn process_arp(
-    packet_reader: Arc<Mutex<dyn packet::Reader>>,
-    packet_sender: Arc<Mutex<dyn packet::Sender>>,
-    interface: &NetworkInterface,
-    cidr: String,
-    source_port: u16,
+    args: ARPScannerArgs,
     rx: Receiver<ScanMessage>,
-    tx: Sender<ScanMessage>,
     store: Arc<Store>,
 ) -> Result<Receiver<ScanMessage>, ScanError> {
-    let scanner = ARPScanner::new(
-        interface,
-        packet_reader,
-        packet_sender,
-        IPTargets::new(vec![cidr]),
-        source_port,
-        true,
-        true,
-        time::Duration::from_millis(IDLE_TIMEOUT.into()),
-        tx,
-    );
+    let scanner = ARPScanner::new(args);
 
     store.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing ARP Scan…",
@@ -128,12 +114,10 @@ fn process_arp(
     let handle = scanner.scan();
 
     loop {
-        let msg = rx.recv().or_else(|e| {
-            Err(ScanError {
-                ip: None,
-                port: None,
-                error: Box::new(e),
-            })
+        let msg = rx.recv().map_err(|e| ScanError {
+            ip: None,
+            port: None,
+            error: Box::new(e),
         })?;
 
         match msg {
@@ -168,13 +152,8 @@ fn process_arp(
 
 #[doc(hidden)]
 fn process_syn(
-    packet_reader: Arc<Mutex<dyn packet::Reader>>,
-    packet_sender: Arc<Mutex<dyn packet::Sender>>,
-    interface: &NetworkInterface,
-    ports: Vec<String>,
+    args: SYNScannerArgs,
     rx: Receiver<ScanMessage>,
-    tx: Sender<ScanMessage>,
-    source_port: u16,
     store: Arc<Store>,
 ) -> Result<Vec<DeviceWithPorts>, ScanError> {
     let state = store.get_state();
@@ -192,16 +171,7 @@ fn process_syn(
         })
     }
 
-    let scanner = SYNScanner::new(
-        interface,
-        packet_reader,
-        packet_sender,
-        arp_devices,
-        PortTargets::new(ports),
-        source_port,
-        time::Duration::from_millis(IDLE_TIMEOUT.into()),
-        tx,
-    );
+    let scanner = SYNScanner::new(args);
 
     debug!("starting syn scan");
     store.dispatch(Action::UpdateMessage(Some(String::from(
@@ -211,12 +181,10 @@ fn process_syn(
     let handle = scanner.scan();
 
     loop {
-        let msg = rx.recv().or_else(|e| {
-            Err(ScanError {
-                ip: None,
-                port: None,
-                error: Box::new(e),
-            })
+        let msg = rx.recv().map_err(|e| ScanError {
+            ip: None,
+            port: None,
+            error: Box::new(e),
         })?;
 
         match msg {
@@ -267,35 +235,45 @@ fn monitor_network(
                 return Ok(());
             }
 
-            let source_port = network::get_available_port().or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from(e),
-                })
+            let source_port = network::get_available_port().map_err(|e| ScanError {
+                ip: None,
+                port: None,
+                error: Box::from(e),
             })?;
 
             let (tx, rx) = mpsc::channel::<ScanMessage>();
 
             let rx = process_arp(
-                Arc::clone(&packet_reader),
-                Arc::clone(&packet_sender),
-                &interface,
-                interface.cidr.clone(),
-                source_port,
+                ARPScannerArgs {
+                    interface: &interface,
+                    packet_reader: Arc::clone(&packet_reader),
+                    packet_sender: Arc::clone(&packet_sender),
+                    targets: IPTargets::new(vec![interface.cidr.clone()]),
+                    include_host_names: true,
+                    include_vendor: true,
+                    idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
+                    source_port,
+                    notifier: tx.clone(),
+                },
                 rx,
-                tx.clone(),
                 Arc::clone(&store),
             )?;
 
+            let state = store.get_state();
+            let arp_devices = get_detected_devices(&state);
+
             let results = process_syn(
-                Arc::clone(&packet_reader),
-                Arc::clone(&packet_sender),
-                &interface,
-                config.ports.clone(),
+                SYNScannerArgs {
+                    interface: &interface,
+                    packet_reader: Arc::clone(&packet_reader),
+                    packet_sender: Arc::clone(&packet_sender),
+                    targets: arp_devices,
+                    ports: PortTargets::new(config.ports.clone()),
+                    source_port,
+                    idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
+                    notifier: tx.clone(),
+                },
                 rx,
-                tx.clone(),
-                source_port,
                 Arc::clone(&store),
             )?;
 
@@ -360,12 +338,10 @@ fn main() -> Result<()> {
     let (config, store) = init(&args, &interface);
     let (_, exit_rx) = mpsc::channel();
 
-    let wire = packet::wire::default(&interface).or_else(|e| {
-        Err(ScanError {
-            ip: None,
-            port: None,
-            error: Box::from(e),
-        })
+    let wire = packet::wire::default(&interface).map_err(|e| ScanError {
+        ip: None,
+        port: None,
+        error: e,
     })?;
 
     monitor_network(
@@ -378,7 +354,9 @@ fn main() -> Result<()> {
     );
 
     if args.debug {
-        loop {}
+        let mut signals = Signals::new([SIGINT]).unwrap();
+        let _ = signals.wait();
+        return Ok(());
     }
 
     // captures ctrl-c only in main thread so when we drop down to shell

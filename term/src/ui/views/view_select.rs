@@ -5,7 +5,7 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind};
 
 use crate::ui::{
     components::table::{self, Table},
-    store::{action::Action, state::ViewID, store::Store},
+    store::{action::Action, state::ViewID, Store},
 };
 
 use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
@@ -80,33 +80,30 @@ impl EventHandler for ViewSelect {
 
         let mut handled = false;
 
-        match evt {
-            Event::Key(key) => {
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('j') | KeyCode::Down => {
-                            self.next();
-                            handled = true;
-                        }
-                        KeyCode::Char('k') | KeyCode::Up => {
-                            self.previous();
-                            handled = true;
-                        }
-                        KeyCode::Esc => {
-                            if ctx.state.render_view_select {
-                                self.store.dispatch(Action::ToggleViewSelect);
-                                handled = true;
-                            }
-                        }
-                        KeyCode::Enter => {
-                            self.handle_selected();
-                            handled = true;
-                        }
-                        _ => {}
+        if let Event::Key(key) = evt {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        self.next();
+                        handled = true;
                     }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        self.previous();
+                        handled = true;
+                    }
+                    KeyCode::Esc => {
+                        if ctx.state.render_view_select {
+                            self.store.dispatch(Action::ToggleViewSelect);
+                            handled = true;
+                        }
+                    }
+                    KeyCode::Enter => {
+                        self.handle_selected();
+                        handled = true;
+                    }
+                    _ => {}
                 }
             }
-            _ => {}
         }
 
         handled

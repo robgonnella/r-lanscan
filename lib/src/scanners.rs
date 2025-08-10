@@ -68,7 +68,7 @@ impl From<DeviceWithPorts> for Device {
             mac: value.mac.clone(),
             hostname: value.hostname.clone(),
             vendor: value.vendor.clone(),
-            is_current_host: value.is_current_host.clone(),
+            is_current_host: value.is_current_host,
         }
     }
 }

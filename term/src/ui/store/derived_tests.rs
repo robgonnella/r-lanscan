@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::store::{action::Action, store::Store},
+    ui::store::{action::Action, Store},
 };
 
 use super::*;

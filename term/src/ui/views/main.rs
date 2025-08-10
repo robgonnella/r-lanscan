@@ -10,7 +10,7 @@ use crate::ui::{
     store::{
         action::Action,
         state::{State, ViewID},
-        store::Store,
+        Store,
     },
 };
 use ratatui::{
@@ -104,7 +104,7 @@ impl MainView {
             m.render(message_inner_area, buf, ctx);
         }
 
-        let current_view = Paragraph::new(format!("\n{} ▼", ctx.state.view_id.to_string()))
+        let current_view = Paragraph::new(format!("\n{} ▼", ctx.state.view_id))
             .style(Style::new().fg(ctx.state.colors.border_color));
         let current_view_block = Block::bordered()
             .border_style(Style::new().fg(ctx.state.colors.border_color))
@@ -118,7 +118,7 @@ impl MainView {
 
     fn render_middle_view(
         &self,
-        view: &Box<dyn View>,
+        view: &dyn View,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
@@ -187,7 +187,7 @@ impl MainView {
         } else {
             let mut info = String::from("(q) quit | (v) change view");
 
-            if legend.len() > 0 {
+            if !legend.is_empty() {
                 info = format!("{info} | {legend}");
             }
 
@@ -230,7 +230,7 @@ impl CustomWidgetRef for MainView {
         let top_section_areas_clone = Rc::clone(&top_section_areas);
         self.render_top(top_section_areas, buf, ctx.state.message.clone(), ctx);
         // view
-        self.render_middle_view(view, page_areas[1], buf, ctx);
+        self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx);
         // legend for current view
         self.render_footer(legend, override_legend, page_areas[2], buf, ctx);
 
@@ -266,14 +266,10 @@ impl EventHandler for MainView {
         }
 
         if ctx.state.error.is_some() {
-            match evt {
-                CrossTermEvent::Key(key) => match key.code {
-                    KeyCode::Enter => {
-                        self.store.dispatch(Action::SetError(None));
-                    }
-                    _ => {}
-                },
-                _ => {}
+            if let CrossTermEvent::Key(key) = evt {
+                if key.code == KeyCode::Enter {
+                    self.store.dispatch(Action::SetError(None));
+                }
             }
             true
         } else {
@@ -282,8 +278,8 @@ impl EventHandler for MainView {
             let mut handled = view.process_event(evt, ctx);
 
             if !handled {
-                match evt {
-                    CrossTermEvent::Key(key) => match key.code {
+                if let CrossTermEvent::Key(key) = evt {
+                    match key.code {
                         KeyCode::Char('v') => {
                             if !ctx.state.render_view_select {
                                 handled = true;
@@ -297,8 +293,7 @@ impl EventHandler for MainView {
                             }
                         }
                         _ => {}
-                    },
-                    _ => {}
+                    }
                 }
             }
 

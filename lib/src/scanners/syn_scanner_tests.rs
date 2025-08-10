@@ -7,9 +7,9 @@ use std::time::Duration;
 
 use crate::network;
 use crate::scanners::DeviceWithPorts;
-use packet::arp::create_arp_reply;
+use packet::arp_packet::create_arp_reply;
 use packet::mocks::{MockPacketReader, MockPacketSender};
-use packet::syn::create_syn_reply;
+use packet::syn_packet::create_syn_reply;
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
@@ -29,16 +29,16 @@ fn new() {
     let ports = PortTargets::new(vec!["2000-8000".to_string()]);
     let (tx, _) = channel();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        receiver,
-        sender,
-        devices.clone(),
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: receiver,
+        packet_sender: sender,
+        targets: devices.clone(),
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     assert_eq!(scanner.targets, devices);
     assert_eq!(scanner.idle_timeout, idle_timeout);
@@ -90,16 +90,16 @@ fn sends_and_reads_packets() {
     let ports = PortTargets::new(vec!["2222".to_string()]);
     let (tx, rx) = channel();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
@@ -136,8 +136,9 @@ fn sends_and_reads_packets() {
         }
     }
 
-    let result = handle.join().unwrap().unwrap();
-    assert_eq!(result, ());
+    let result = handle.join().unwrap();
+
+    assert!(result.is_ok());
     assert_eq!(detected_device.hostname, device.hostname);
     assert_eq!(detected_device.ip, device.ip);
     assert_eq!(detected_device.mac, device.mac);
@@ -222,16 +223,16 @@ fn ignores_unrelated_packets() {
 
     let (tx, rx) = channel();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let (done_tx, done_rx) = channel();
 
@@ -301,16 +302,16 @@ fn reports_error_on_packet_reader_lock() {
 
     let _ = handle.join();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let (_done_tx, done_rx) = channel();
 
@@ -373,16 +374,16 @@ fn reports_error_on_rst_packet_sender_lock() {
 
     let _ = handle.join();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let (_done_tx, done_rx) = channel();
 
@@ -447,16 +448,16 @@ fn reports_error_on_rst_packet_send_errors() {
 
     let _ = handle.join();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let (_done_tx, done_rx) = channel();
 
@@ -498,16 +499,16 @@ fn reports_error_on_packet_read_error() {
     let idle_timeout = Duration::from_secs(2);
     let (tx, _rx) = channel();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let (_done_tx, done_rx) = channel();
 
@@ -549,16 +550,16 @@ fn reports_error_on_notifier_send_errors() {
     // this will cause an error when scanner tries to notify
     drop(rx);
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
@@ -601,27 +602,22 @@ fn reports_error_on_packet_sender_lock_errors() {
 
     let _ = handle.join();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
     loop {
-        if let Ok(msg) = rx.recv() {
-            match msg {
-                ScanMessage::Done => {
-                    break;
-                }
-                _ => {}
-            }
+        if let Ok(ScanMessage::Done) = rx.recv() {
+            break;
         }
     }
 
@@ -660,27 +656,22 @@ fn reports_error_on_packet_send_errors() {
     let idle_timeout = Duration::from_secs(2);
     let (tx, rx) = channel();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
     loop {
-        if let Ok(msg) = rx.recv() {
-            match msg {
-                ScanMessage::Done => {
-                    break;
-                }
-                _ => {}
-            }
+        if let Ok(ScanMessage::Done) = rx.recv() {
+            break;
         }
     }
 
@@ -720,27 +711,22 @@ fn reports_errors_from_read_handle() {
     let idle_timeout = Duration::from_secs(2);
     let (tx, rx) = channel();
 
-    let scanner = SYNScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
-        devices,
+    let scanner = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
+        targets: devices,
         ports,
-        54321,
+        source_port: 54321,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
     loop {
-        if let Ok(msg) = rx.recv() {
-            match msg {
-                ScanMessage::Done => {
-                    break;
-                }
-                _ => {}
-            }
+        if let Ok(ScanMessage::Done) = rx.recv() {
+            break;
         }
     }
 

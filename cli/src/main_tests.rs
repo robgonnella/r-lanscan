@@ -115,7 +115,6 @@ fn prints_arp_json_results() {
     };
 
     print_arp(&args, &vec![device]);
-    assert!(true);
 }
 
 #[test]

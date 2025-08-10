@@ -9,7 +9,7 @@ use crate::ui::{
         action::Action,
         derived::get_selected_device_config_from_state,
         state::{State, ViewID},
-        store::Store,
+        Store,
     },
 };
 use itertools::Itertools;
@@ -373,10 +373,7 @@ impl DeviceView {
     fn is_tracing(&self, state: &State) -> bool {
         if state.cmd_in_progress.is_some() {
             let cmd = state.cmd_in_progress.clone().unwrap();
-            match cmd {
-                Command::TRACEROUTE(_) => true,
-                _ => false,
-            }
+            matches!(cmd, Command::TraceRoute(_))
         } else {
             false
         }
@@ -475,7 +472,7 @@ impl EventHandler for DeviceView {
                         if self.browser_port_state.borrow().editing {
                             let port_str = self.browser_port_state.borrow().value.clone();
                             if let Ok(port) = port_str.parse::<u16>() {
-                                let _ = ctx.events.send(Event::ExecCommand(Command::BROWSE(
+                                let _ = ctx.events.send(Event::ExecCommand(Command::Browse(
                                     ctx.state.selected_device.clone().unwrap().into(),
                                     port,
                                 )));
@@ -522,14 +519,14 @@ impl EventHandler for DeviceView {
                     } else if c == 's' {
                         if ctx.state.cmd_in_progress.is_none() {
                             handled = true;
-                            let _ = ctx.events.send(Event::ExecCommand(Command::SSH(
+                            let _ = ctx.events.send(Event::ExecCommand(Command::Ssh(
                                 ctx.state.selected_device.clone().unwrap().into(),
                                 ctx.state.selected_device_config.clone().unwrap(),
                             )));
                         }
                     } else if c == 't' {
                         if !self.is_tracing(&ctx.state) {
-                            let _ = ctx.events.send(Event::ExecCommand(Command::TRACEROUTE(
+                            let _ = ctx.events.send(Event::ExecCommand(Command::TraceRoute(
                                 ctx.state.selected_device.clone().unwrap().into(),
                             )));
                             handled = true;

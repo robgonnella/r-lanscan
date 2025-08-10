@@ -2,7 +2,10 @@ use std::{env, sync::mpsc, time::Duration};
 
 use r_lanlib::{
     network, packet,
-    scanners::{full_scanner::FullScanner, SYNScanResult, ScanMessage, Scanner},
+    scanners::{
+        full_scanner::{FullScanner, FullScannerArgs},
+        SYNScanResult, ScanMessage, Scanner,
+    },
     targets::{ips::IPTargets, ports::PortTargets},
 };
 
@@ -28,18 +31,18 @@ fn main() {
     let source_port: u16 = 54321;
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let scanner = FullScanner::new(
-        &interface,
-        wire.0,
-        wire.1,
-        ip_targets,
-        port_targets,
-        vendor,
-        host_names,
+    let scanner = FullScanner::new(FullScannerArgs {
+        interface: &interface,
+        packet_reader: wire.0,
+        packet_sender: wire.1,
+        targets: ip_targets,
+        ports: port_targets,
+        include_vendor: vendor,
+        include_host_names: host_names,
         idle_timeout,
-        tx,
+        notifier: tx,
         source_port,
-    );
+    });
 
     let mut results: Vec<SYNScanResult> = Vec::new();
 

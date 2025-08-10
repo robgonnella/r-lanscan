@@ -61,7 +61,7 @@ pub struct ConfigManager {
 
 impl ConfigManager {
     pub fn new(path: &str) -> Self {
-        let f: Result<std::fs::File, std::io::Error> = std::fs::File::open(&path);
+        let f: Result<std::fs::File, std::io::Error> = std::fs::File::open(path);
 
         match f {
             Ok(file) => {
@@ -87,10 +87,7 @@ impl ConfigManager {
 
     pub fn get_by_id(&self, id: &str) -> Option<Config> {
         let c = self.configs.get(id);
-        match c {
-            Some(conf) => Some(conf.clone()),
-            None => None,
-        }
+        c.cloned()
     }
 
     pub fn get_by_cidr(&self, cidr: &str) -> Option<Config> {
@@ -99,7 +96,6 @@ impl ConfigManager {
         self.configs.iter().for_each(|(_, c)| {
             if c.cidr == *cidr {
                 config = Some(c.clone());
-                return;
             }
         });
 

@@ -12,7 +12,7 @@ fn creates_rst_packet() {
     let target_ip = net::Ipv4Addr::from_str("192.168.68.2").unwrap();
     let target_mac = MacAddr::from_str("00:00:00:00:00:01").unwrap();
     let target_port: u16 = 22;
-    let packet = RSTPacket::new(
+    let packet = build(
         source_mac,
         source_ip,
         source_port,

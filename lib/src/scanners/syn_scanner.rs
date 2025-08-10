@@ -16,7 +16,7 @@ use std::{
 
 use crate::{
     network::NetworkInterface,
-    packet::{self, rst::RSTPacket, syn::SYNPacket, Reader, Sender},
+    packet::{self, rst_packet, syn_packet, Reader, Sender},
     scanners::{heartbeat::HeartBeat, ScanError, Scanning},
     targets::ports::PortTargets,
 };
@@ -35,32 +35,48 @@ pub struct SYNScanner<'net> {
     notifier: mpsc::Sender<ScanMessage>,
 }
 
+/// Data structure holding parameters needed to create instance of SYNScanner
+pub struct SYNScannerArgs<'net> {
+    /// The network interface to use when scanning
+    pub interface: &'net NetworkInterface,
+    /// A packet Reader implementation (can use default provided in packet
+    /// crate)
+    pub packet_reader: Arc<Mutex<dyn Reader>>,
+    /// A packet Sender implementation (can use default provided in packet
+    /// crate)
+    pub packet_sender: Arc<Mutex<dyn Sender>>,
+    /// [`IPTargets`] to scan
+    pub targets: Vec<Device>,
+    /// [`PortTargets`] to scan for each detected device
+    pub ports: Arc<PortTargets>,
+    /// An open source port to listen for incoming packets (can use network
+    /// packet to find open port)
+    pub source_port: u16,
+    /// The amount of time to wait for incoming packets after scanning all
+    /// targets
+    pub idle_timeout: Duration,
+    /// Channel to send messages regarding devices being scanned, and detected
+    /// devices
+    pub notifier: mpsc::Sender<ScanMessage>,
+}
+
 impl<'net> SYNScanner<'net> {
     /// Returns a new instance of SYNScanner using provided info
-    pub fn new(
-        interface: &'net NetworkInterface,
-        packet_reader: Arc<Mutex<dyn Reader>>,
-        packet_sender: Arc<Mutex<dyn Sender>>,
-        targets: Vec<Device>,
-        ports: Arc<PortTargets>,
-        source_port: u16,
-        idle_timeout: Duration,
-        notifier: mpsc::Sender<ScanMessage>,
-    ) -> Self {
+    pub fn new(args: SYNScannerArgs<'net>) -> Self {
         Self {
-            interface,
-            packet_reader,
-            packet_sender,
-            targets,
-            ports,
-            source_port,
-            idle_timeout,
-            notifier,
+            interface: args.interface,
+            packet_reader: args.packet_reader,
+            packet_sender: args.packet_sender,
+            targets: args.targets,
+            ports: args.ports,
+            source_port: args.source_port,
+            idle_timeout: args.idle_timeout,
+            notifier: args.notifier,
         }
     }
 }
 
-impl<'net> SYNScanner<'net> {
+impl SYNScanner<'_> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
@@ -89,7 +105,7 @@ impl<'net> SYNScanner<'net> {
             );
             let interval = Duration::from_secs(1);
             loop {
-                if let Ok(_) = heartbeat_rx.try_recv() {
+                if heartbeat_rx.try_recv().is_ok() {
                     debug!("stopping syn heartbeat");
                     break;
                 }
@@ -100,30 +116,26 @@ impl<'net> SYNScanner<'net> {
         });
 
         thread::spawn(move || -> Result<(), ScanError> {
-            let mut reader = packet_reader.lock().or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from(e.to_string()),
-                })
+            let mut reader = packet_reader.lock().map_err(|e| ScanError {
+                ip: None,
+                port: None,
+                error: Box::from(e.to_string()),
             })?;
 
             loop {
-                if let Ok(_) = done_rx.try_recv() {
+                if done_rx.try_recv().is_ok() {
                     debug!("exiting syn packet reader");
                     if let Err(e) = heartbeat_tx.send(()) {
-                        error!("failed to stop heartbeat: {}", e.to_string());
+                        error!("failed to stop heartbeat: {}", e);
                     }
 
                     break;
                 }
 
-                let pkt = reader.next_packet().or_else(|e| {
-                    Err(ScanError {
-                        ip: None,
-                        port: None,
-                        error: e,
-                    })
+                let pkt = reader.next_packet().map_err(|e| ScanError {
+                    ip: None,
+                    port: None,
+                    error: e,
                 })?;
 
                 let eth = ethernet::EthernetPacket::new(pkt);
@@ -187,7 +199,7 @@ impl<'net> SYNScanner<'net> {
                 // send rst packet to prevent SYN Flooding
                 // https://en.wikipedia.org/wiki/SYN_flood
                 // https://security.stackexchange.com/questions/128196/whats-the-advantage-of-sending-an-rst-packet-after-getting-a-response-in-a-syn
-                let rst_packet = RSTPacket::new(
+                let rst_packet = rst_packet::build(
                     source_mac,
                     source_ipv4,
                     source_port,
@@ -197,22 +209,18 @@ impl<'net> SYNScanner<'net> {
                     sequence + 1,
                 );
 
-                let mut rst_sender = rst_packet_sender.lock().or_else(|e| {
-                    Err(ScanError {
-                        ip: None,
-                        port: None,
-                        error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
-                    })
+                let mut rst_sender = rst_packet_sender.lock().map_err(|e| ScanError {
+                    ip: None,
+                    port: None,
+                    error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
                 })?;
 
                 debug!("sending RST packet to {}:{}", device.ip, port);
 
-                rst_sender.send(&rst_packet).or_else(|e| {
-                    Err(ScanError {
-                        ip: Some(device.ip.clone()),
-                        port: Some(port.to_string()),
-                        error: Box::from(e),
-                    })
+                rst_sender.send(&rst_packet).map_err(|e| ScanError {
+                    ip: Some(device.ip.clone()),
+                    port: Some(port.to_string()),
+                    error: e,
                 })?;
 
                 notifier
@@ -223,12 +231,10 @@ impl<'net> SYNScanner<'net> {
                             service: String::from(""),
                         },
                     }))
-                    .or_else(|e| {
-                        Err(ScanError {
-                            ip: Some(device.ip.clone()),
-                            port: Some(port.to_string()),
-                            error: Box::from(e),
-                        })
+                    .map_err(|e| ScanError {
+                        ip: Some(device.ip.clone()),
+                        port: Some(port.to_string()),
+                        error: Box::from(e),
                     })?;
             }
 
@@ -238,7 +244,7 @@ impl<'net> SYNScanner<'net> {
 }
 
 // Implements the Scanner trait for SYNScanner
-impl<'net> Scanner for SYNScanner<'net> {
+impl Scanner for SYNScanner<'_> {
     fn scan(&self) -> JoinHandle<Result<(), ScanError>> {
         debug!("performing SYN scan on targets: {:?}", self.targets);
 
@@ -270,12 +276,10 @@ impl<'net> Scanner for SYNScanner<'net> {
 
                     debug!("scanning SYN target: {}:{}", device.ip, port);
 
-                    let dest_ipv4 = net::Ipv4Addr::from_str(&device.ip).or_else(|e| {
-                        Err(ScanError {
-                            ip: Some(device.ip.clone()),
-                            port: Some(port.to_string()),
-                            error: Box::from(e),
-                        })
+                    let dest_ipv4 = net::Ipv4Addr::from_str(&device.ip).map_err(|e| ScanError {
+                        ip: Some(device.ip.clone()),
+                        port: Some(port.to_string()),
+                        error: Box::from(e),
                     });
 
                     if dest_ipv4.is_err() {
@@ -283,12 +287,10 @@ impl<'net> Scanner for SYNScanner<'net> {
                         break;
                     }
 
-                    let dest_mac = util::MacAddr::from_str(&device.mac).or_else(|e| {
-                        Err(ScanError {
-                            ip: Some(device.ip.clone()),
-                            port: Some(port.to_string()),
-                            error: Box::from(e),
-                        })
+                    let dest_mac = util::MacAddr::from_str(&device.mac).map_err(|e| ScanError {
+                        ip: Some(device.ip.clone()),
+                        port: Some(port.to_string()),
+                        error: Box::from(e),
                     });
 
                     if dest_mac.is_err() {
@@ -296,7 +298,7 @@ impl<'net> Scanner for SYNScanner<'net> {
                         break;
                     }
 
-                    let pkt_buf = SYNPacket::new(
+                    let pkt_buf = syn_packet::build(
                         source_mac,
                         source_ipv4,
                         source_port,
@@ -311,12 +313,10 @@ impl<'net> Scanner for SYNScanner<'net> {
                             ip: device.ip.clone(),
                             port: Some(port.to_string()),
                         }))
-                        .or_else(|e| {
-                            Err(ScanError {
-                                ip: Some(device.ip.clone()),
-                                port: Some(port.to_string()),
-                                error: Box::from(e),
-                            })
+                        .map_err(|e| ScanError {
+                            ip: Some(device.ip.clone()),
+                            port: Some(port.to_string()),
+                            error: Box::from(e),
                         });
 
                     if maybe_err.is_err() {
@@ -336,12 +336,10 @@ impl<'net> Scanner for SYNScanner<'net> {
                     }
 
                     // scan device @ port
-                    let sent = sender.unwrap().send(&pkt_buf).or_else(|e| {
-                        Err(ScanError {
-                            ip: Some(device.ip.clone()),
-                            port: Some(port.to_string()),
-                            error: Box::from(e),
-                        })
+                    let sent = sender.unwrap().send(&pkt_buf).map_err(|e| ScanError {
+                        ip: Some(device.ip.clone()),
+                        port: Some(port.to_string()),
+                        error: e,
                     });
 
                     if sent.is_err() {
@@ -359,27 +357,23 @@ impl<'net> Scanner for SYNScanner<'net> {
 
             thread::sleep(idle_timeout);
 
-            notifier.send(ScanMessage::Done).or_else(|e| {
-                Err(ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from(e),
-                })
+            notifier.send(ScanMessage::Done).map_err(|e| ScanError {
+                ip: None,
+                port: None,
+                error: Box::from(e),
             })?;
 
             // ignore errors here as the thread may already be dead due to error
             // we'll catch any errors from that thread below and report
             let _ = done_tx.send(());
 
-            let read_result = read_handle.join().or_else(|_| {
-                Err(ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from(IOError::new(
-                        ErrorKind::Other,
-                        "encountered error during syn packet reading",
-                    )),
-                })
+            let read_result = read_handle.join().map_err(|_| ScanError {
+                ip: None,
+                port: None,
+                error: Box::from(IOError::new(
+                    ErrorKind::Other,
+                    "encountered error during syn packet reading",
+                )),
             })?;
 
             if let Some(err) = scan_error {

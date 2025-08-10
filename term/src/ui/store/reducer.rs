@@ -87,7 +87,7 @@ impl Reducer {
                 // keep devices that may have been missed in last scan but
                 // up to a max limit of misses
                 for d in state.arp_history.iter() {
-                    let mut count = d.1 .1.clone();
+                    let mut count = d.1 .1;
                     if !state.device_map.contains_key(d.0) {
                         count += 1;
                     }
@@ -108,7 +108,10 @@ impl Reducer {
                     .arp_history
                     .insert(device.mac.clone(), (arp_device, 0));
 
-                if state.device_map.contains_key(&device.mac.clone()) {
+                if let std::collections::hash_map::Entry::Vacant(e) = state.device_map.entry(device.mac.clone()) {
+                    state.devices.push(device.clone());
+                    e.insert(device.clone());
+                } else {
                     let found_device = state
                         .devices
                         .iter_mut()
@@ -125,9 +128,6 @@ impl Reducer {
                     found_device.open_ports.iter().sorted_by_key(|p| p.id);
                     let mapped_device = state.device_map.get_mut(&device.mac.clone()).unwrap();
                     *mapped_device = found_device.clone();
-                } else {
-                    state.devices.push(device.clone());
-                    state.device_map.insert(device.mac.clone(), device.clone());
                 }
 
                 state

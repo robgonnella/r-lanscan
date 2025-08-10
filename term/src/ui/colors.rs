@@ -1,3 +1,5 @@
+use std::fmt;
+
 use ratatui::style::{palette::tailwind, Color};
 
 #[derive(Clone, Debug)]
@@ -114,23 +116,25 @@ const BASIC_MAGENTA_PALLETE: tailwind::Palette = tailwind::Palette {
     c950: Color::Magenta,
 };
 
+impl fmt::Display for Theme {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Theme::Blue => write!(f, "Blue"),
+            Theme::Emerald => write!(f, "Emerald"),
+            Theme::Indigo => write!(f, "Indigo"),
+            Theme::Red => write!(f, "Red"),
+        }
+    }
+}
+
 impl Theme {
-    pub fn from_string(value: &String) -> Theme {
-        match value.as_str() {
+    pub fn from_string(value: &str) -> Theme {
+        match value {
             "Blue" => Theme::Blue,
             "Emerald" => Theme::Emerald,
             "Indigo" => Theme::Indigo,
             "Red" => Theme::Red,
             _ => Theme::Blue,
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        match self {
-            Theme::Blue => "Blue".to_string(),
-            Theme::Emerald => "Emerald".to_string(),
-            Theme::Indigo => "Indigo".to_string(),
-            Theme::Red => "Red".to_string(),
         }
     }
 

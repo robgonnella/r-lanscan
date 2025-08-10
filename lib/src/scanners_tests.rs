@@ -13,7 +13,6 @@ fn test_scan_error_display() {
     };
 
     println!("{}", err);
-    assert!(true);
 }
 
 #[test]

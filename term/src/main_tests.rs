@@ -94,13 +94,18 @@ fn test_process_arp() {
     tx.send(ScanMessage::Done).unwrap();
 
     let res = process_arp(
-        Arc::new(Mutex::new(mock_packet_reader)),
-        Arc::new(Mutex::new(mock_packet_sender)),
-        &interface,
-        interface.cidr.clone(),
-        source_port,
+        ARPScannerArgs {
+            interface: &interface,
+            packet_reader: Arc::new(Mutex::new(mock_packet_reader)),
+            packet_sender: Arc::new(Mutex::new(mock_packet_sender)),
+            targets: IPTargets::new(vec![interface.cidr.clone()]),
+            include_host_names: true,
+            include_vendor: true,
+            source_port,
+            idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
+            notifier: tx,
+        },
         rx,
-        tx,
         Arc::clone(&store),
     );
 
@@ -156,7 +161,7 @@ fn test_process_syn() {
         hostname: device.hostname.clone(),
         ip: device.ip.clone(),
         mac: device.mac.clone(),
-        is_current_host: device.is_current_host.clone(),
+        is_current_host: device.is_current_host,
         vendor: device.vendor.clone(),
         open_ports: open_ports.clone(),
     };
@@ -171,13 +176,17 @@ fn test_process_syn() {
     store.dispatch(Action::AddDevice(device_with_ports.clone()));
 
     let res = process_syn(
-        Arc::new(Mutex::new(mock_packet_reader)),
-        Arc::new(Mutex::new(mock_packet_sender)),
-        &interface,
-        vec!["80".to_string()],
+        SYNScannerArgs {
+            interface: &interface,
+            packet_reader: Arc::new(Mutex::new(mock_packet_reader)),
+            packet_sender: Arc::new(Mutex::new(mock_packet_sender)),
+            targets: vec![device],
+            ports: PortTargets::new(vec!["80".to_string()]),
+            source_port,
+            idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
+            notifier: tx,
+        },
         rx,
-        tx,
-        source_port,
         Arc::clone(&store),
     );
 
@@ -229,5 +238,4 @@ fn test_init() {
     let args = default_args(false);
     let interface = mock_interface();
     let (_config, _store) = init(&args, &interface);
-    assert!(true);
 }

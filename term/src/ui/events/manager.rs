@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use crate::ui::store::{action::Action, store::Store};
+use crate::ui::store::{action::Action, Store};
 
 use super::types::{Command as AppCommand, Event};
 
@@ -64,7 +64,7 @@ impl EventManager {
             .dispatch(Action::SetCommandInProgress(Some(cmd.clone())));
 
         match cmd.clone() {
-            AppCommand::SSH(device, device_config) => {
+            AppCommand::Ssh(device, device_config) => {
                 self.tx.send(Event::PauseUI)?;
                 loop {
                     if let Ok(evt) = rx.recv() {
@@ -98,7 +98,7 @@ impl EventManager {
                     }
                 }
             }
-            AppCommand::TRACEROUTE(device) => {
+            AppCommand::TraceRoute(device) => {
                 let exec = self.commander.traceroute(device);
                 match exec {
                     Ok(output) => {
@@ -111,7 +111,7 @@ impl EventManager {
                     }
                 }
             }
-            AppCommand::BROWSE(device, port) => {
+            AppCommand::Browse(device, port) => {
                 self.tx.send(Event::PauseUI)?;
                 loop {
                     if let Ok(evt) = rx.recv() {

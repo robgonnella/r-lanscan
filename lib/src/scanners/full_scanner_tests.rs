@@ -11,9 +11,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::network;
-use crate::packet::arp::create_arp_reply;
+use crate::packet::arp_packet::create_arp_reply;
 use crate::packet::mocks::{MockPacketReader, MockPacketSender};
-use crate::packet::syn::create_syn_reply;
+use crate::packet::syn_packet::create_syn_reply;
 use crate::scanners::{DeviceWithPorts, Port};
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
@@ -34,18 +34,18 @@ fn new() {
     let ports = PortTargets::new(vec!["2000-8000".to_string()]);
     let (tx, _) = channel();
 
-    let scanner = FullScanner::new(
-        &interface,
-        receiver,
-        sender,
+    let scanner = FullScanner::new(FullScannerArgs {
+        interface: &interface,
+        packet_reader: receiver,
+        packet_sender: sender,
         targets,
         ports,
-        true,
-        true,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-        54321,
-    );
+        notifier: tx,
+        source_port: 54321,
+    });
 
     assert!(scanner.host);
     assert!(scanner.vendor);
@@ -112,18 +112,18 @@ fn sends_and_reads_packets() {
     let ports = PortTargets::new(vec!["2222".to_string()]);
     let (tx, rx) = channel();
 
-    let scanner = FullScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = FullScanner::new(FullScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
         ports,
-        true,
-        true,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-        54321,
-    );
+        notifier: tx,
+        source_port: 54321,
+    });
 
     let handle = scanner.scan();
 
@@ -158,9 +158,9 @@ fn sends_and_reads_packets() {
         }
     }
 
-    let result = handle.join().unwrap().unwrap();
+    let result = handle.join().unwrap();
 
-    assert_eq!(result, ());
+    assert!(result.is_ok());
     assert_eq!(detected_device.hostname, device.hostname);
     assert_eq!(detected_device.ip, device.ip);
     assert_eq!(detected_device.mac, device.mac);

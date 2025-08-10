@@ -9,9 +9,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::network;
-use crate::packet::arp::create_arp_reply;
+use crate::packet::arp_packet::create_arp_reply;
 use crate::packet::mocks::{MockPacketReader, MockPacketSender};
-use crate::packet::syn::create_syn_reply;
+use crate::packet::syn_packet::create_syn_reply;
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
@@ -30,17 +30,17 @@ fn new() {
     let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]);
     let (tx, _) = channel();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        receiver,
-        sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: receiver,
+        packet_sender: sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_vendor: true,
+        include_host_names: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     assert!(scanner.include_host_names);
     assert!(scanner.include_vendor);
@@ -78,17 +78,17 @@ fn sends_and_reads_packets() {
     let targets = IPTargets::new(vec![device_ip.to_string()]);
     let (tx, rx) = channel();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
@@ -114,8 +114,8 @@ fn sends_and_reads_packets() {
         }
     }
 
-    let result = handle.join().unwrap().unwrap();
-    assert_eq!(result, ());
+    let result = handle.join().unwrap();
+    assert!(result.is_ok());
     assert_eq!(detected_device.mac.to_string(), device_mac.to_string());
     assert_eq!(detected_device.ip.to_string(), device_ip.to_string());
 }
@@ -156,17 +156,17 @@ fn ignores_unrelated_packets() {
 
     let (tx, rx) = channel();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let (done_tx, done_rx) = channel();
 
@@ -224,17 +224,17 @@ fn reports_error_on_packet_reader_lock() {
 
     let _ = handle.join();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let (_done_tx, done_rx) = channel();
 
@@ -263,17 +263,17 @@ fn reports_error_on_packet_read_error() {
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
     let (tx, _rx) = channel();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let (_done_tx, done_rx) = channel();
 
@@ -302,17 +302,17 @@ fn reports_error_on_notifier_send_errors() {
     // this will cause an error when scanner tries to notify
     drop(rx);
 
-    let scanner = ARPScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
@@ -344,28 +344,23 @@ fn reports_error_on_packet_sender_lock_errors() {
 
     let _ = handle.join();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
     loop {
-        if let Ok(msg) = rx.recv() {
-            match msg {
-                ScanMessage::Done => {
-                    break;
-                }
-                _ => {}
-            }
+        if let Ok(ScanMessage::Done) = rx.recv() {
+            break;
         }
     }
 
@@ -391,28 +386,23 @@ fn reports_error_on_packet_send_errors() {
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
     let (tx, rx) = channel();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
     loop {
-        if let Ok(msg) = rx.recv() {
-            match msg {
-                ScanMessage::Done => {
-                    break;
-                }
-                _ => {}
-            }
+        if let Ok(ScanMessage::Done) = rx.recv() {
+            break;
         }
     }
 
@@ -439,28 +429,23 @@ fn reports_errors_from_read_handle() {
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
     let (tx, rx) = channel();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        arc_receiver,
-        arc_sender,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: arc_receiver,
+        packet_sender: arc_sender,
         targets,
-        54321,
-        true,
-        true,
+        source_port: 54321,
+        include_host_names: true,
+        include_vendor: true,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let handle = scanner.scan();
 
     loop {
-        if let Ok(msg) = rx.recv() {
-            match msg {
-                ScanMessage::Done => {
-                    break;
-                }
-                _ => {}
-            }
+        if let Ok(ScanMessage::Done) = rx.recv() {
+            break;
         }
     }
 

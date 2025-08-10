@@ -25,11 +25,13 @@ rust version of [go-lanscan]
 
 - install llvm-cov
 - install cargo-insta
+- add clippy component
 - install just
 
 ```zsh
 cargo +stable install cargo-llvm-cov --locked
 cargo install cargo-insta
+rustup component add clippy
 cargo install just
 ```
 

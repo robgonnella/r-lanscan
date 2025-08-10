@@ -2,7 +2,10 @@ use std::{env, sync::mpsc, time::Duration};
 
 use r_lanlib::{
     network, packet,
-    scanners::{arp_scanner::ARPScanner, Device, ScanMessage, Scanner},
+    scanners::{
+        arp_scanner::{ARPScanner, ARPScannerArgs},
+        Device, ScanMessage, Scanner,
+    },
     targets::ips::IPTargets,
 };
 
@@ -27,17 +30,17 @@ fn main() {
     let source_port: u16 = 54321;
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let scanner = ARPScanner::new(
-        &interface,
-        wire.0,
-        wire.1,
-        ip_targets,
+    let scanner = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: wire.0,
+        packet_sender: wire.1,
+        targets: ip_targets,
         source_port,
-        vendor,
-        host_names,
+        include_vendor: vendor,
+        include_host_names: host_names,
         idle_timeout,
-        tx,
-    );
+        notifier: tx,
+    });
 
     let mut results: Vec<Device> = Vec::new();
 

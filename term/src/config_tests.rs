@@ -29,7 +29,6 @@ fn tear_down(conf_path: String) {
 #[test]
 fn test_new() {
     let (_, _, conf_path) = setup();
-    assert!(true);
     tear_down(conf_path);
 }
 

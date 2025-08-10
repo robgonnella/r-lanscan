@@ -8,7 +8,7 @@ use crate::ui::{
     store::{
         action::Action,
         state::{State, ViewID},
-        store::Store,
+        Store,
     },
 };
 use itertools::Itertools;
@@ -365,11 +365,7 @@ impl View for ConfigView {
         }
     }
     fn override_main_legend(&self, _state: &State) -> bool {
-        if *self.editing.borrow() {
-            true
-        } else {
-            false
-        }
+        *self.editing.borrow()
     }
 }
 

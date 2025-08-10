@@ -16,17 +16,16 @@ use color_eyre::eyre::{eyre, Report, Result};
 use core::time;
 use itertools::Itertools;
 use log::*;
-use prettytable;
 use r_lanlib::{
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        arp_scanner::ARPScanner, syn_scanner::SYNScanner, Device, DeviceWithPorts, ScanError,
-        ScanMessage, Scanner, IDLE_TIMEOUT,
+        arp_scanner::{ARPScanner, ARPScannerArgs},
+        syn_scanner::{SYNScanner, SYNScannerArgs},
+        Device, DeviceWithPorts, ScanError, ScanMessage, Scanner, IDLE_TIMEOUT,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
-use simplelog;
 use std::{
     collections::HashSet,
     env,
@@ -119,7 +118,7 @@ fn print_args(args: &Args, interface: &NetworkInterface) {
     info!("idle_timeout_ms: {}", args.idle_timeout_ms);
     info!("interface:       {}", interface.name);
     info!("cidr:            {}", interface.cidr);
-    info!("user_ip:         {}", interface.ipv4.to_string());
+    info!("user_ip:         {}", interface.ipv4);
     info!("source_port:     {}", args.source_port);
 }
 
@@ -135,12 +134,10 @@ fn process_arp(
     let handle = scanner.scan();
 
     loop {
-        let msg = rx.recv().or_else(|e| {
-            Err(ScanError {
-                ip: None,
-                port: None,
-                error: Box::new(e),
-            })
+        let msg = rx.recv().map_err(|e| ScanError {
+            ip: None,
+            port: None,
+            error: Box::new(e),
         })?;
 
         match msg {
@@ -218,12 +215,10 @@ fn process_syn(
     let handle = scanner.scan();
 
     loop {
-        let msg = rx.recv().or_else(|e| {
-            Err(ScanError {
-                ip: None,
-                port: None,
-                error: Box::new(e),
-            })
+        let msg = rx.recv().map_err(|e| ScanError {
+            ip: None,
+            port: None,
+            error: Box::new(e),
         })?;
 
         match msg {
@@ -319,7 +314,7 @@ fn main() -> Result<(), Report> {
 
     args.interface = interface.name.clone();
 
-    if args.targets.len() == 0 {
+    if args.targets.is_empty() {
         args.targets = vec![interface.cidr.clone()]
     }
 
@@ -327,25 +322,23 @@ fn main() -> Result<(), Report> {
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let wire = packet::wire::default(&interface).or_else(|e| {
-        Err(ScanError {
-            ip: None,
-            port: None,
-            error: Box::from(e),
-        })
+    let wire = packet::wire::default(&interface).map_err(|e| ScanError {
+        ip: None,
+        port: None,
+        error: e,
     })?;
 
-    let arp = ARPScanner::new(
-        &interface,
-        Arc::clone(&wire.0),
-        Arc::clone(&wire.1),
-        IPTargets::new(args.targets.clone()),
-        args.source_port,
-        args.vendor,
-        args.host_names,
-        time::Duration::from_millis(args.idle_timeout_ms.into()),
-        tx.clone(),
-    );
+    let arp = ARPScanner::new(ARPScannerArgs {
+        interface: &interface,
+        packet_reader: Arc::clone(&wire.0),
+        packet_sender: Arc::clone(&wire.1),
+        targets: IPTargets::new(args.targets.clone()),
+        source_port: args.source_port,
+        include_vendor: args.vendor,
+        include_host_names: args.host_names,
+        idle_timeout: time::Duration::from_millis(args.idle_timeout_ms.into()),
+        notifier: tx.clone(),
+    });
 
     let (arp_results, rx) = process_arp(&arp, rx)?;
 
@@ -355,16 +348,16 @@ fn main() -> Result<(), Report> {
         return Ok(());
     }
 
-    let syn = SYNScanner::new(
-        &interface,
-        wire.0,
-        wire.1,
-        arp_results.clone(),
-        PortTargets::new(args.ports.clone()),
-        args.source_port,
-        time::Duration::from_millis(args.idle_timeout_ms.into()),
-        tx,
-    );
+    let syn = SYNScanner::new(SYNScannerArgs {
+        interface: &interface,
+        packet_reader: wire.0,
+        packet_sender: wire.1,
+        targets: arp_results.clone(),
+        ports: PortTargets::new(args.ports.clone()),
+        source_port: args.source_port,
+        idle_timeout: time::Duration::from_millis(args.idle_timeout_ms.into()),
+        notifier: tx,
+    });
 
     let final_results = process_syn(&syn, arp_results, rx)?;
     print_syn(&args, &final_results);

@@ -57,11 +57,11 @@ impl From<&NetworkInterface> for PNetNetworkInterface {
     fn from(value: &NetworkInterface) -> Self {
         Self {
             name: value.name.clone(),
-            flags: value.flags.clone(),
+            flags: value.flags,
             description: value.description.clone(),
-            index: value.index.clone(),
+            index: value.index,
             ips: value.ips.clone(),
-            mac: Some(value.mac.clone()),
+            mac: Some(value.mac),
         }
     }
 }
@@ -78,7 +78,7 @@ pub fn get_interface(name: &str) -> Option<NetworkInterface> {
 pub fn get_default_interface() -> Option<NetworkInterface> {
     let iface = pnet::datalink::interfaces()
         .into_iter()
-        .find(|e| e.is_up() && !e.is_loopback() && e.ips.iter().find(|i| i.is_ipv4()).is_some())?;
+        .find(|e| e.is_up() && !e.is_loopback() && e.ips.iter().any(|i| i.is_ipv4()))?;
     NetworkInterface::try_from(iface).ok()
 }
 
@@ -95,7 +95,7 @@ fn get_interface_ipv4_and_cidr(interface: &PNetNetworkInterface) -> Option<(Stri
     let ip = ipnet.ip().to_string();
     let base = ipnet.network().to_string();
     let prefix = ipnet.prefix().to_string();
-    let cidr = String::from(format!("{base}/{prefix}"));
+    let cidr = format!("{base}/{prefix}");
     Some((ip, cidr))
 }
 

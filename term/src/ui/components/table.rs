@@ -37,7 +37,7 @@ impl Table {
     ) -> Self {
         let mut scroll_height = item_height;
 
-        if items.len() > 0 {
+        if !items.is_empty() {
             scroll_height = (items.len() - 1) * item_height;
         }
 
@@ -150,7 +150,7 @@ impl CustomWidgetRef for Table {
             .add_modifier(Modifier::REVERSED)
             .fg(ctx.state.colors.selected_row_fg);
 
-        let rows = self.items.iter().enumerate().map(|(_i, data)| {
+        let rows = self.items.iter().map(|data| {
             let item = fit_to_width(data, self.column_sizes.clone());
 
             // line break - hacky way of centering the text
@@ -199,7 +199,7 @@ impl CustomWidgetRef for Table {
     }
 }
 
-fn fit_to_width(item: &Vec<String>, col_widths: Vec<usize>) -> Vec<String> {
+fn fit_to_width(item: &[String], col_widths: Vec<usize>) -> Vec<String> {
     item.iter()
         .enumerate()
         .map(|(i, v)| {
