@@ -3,7 +3,7 @@
 use log::*;
 use pnet::packet::{arp, ethernet, Packet};
 use std::{
-    io::{Error as IOError, ErrorKind},
+    io::Error as IOError,
     net,
     sync::{self, Arc, Mutex},
     thread::{self, JoinHandle},
@@ -175,11 +175,10 @@ impl ARPScanner<'_> {
                     }
 
                     let mut vendor = String::from("");
-                    if include_vendor {
-                        if let Some(vendor_data) = oui_data::lookup(&mac) {
+                    if include_vendor
+                        && let Some(vendor_data) = oui_data::lookup(&mac) {
                             vendor = vendor_data.organization().to_owned();
                         }
-                    }
 
                     let _ = notification_sender.send(ScanMessage::ARPScanResult(Device {
                         hostname,
@@ -238,7 +237,7 @@ impl Scanner for ARPScanner<'_> {
                 let mut pkt_sender = packet_sender.lock().map_err(|e| ScanError {
                     ip: Some(target_ipv4.to_string()),
                     port: None,
-                    error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
+                    error: Box::from(IOError::other(e.to_string())),
                 })?;
 
                 // Send to the broadcast address

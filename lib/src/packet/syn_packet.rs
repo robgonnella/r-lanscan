@@ -71,6 +71,7 @@ pub fn build(
 #[cfg(test)]
 #[allow(warnings)]
 #[doc(hidden)]
+// only used in tests
 pub fn create_syn_reply(
     from_mac: util::MacAddr,
     from_ip: net::Ipv4Addr,

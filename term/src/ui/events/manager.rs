@@ -67,11 +67,10 @@ impl EventManager {
             AppCommand::Ssh(device, device_config) => {
                 self.tx.send(Event::PauseUI)?;
                 loop {
-                    if let Ok(evt) = rx.recv() {
-                        if evt == Event::UIPaused {
+                    if let Ok(evt) = rx.recv()
+                        && evt == Event::UIPaused {
                             break;
                         }
-                    }
                 }
 
                 let res = self.commander.ssh(device, device_config);
@@ -81,9 +80,8 @@ impl EventManager {
                 match res {
                     Ok((status, err)) => {
                         if !status.success() {
-                            if err.is_some() {
+                            if let Some(stderr) = err {
                                 let mut stderr_output = String::new();
-                                let stderr = err.unwrap();
                                 let mut stderr_reader = BufReader::new(stderr);
                                 stderr_reader.read_to_string(&mut stderr_output).unwrap();
                                 self.store.dispatch(Action::SetError(Some(stderr_output)));
@@ -114,11 +112,10 @@ impl EventManager {
             AppCommand::Browse(device, port) => {
                 self.tx.send(Event::PauseUI)?;
                 loop {
-                    if let Ok(evt) = rx.recv() {
-                        if evt == Event::UIPaused {
+                    if let Ok(evt) = rx.recv()
+                        && evt == Event::UIPaused {
                             break;
                         }
-                    }
                 }
 
                 let res = self.commander.lynx(device, port);
@@ -128,9 +125,8 @@ impl EventManager {
                 match res {
                     Ok((status, err)) => {
                         if !status.success() {
-                            if err.is_some() {
+                            if let Some(stderr) = err {
                                 let mut stderr_output = String::new();
-                                let stderr = err.unwrap();
                                 let mut stderr_reader = BufReader::new(stderr);
                                 stderr_reader.read_to_string(&mut stderr_output).unwrap();
                                 self.store.dispatch(Action::SetError(Some(stderr_output)));

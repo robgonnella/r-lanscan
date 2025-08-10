@@ -6,7 +6,7 @@ use pnet::{
     util,
 };
 use std::{
-    io::{Error as IOError, ErrorKind},
+    io::Error as IOError,
     net,
     str::FromStr,
     sync::{self, mpsc, Arc, Mutex},
@@ -212,7 +212,7 @@ impl SYNScanner<'_> {
                 let mut rst_sender = rst_packet_sender.lock().map_err(|e| ScanError {
                     ip: None,
                     port: None,
-                    error: Box::from(IOError::new(ErrorKind::Other, e.to_string())),
+                    error: Box::from(IOError::other(e.to_string())),
                 })?;
 
                 debug!("sending RST packet to {}:{}", device.ip, port);
@@ -282,8 +282,8 @@ impl Scanner for SYNScanner<'_> {
                         error: Box::from(e),
                     });
 
-                    if dest_ipv4.is_err() {
-                        res = Err(dest_ipv4.unwrap_err());
+                    if let Err(scan_error) = dest_ipv4 {
+                        res = Err(scan_error);
                         break;
                     }
 
@@ -293,8 +293,8 @@ impl Scanner for SYNScanner<'_> {
                         error: Box::from(e),
                     });
 
-                    if dest_mac.is_err() {
-                        res = Err(dest_mac.unwrap_err());
+                    if let Err(scan_error) = dest_mac {
+                        res = Err(scan_error);
                         break;
                     }
 
@@ -370,8 +370,7 @@ impl Scanner for SYNScanner<'_> {
             let read_result = read_handle.join().map_err(|_| ScanError {
                 ip: None,
                 port: None,
-                error: Box::from(IOError::new(
-                    ErrorKind::Other,
+                error: Box::from(IOError::other(
                     "encountered error during syn packet reading",
                 )),
             })?;

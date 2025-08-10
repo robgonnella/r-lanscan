@@ -4,8 +4,8 @@ use pnet::{
     util,
 };
 use std::str::FromStr;
-use std::sync::mpsc::channel;
 use std::sync::Arc;
+use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use crate::network;
@@ -61,15 +61,20 @@ fn sends_and_reads_packets() {
         device_ip,
         interface.mac,
         interface.ipv4,
-        unsafe { &mut PACKET },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut PACKET
+        },
     );
 
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
+    #[allow(static_mut_refs)]
     receiver
         .expect_next_packet()
         .returning(|| Ok(unsafe { &PACKET }));
+
     sender.expect_send().returning(|_| Ok(()));
 
     let arc_receiver = Arc::new(Mutex::new(receiver));
@@ -139,9 +144,13 @@ fn ignores_unrelated_packets() {
             interface.mac,
             interface.ipv4,
             54321,
-            unsafe { &mut PACKET },
+            #[allow(static_mut_refs)]
+            unsafe {
+                &mut PACKET
+            },
         );
 
+        #[allow(static_mut_refs)]
         receiver
             .expect_next_packet()
             .returning(|| Ok(unsafe { &PACKET }));

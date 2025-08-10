@@ -104,22 +104,20 @@ impl App {
             let state = self.store.get_state();
 
             if state.ui_paused {
-                if let Ok(evt) = self.event_loop_receiver.recv() {
-                    if evt == Event::ResumeUI {
+                if let Ok(evt) = self.event_loop_receiver.recv()
+                    && evt == Event::ResumeUI {
                         self.restart()?;
                         self.store.dispatch(Action::SetUIPaused(false));
                         self.event_loop_sender.send(Event::UIResumed)?;
                         continue;
                     }
-                }
-            } else if let Ok(evt) = self.event_loop_receiver.try_recv() {
-                if evt == Event::PauseUI {
+            } else if let Ok(evt) = self.event_loop_receiver.try_recv()
+                && evt == Event::PauseUI {
                     self.pause()?;
                     self.store.dispatch(Action::SetUIPaused(true));
                     self.event_loop_sender.send(Event::UIPaused)?;
                     continue;
                 }
-            }
 
             let mut ctx = CustomWidgetContext {
                 state: state.clone(),
@@ -153,8 +151,8 @@ impl App {
 
             // Use poll here so we don't block the thread, this will allow
             // rendering of incoming device data from network as it's received
-            if let Ok(has_event) = event::poll(time::Duration::from_millis(60)) {
-                if has_event {
+            if let Ok(has_event) = event::poll(time::Duration::from_millis(60))
+                && has_event {
                     let evt = event::read()?;
 
                     let handled = self.main_view.process_event(&evt, &ctx);
@@ -180,7 +178,6 @@ impl App {
                         }
                     }
                 }
-            }
         }
     }
 

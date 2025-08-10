@@ -266,19 +266,18 @@ impl EventHandler for MainView {
         }
 
         if ctx.state.error.is_some() {
-            if let CrossTermEvent::Key(key) = evt {
-                if key.code == KeyCode::Enter {
+            if let CrossTermEvent::Key(key) = evt
+                && key.code == KeyCode::Enter {
                     self.store.dispatch(Action::SetError(None));
                 }
-            }
             true
         } else {
             let view_id = ctx.state.view_id.clone();
             let view = self.sub_views.get(&view_id).unwrap();
             let mut handled = view.process_event(evt, ctx);
 
-            if !handled {
-                if let CrossTermEvent::Key(key) = evt {
+            if !handled
+                && let CrossTermEvent::Key(key) = evt {
                     match key.code {
                         KeyCode::Char('v') => {
                             if !ctx.state.render_view_select {
@@ -295,7 +294,6 @@ impl EventHandler for MainView {
                         _ => {}
                     }
                 }
-            }
 
             handled
         }

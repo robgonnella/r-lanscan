@@ -1,4 +1,4 @@
-use std::{collections::HashSet, io::ErrorKind};
+use std::collections::HashSet;
 
 use crate::scanners::Device;
 
@@ -9,7 +9,7 @@ fn test_scan_error_display() {
     let err = ScanError {
         ip: None,
         port: None,
-        error: Box::new(std::io::Error::new(ErrorKind::Other, "mock error")),
+        error: Box::new(std::io::Error::other("mock error")),
     };
 
     println!("{}", err);

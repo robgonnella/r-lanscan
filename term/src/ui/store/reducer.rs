@@ -27,7 +27,9 @@ impl Reducer {
     }
 
     pub fn reduce(&self, prev_state: State, action: Action) -> State {
-        let new_state = match action {
+        
+
+        match action {
             Action::SetUIPaused(value) => {
                 let mut state = prev_state.clone();
                 state.ui_paused = value;
@@ -224,9 +226,7 @@ impl Reducer {
                 state.cmd_output = None;
                 state
             }
-        };
-
-        new_state
+        }
     }
 }
 

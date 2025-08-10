@@ -3,4 +3,4 @@ resolver = "2"
 members = ["cli", "lib", "term"]
 package.license  = "GNU GPLv3"
 package.keywords = ["network", "network-scanner", "network-scanning", "ARP", "SYN"]
-package.edition = "2021"
+package.edition = "2024"

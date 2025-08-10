@@ -6,8 +6,8 @@ use pnet::{
 use std::collections::HashSet;
 use std::net;
 use std::str::FromStr;
-use std::sync::mpsc::channel;
 use std::sync::Arc;
+use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use crate::network;
@@ -69,7 +69,10 @@ fn sends_and_reads_packets() {
         device_ip,
         interface.mac,
         interface.ipv4,
-        unsafe { &mut ARP_PACKET },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut ARP_PACKET
+        },
     );
 
     let syn_packet = create_syn_reply(
@@ -79,7 +82,10 @@ fn sends_and_reads_packets() {
         interface.mac,
         interface.ipv4,
         54321,
-        unsafe { &mut SYN_PACKET },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut SYN_PACKET
+        },
     );
 
     let device = Device {
@@ -94,6 +100,8 @@ fn sends_and_reads_packets() {
     let mut sender = MockPacketSender::new();
 
     let mut next_type = "arp";
+
+    #[allow(static_mut_refs)]
     receiver.expect_next_packet().returning(move || {
         if next_type == "arp" {
             next_type = "syn";

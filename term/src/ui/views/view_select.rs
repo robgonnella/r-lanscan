@@ -80,8 +80,8 @@ impl EventHandler for ViewSelect {
 
         let mut handled = false;
 
-        if let Event::Key(key) = evt {
-            if key.kind == KeyEventKind::Press {
+        if let Event::Key(key) = evt
+            && key.kind == KeyEventKind::Press {
                 match key.code {
                     KeyCode::Char('j') | KeyCode::Down => {
                         self.next();
@@ -104,7 +104,6 @@ impl EventHandler for ViewSelect {
                     _ => {}
                 }
             }
-        }
 
         handled
     }

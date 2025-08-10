@@ -30,15 +30,14 @@ impl HeartBeat {
     }
 
     pub fn beat(&self) {
-        if let Ok(mut pkt_sender) = self.packet_sender.lock() {
-            if let Err(e) = pkt_sender.send(&build_heartbeat_packet(
+        if let Ok(mut pkt_sender) = self.packet_sender.lock()
+            && let Err(e) = pkt_sender.send(&build_heartbeat_packet(
                 self.source_mac,
                 self.source_ipv4,
                 self.source_port,
             )) {
                 error!("error sending heartbeat: {}", e);
             }
-        }
     }
 }
 

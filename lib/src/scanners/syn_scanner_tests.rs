@@ -1,8 +1,8 @@
 use super::*;
 use pnet::packet::{arp, ethernet, ipv4, tcp};
 use std::collections::HashSet;
-use std::sync::mpsc::channel;
 use std::sync::Arc;
+use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use crate::network;
@@ -62,7 +62,10 @@ fn sends_and_reads_packets() {
         interface.mac,
         interface.ipv4,
         54321,
-        unsafe { &mut PACKET },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut PACKET
+        },
     );
 
     let device = Device {
@@ -76,6 +79,7 @@ fn sends_and_reads_packets() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
+    #[allow(static_mut_refs)]
     receiver
         .expect_next_packet()
         .returning(|| Ok(unsafe { &PACKET }));
@@ -179,9 +183,13 @@ fn ignores_unrelated_packets() {
         interface.mac,
         interface.ipv4,
         54322,
-        unsafe { &mut SYN_PACKET1 },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut SYN_PACKET1
+        },
     );
 
+    #[allow(static_mut_refs)]
     receiver
         .expect_next_packet()
         .returning(|| Ok(unsafe { &SYN_PACKET1 }));
@@ -194,9 +202,13 @@ fn ignores_unrelated_packets() {
         interface.mac,
         interface.ipv4,
         54321,
-        unsafe { &mut SYN_PACKET2 },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut SYN_PACKET2
+        },
     );
 
+    #[allow(static_mut_refs)]
     receiver
         .expect_next_packet()
         .returning(|| Ok(unsafe { &SYN_PACKET2 }));
@@ -208,9 +220,13 @@ fn ignores_unrelated_packets() {
         device_ip.clone(),
         interface.mac,
         interface.ipv4,
-        unsafe { &mut ARP_PACKET },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut ARP_PACKET
+        },
     );
 
+    #[allow(static_mut_refs)]
     receiver
         .expect_next_packet()
         .returning(|| Ok(unsafe { &ARP_PACKET }));
@@ -345,7 +361,10 @@ fn reports_error_on_rst_packet_sender_lock() {
         interface.mac,
         interface.ipv4,
         54321,
-        unsafe { &mut PACKET },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut PACKET
+        },
     );
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -354,6 +373,7 @@ fn reports_error_on_rst_packet_sender_lock() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
+    #[allow(static_mut_refs)]
     receiver
         .expect_next_packet()
         .return_once(|| Ok(unsafe { &PACKET }));
@@ -417,7 +437,10 @@ fn reports_error_on_rst_packet_send_errors() {
         interface.mac,
         interface.ipv4,
         54321,
-        unsafe { &mut PACKET },
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut PACKET
+        },
     );
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -426,6 +449,7 @@ fn reports_error_on_rst_packet_send_errors() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
+    #[allow(static_mut_refs)]
     receiver
         .expect_next_packet()
         .return_once(|| Ok(unsafe { &PACKET }));
