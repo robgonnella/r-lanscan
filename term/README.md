@@ -18,6 +18,7 @@ A full-featured terminal user interface (TUI) application for managing and inter
 ## Prerequisites
 
 - **Root privileges required**: Network scanning requires raw socket access
+- **Rust 1.89.0+** - Install via [rustup.rs](https://rustup.rs/)
 - **External tools** (optional but recommended):
   - `ssh` - For SSH connections to devices
   - `traceroute` - For network path analysis
@@ -26,8 +27,6 @@ A full-featured terminal user interface (TUI) application for managing and inter
 ## Installation
 
 ### Building from Source
-
-Ensure you have Rust installed ([rustup.rs](https://rustup.rs/))
 
 ```bash
 # Clone the repository
@@ -196,7 +195,7 @@ Available color themes:
 
 - **Blue** (default): Classic blue color scheme
 - **Emerald**: Green-based color palette
-- **Indigo**: Purple/indigo color scheme  
+- **Indigo**: Purple/indigo color scheme
 - **Red**: Red-based color scheme
 
 Themes automatically adapt to terminal capabilities (true color vs basic colors).
@@ -264,7 +263,7 @@ r-lanterm continuously monitors your network:
 **Configurable Ranges**:
 - Default: `22,80,443,2000-9999,27017`
 - Supports individual ports: `22,80,443`
-- Supports port ranges: `8000-9000`  
+- Supports port ranges: `8000-9000`
 - Mixed specifications: `22,80,8000-9000`
 
 **Scan Process**:
@@ -375,7 +374,7 @@ sudo dnf install openssh-clients traceroute lynx
 ### Network Administration
 
 - **Device Discovery**: Find all active devices on your network
-- **Port Auditing**: Identify open services across all devices  
+- **Port Auditing**: Identify open services across all devices
 - **SSH Management**: Quick access to multiple servers
 - **Network Monitoring**: Continuous monitoring of network changes
 
@@ -451,10 +450,12 @@ scp config.yml user@remote:~/.config/r-lanterm/
 
 ### Core Dependencies
 - `ratatui`: Terminal UI framework
-- `r-lanlib`: Network scanning library  
+- `r-lanlib`: Network scanning library (located at `../lib`)
 - `clap`: Command-line argument parsing
 - `serde`: Configuration serialization
-- `crossterm`: Cross-platform terminal control
+- `directories`: Cross-platform configuration directories
+- `ctrlc`: Signal handling for graceful shutdown
+- `signal-hook`: Additional signal handling
 
 ### Optional External Tools
 - `ssh`: SSH client for device connections

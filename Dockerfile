@@ -1,4 +1,4 @@
-FROM rust:1.85.1-alpine3.21
+FROM rust:1.89.0-alpine3.21
 
 RUN apk add alpine-sdk openssl-dev openssl-libs-static openssh lynx ncurses
 

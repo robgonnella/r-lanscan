@@ -99,22 +99,37 @@ cargo build --release -p r-lanterm
 
 ### Using Justfile (Recommended)
 
+The project includes a comprehensive Justfile for common development tasks:
+
 ```bash
 # Install just command runner
 cargo install just
 
-# Scan your network with CLI
-just scan --help
-just scan --targets 192.168.1.0/24
+# View all available commands
+just
 
-# Launch terminal UI
-just term --ports 22,80,443
+# CLI operations
+just scan --help                    # Show CLI help
+just scan                          # Quick network scan
+just scan --targets 192.168.1.0/24 # Scan specific network
+just scan --arp-only --vendor      # ARP scan with vendor lookup
 
-# Run tests
-just test
+# Terminal UI operations
+just term                          # Launch interactive terminal UI
+just term --ports 22,80,443       # Custom port scanning
+just term --debug                  # Run in debug mode
 
-# Generate documentation
-just readme
+# Development and testing
+just test                          # Run all tests
+just test-report                   # Generate test coverage report
+just lint                          # Run clippy linting
+
+# Docker operations
+just up                           # Start development containers
+just exec-workspace               # Access container shell
+just exec-workspace-term          # Run terminal UI in container
+just down                         # Stop containers
+just logs                         # View container logs
 ```
 
 ### Basic Usage Examples
@@ -136,7 +151,7 @@ sudo r-lanterm  # Launch terminal UI for full interactive experience
 
 ## Requirements
 
-- **Rust 1.85.1+** - Install via [rustup.rs](https://rustup.rs/)
+- **Rust 1.89.0+** with Rust 2024 edition support - Install via [rustup.rs](https://rustup.rs/)
 - **Root/Administrator privileges** - Required for raw socket operations
 - **Optional external tools** (for terminal UI):
   - `ssh` - For device connections
@@ -189,6 +204,29 @@ cargo llvm-cov
 # Lint code
 cargo clippy --all-targets --all-features
 ```
+
+### Docker Development Environment
+
+The project includes a Docker setup for development and testing:
+
+```bash
+# Build and start development container
+just up
+
+# Access workspace shell
+just exec-workspace
+
+# Run terminal UI in container
+just exec-workspace-term
+
+# View container logs
+just logs
+
+# Stop containers
+just down
+```
+
+**Note**: Docker networking limitations may affect scanning capabilities and performance. For full functionality and optimal performance, run natively on the host system.
 
 ### Project Structure
 

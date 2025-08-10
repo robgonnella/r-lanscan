@@ -6,26 +6,26 @@
 //!
 //! ## ARP Scanning
 //!
-//! <https://github.com/robgonnella/r-lanscan/blob/main/r-lanlib/examples/arp-scanner.rs>
+//! <https://github.com/robgonnella/r-lanscan/blob/main/lib/examples/arp-scanner.rs>
 //!
 //! ```bash
-//! sudo -E cargo run --example arp-scanner
+//! sudo -E cargo run --example arp-scanner -p r-lanlib
 //! ```
 //!
 //! ## SYN Scanning
 //!
-//! <https://github.com/robgonnella/r-lanscan/blob/main/r-lanlib/examples/syn-scanner.rs>
+//! <https://github.com/robgonnella/r-lanscan/blob/main/lib/examples/syn-scanner.rs>
 //!
 //! ```bash
-//! sudo -E cargo run --example syn-scanner
+//! sudo -E cargo run --example syn-scanner -p r-lanlib
 //! ```
 //!
 //! ## Full Scanning (ARP + SYN)
 //!
-//! <https://github.com/robgonnella/r-lanscan/blob/main/r-lanlib/examples/full-scanner.rs>
+//! <https://github.com/robgonnella/r-lanscan/blob/main/lib/examples/full-scanner.rs>
 //!
 //! ```bash
-//! sudo -E cargo run --example full-scanner
+//! sudo -E cargo run --example full-scanner -p r-lanlib
 //! ```
 
 #![deny(missing_docs)]

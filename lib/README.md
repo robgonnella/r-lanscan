@@ -15,7 +15,8 @@ A Rust library crate for performing network scanning operations on any local are
 ## Requirements
 
 - **Root privileges required**: This library performs raw packet operations that require elevated permissions
-- **Rust 2021 edition or later**
+- **Rust 1.89.0+** with 2024 edition support
+- **System dependencies**: `libssl-dev` (Linux), `openssl` (macOS) for cryptographic operations
 
 ## Installation
 
@@ -68,10 +69,10 @@ let scanner = ARPScanner::new(ARPScannerArgs {
     notifier: tx,
 });
 
-// Start scanning
+// Start scanning (runs in background thread)
 let handle = scanner.scan();
 
-// Process results
+// Process results in real-time
 let mut devices = Vec::new();
 loop {
     match rx.recv().expect("Failed to receive message") {
@@ -80,11 +81,14 @@ loop {
             println!("Found device: {} ({})", device.ip, device.hostname);
             devices.push(device);
         }
-        _ => {}
+        ScanMessage::Info(scanning) => {
+            println!("Scanning: {}", scanning.ip);
+        }
     }
 }
 
 handle.join().expect("Scanner thread failed");
+println!("Discovered {} devices", devices.len());
 ```
 
 ### SYN Port Scanning
@@ -279,30 +283,46 @@ The library includes several complete examples in the `examples/` directory:
 - **`syn-scanner.rs`** - Port scanning on known devices
 - **`full-scanner.rs`** - Complete network reconnaissance
 
-Run examples with:
+Run examples from the workspace root with:
 ```bash
-sudo -E cargo run --example arp-scanner
-sudo -E cargo run --example syn-scanner
-sudo -E cargo run --example full-scanner
+sudo -E cargo run --example arp-scanner -p r-lanlib
+sudo -E cargo run --example syn-scanner -p r-lanlib
+sudo -E cargo run --example full-scanner -p r-lanlib
 ```
 
 ## Configuration Options
 
 ### Scanner Timeouts
 - `idle_timeout` - How long to wait for responses before concluding scan
-- Default: 10 seconds
+- Default: 10 seconds (10,000ms)
+- Recommended: 5-30 seconds depending on network size and latency
 
 ### Scanner Features
-- `include_vendor` - Perform MAC address vendor lookup
-- `include_host_names` - Resolve hostnames via DNS
-- `source_port` - Source port for scan packets
+- `include_vendor` - Perform MAC address vendor lookup using IEEE OUI database
+- `include_host_names` - Resolve hostnames via reverse DNS lookup
+- `source_port` - Source port for scan packets (auto-selected if not specified)
+
+### Performance Tuning
+- **Concurrent scanning**: Multiple threads handle packet I/O for optimal throughput
+- **Memory efficiency**: Zero-copy packet processing where possible
+- **Network-aware**: Automatic rate limiting to prevent network congestion
+- **Timeout optimization**: Adaptive timeouts based on network response times
 
 ## Security Considerations
 
-- **Requires root privileges** for raw socket access
-- **Network scanning may be restricted** by network policies
-- **Rate limiting** is implemented to prevent network congestion
+- **Requires root privileges** for raw socket access on Unix-like systems
+- **Network scanning may be restricted** by network policies and firewalls
+- **Built-in rate limiting** prevents network congestion and reduces detection risk
+- **Minimal network footprint**: Optimized packet sizes and timing
+- **Memory safety**: Rust's ownership system prevents buffer overflows and memory corruption
 - **Use responsibly** and only on networks you own or have permission to scan
+- **Logging**: All scan activities can be logged for audit purposes
+
+### Ethical Usage Guidelines
+- Always obtain proper authorization before scanning
+- Respect network resources and avoid aggressive scanning
+- Be aware that scanning activities may be logged by network security systems
+- Consider the impact on network performance during large-scale scans
 
 ## Error Handling
 
@@ -320,12 +340,17 @@ All scanner operations return `Result<(), ScanError>` for proper error handling.
 
 ## Dependencies
 
-- `pnet` - Low-level networking primitives
-- `ipnet` - IP network utilities
-- `oui-data` - MAC address vendor lookup
-- `dns-lookup` - Hostname resolution
-- `serde` - Serialization support
-- `log` / `paris` - Logging infrastructure
+- `pnet` - Low-level networking primitives and packet crafting
+- `ipnet` - IP network utilities and CIDR block handling
+- `oui-data` - IEEE OUI database for MAC address vendor lookup
+- `dns-lookup` - Hostname resolution and reverse DNS
+- `serde` - Serialization/deserialization with derive support
+- `log` - Structured logging interface
+- `paris` - Enhanced logging with timestamps and colors
+- `simplelog` - Simple logging implementation with paris integration
+
+### Development Dependencies
+- `mockall` ^0.13 - Mock object generation for testing
 
 ## License
 

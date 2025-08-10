@@ -18,10 +18,9 @@ A command-line interface for performing network scanning operations on local are
 ### Prerequisites
 
 - **Root privileges required**: Network scanning requires raw socket access
+- **Rust 1.89.0+** - Install via [rustup.rs](https://rustup.rs/)
 
 ### Building from Source
-
-Ensure you have Rust installed ([rustup.rs](https://rustup.rs/))
 
 ```bash
 # Clone the repository
@@ -450,10 +449,12 @@ sudo r-lancli
 ## Dependencies
 
 - `clap`: Command-line argument parsing
-- `r-lanlib`: Core scanning library
+- `r-lanlib`: Core scanning library (located at `../lib`)
 - `prettytable-rs`: Table formatting for output
 - `serde_json`: JSON serialization
 - `color-eyre`: Enhanced error reporting
+- `itertools`: Iterator utilities
+- `pnet`: Low-level networking
 
 ## Contributing
 
