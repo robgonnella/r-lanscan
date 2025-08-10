@@ -1,7 +1,10 @@
 [package]
 name = "r-lanlib"
 version = "0.1.0"
-edition = "2021"
+categories = ["network-programming"]
+license.workspace = true
+keywords.workspace = true
+edition.workspace = true
 
 [[example]]
 name = "arp-scanner"

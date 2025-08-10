@@ -1,7 +1,11 @@
 [package]
 name = "r-lancli"
 version = "0.1.0"
-edition = "2021"
+categories = ["command-line-utilities", "network-programming"]
+description = "A command-line interface for performing network scanning operations on local area networks (LANs)"
+license.workspace = true
+keywords.workspace = true
+edition.workspace = true
 
 [dependencies]
 clap = { version = "^4.5", features = ["derive"] }

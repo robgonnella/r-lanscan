@@ -32,3 +32,6 @@ test *args:
 
 test-report *args:
     cargo llvm-cov --ignore-filename-regex "(_test.rs$)|(_tests.rs$)" {{args}}
+
+lint:
+    cargo clippy --all-targets --all-features
