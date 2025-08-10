@@ -16,8 +16,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Modify the rust toolchain version
         run: rustup override set 1.85.1
-      - name: Output rust versio
-        run: rustup --version
+      - name: Output cargo version
+        run: cargo --version
       - name: Build
         run: cargo build --verbose
 
@@ -27,8 +27,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Modify the rust toolchain version
         run: rustup override set 1.85.1
-      - name: Output rust versio
-        run: rustup --version
+      - name: Output cargo version
+        run: cargo --version
       - name: Lint
         run: cargo clippy --all-targets --all-features
 
@@ -38,8 +38,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Modify the rust toolchain version
         run: rustup override set 1.85.1
-      - name: Output rust versio
-        run: rustup --version
+      - name: Output cargo version
+        run: cargo --version
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Test
         run: script -q /dev/null -c "cargo llvm-cov"
