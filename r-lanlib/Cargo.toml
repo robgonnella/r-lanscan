@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [[example]]
+name = "arp-scanner"
+path = "examples/arp-scanner.rs"
+
+[[example]]
+name = "syn-scanner"
+path = "examples/syn-scanner.rs"
+
+[[example]]
 name = "full-scanner"
 path = "examples/full-scanner.rs"
 

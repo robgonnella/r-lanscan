@@ -1,3 +1,25 @@
+//! Terminal GUI app for managing networked LAN devices
+//!
+//! This is the new and improved rust version of [ops](https://github.com/robgonnella/ops)
+//!
+//! # Features:
+//!
+//! - Save global ssh configuration used for all devices
+//! - Save device specific ssh config that overrides global configuration
+//! - Drop to ssh for any device found on network (requires ssh client to be installed)
+//! - Run `traceroute` for device found on network (requires traceroute to be installed)
+//! - Open terminal web browser on any port for any device found on network (requires lynx browser to be installed)
+//!
+//! # Examples
+//!
+//! ```bash
+//! # show help menu
+//! sudo r-lanterm --help
+//!
+//! # launch application
+//! sudo r-lanterm
+//! ```
+
 use clap::Parser;
 use color_eyre::eyre::{eyre, Result};
 use config::{Config, ConfigManager};
@@ -29,7 +51,9 @@ use ui::{
     store::{action::Action, derived::get_detected_devices, store::Store},
 };
 
+#[doc(hidden)]
 mod config;
+#[doc(hidden)]
 mod ui;
 
 #[derive(Parser, Debug)]
@@ -49,6 +73,7 @@ struct Args {
     ports: Vec<String>,
 }
 
+#[doc(hidden)]
 fn initialize_logger(args: &Args) {
     let filter = if args.debug {
         simplelog::LevelFilter::Debug
@@ -65,6 +90,7 @@ fn initialize_logger(args: &Args) {
     .unwrap();
 }
 
+#[doc(hidden)]
 fn get_project_config_path() -> String {
     let project_dir = ProjectDirs::from("", "", "r-lanterm").unwrap();
     let config_dir = project_dir.config_dir();
@@ -72,6 +98,7 @@ fn get_project_config_path() -> String {
     config_dir.join("config.yml").to_str().unwrap().to_string()
 }
 
+#[doc(hidden)]
 fn process_arp(
     packet_reader: Arc<Mutex<dyn packet::Reader>>,
     packet_sender: Arc<Mutex<dyn packet::Sender>>,
@@ -139,6 +166,7 @@ fn process_arp(
     Ok(rx)
 }
 
+#[doc(hidden)]
 fn process_syn(
     packet_reader: Arc<Mutex<dyn packet::Reader>>,
     packet_sender: Arc<Mutex<dyn packet::Sender>>,
@@ -220,6 +248,7 @@ fn process_syn(
     Ok(syn_results)
 }
 
+#[doc(hidden)]
 fn monitor_network(
     exit: Receiver<()>,
     packet_reader: Arc<Mutex<dyn WireReader>>,
@@ -279,6 +308,7 @@ fn monitor_network(
     })
 }
 
+#[doc(hidden)]
 fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Store>) {
     let config_path = get_project_config_path();
     let config_manager = Arc::new(Mutex::new(ConfigManager::new(&config_path)));
@@ -306,6 +336,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Store>) {
     (config, store)
 }
 
+#[doc(hidden)]
 fn is_root() -> bool {
     match env::var("USER") {
         Ok(val) => val == "root",
@@ -313,6 +344,7 @@ fn is_root() -> bool {
     }
 }
 
+#[doc(hidden)]
 fn main() -> Result<()> {
     color_eyre::install()?;
 

@@ -1,3 +1,16 @@
+//! CLI for LAN Network ARP and SYN scanning
+//!
+//! This is the rust version of [go-lanscan cli](https://github.com/robgonnella/go-lanscan)
+//!
+//! # Examples
+//!
+//! ```bash
+//! # help menu
+//! sudo r-lancli --help
+//!
+//! # scan network
+//! sudo r-lancli
+//! ```
 use clap::Parser;
 use color_eyre::eyre::{eyre, Report, Result};
 use core::time;
@@ -25,9 +38,9 @@ use std::{
     },
 };
 
-/// Local Area Network ARP and SYN scanning
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
+/// CLI for LAN Network ARP and SYN scanning
 struct Args {
     /// Comma separated list of IPs, IP ranges, and CIDR blocks to scan
     #[arg(short, long, use_value_delimiter = true)]
@@ -74,6 +87,7 @@ struct Args {
     debug: bool,
 }
 
+#[doc(hidden)]
 fn initialize_logger(args: &Args) {
     let filter = if args.quiet {
         simplelog::LevelFilter::Error
@@ -92,6 +106,7 @@ fn initialize_logger(args: &Args) {
     .unwrap();
 }
 
+#[doc(hidden)]
 fn print_args(args: &Args, interface: &NetworkInterface) {
     info!("configuration:");
     info!("targets:         {:?}", args.targets);
@@ -108,6 +123,7 @@ fn print_args(args: &Args, interface: &NetworkInterface) {
     info!("source_port:     {}", args.source_port);
 }
 
+#[doc(hidden)]
 fn process_arp(
     scanner: &dyn Scanner,
     rx: Receiver<ScanMessage>,
@@ -148,6 +164,7 @@ fn process_arp(
     Ok((items, rx))
 }
 
+#[doc(hidden)]
 fn print_arp(args: &Args, devices: &Vec<Device>) {
     info!("arp results:");
 
@@ -177,6 +194,7 @@ fn print_arp(args: &Args, devices: &Vec<Device>) {
     }
 }
 
+#[doc(hidden)]
 fn process_syn(
     scanner: &dyn Scanner,
     devices: Vec<Device>,
@@ -234,6 +252,7 @@ fn process_syn(
     Ok(syn_results)
 }
 
+#[doc(hidden)]
 fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
     info!("syn results:");
 
@@ -276,6 +295,7 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
     }
 }
 
+#[doc(hidden)]
 fn is_root() -> bool {
     match env::var("USER") {
         Ok(val) => val == "root",
@@ -283,6 +303,7 @@ fn is_root() -> bool {
     }
 }
 
+#[doc(hidden)]
 fn main() -> Result<(), Report> {
     color_eyre::install()?;
 

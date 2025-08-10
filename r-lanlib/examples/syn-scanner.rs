@@ -2,8 +2,8 @@ use std::{env, sync::mpsc, time::Duration};
 
 use r_lanlib::{
     network, packet,
-    scanners::{full_scanner::FullScanner, SYNScanResult, ScanMessage, Scanner},
-    targets::{ips::IPTargets, ports::PortTargets},
+    scanners::{syn_scanner::SYNScanner, Device, SYNScanResult, ScanMessage, Scanner},
+    targets::ports::PortTargets,
 };
 
 fn is_root() -> bool {
@@ -18,27 +18,49 @@ fn main() {
         panic!("permission denied: must run with root privileges");
     }
     let interface = network::get_default_interface().expect("cannot find interface");
-    let cidr = interface.cidr.clone();
     let wire = packet::wire::default(&interface).expect("failed to create wire");
-    let ip_targets = IPTargets::new(vec![cidr]);
-    let port_targets = PortTargets::new(vec!["1-65535".to_string()]);
-    let vendor = true;
-    let host_names = true;
+    let devices = vec![
+        Device {
+            hostname: "".to_string(),
+            ip: "192.168.0.1".to_string(),
+            mac: "00:00:00:00:00:01".to_string(),
+            vendor: "".to_string(),
+            is_current_host: false,
+        },
+        Device {
+            hostname: "".to_string(),
+            ip: "192.168.0.2".to_string(),
+            mac: "00:00:00:00:00:02".to_string(),
+            vendor: "".to_string(),
+            is_current_host: false,
+        },
+        Device {
+            hostname: "".to_string(),
+            ip: "192.168.0.3".to_string(),
+            mac: "00:00:00:00:00:03".to_string(),
+            vendor: "".to_string(),
+            is_current_host: false,
+        },
+    ];
+    let port_targets = PortTargets::new(vec![
+        "22".to_string(),
+        "80".to_string(),
+        "443".to_string(),
+        "2000-9000".to_string(),
+    ]);
     let idle_timeout = Duration::from_millis(10000);
     let source_port: u16 = 54321;
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let scanner = FullScanner::new(
+    let scanner = SYNScanner::new(
         &interface,
         wire.0,
         wire.1,
-        ip_targets,
+        devices,
         port_targets,
-        vendor,
-        host_names,
+        source_port,
         idle_timeout,
         tx,
-        source_port,
     );
 
     let mut results: Vec<SYNScanResult> = Vec::new();

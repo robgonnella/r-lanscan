@@ -2,8 +2,8 @@ use std::{env, sync::mpsc, time::Duration};
 
 use r_lanlib::{
     network, packet,
-    scanners::{full_scanner::FullScanner, SYNScanResult, ScanMessage, Scanner},
-    targets::{ips::IPTargets, ports::PortTargets},
+    scanners::{arp_scanner::ARPScanner, Device, ScanMessage, Scanner},
+    targets::ips::IPTargets,
 };
 
 fn is_root() -> bool {
@@ -21,27 +21,25 @@ fn main() {
     let cidr = interface.cidr.clone();
     let wire = packet::wire::default(&interface).expect("failed to create wire");
     let ip_targets = IPTargets::new(vec![cidr]);
-    let port_targets = PortTargets::new(vec!["1-65535".to_string()]);
     let vendor = true;
     let host_names = true;
     let idle_timeout = Duration::from_millis(10000);
     let source_port: u16 = 54321;
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let scanner = FullScanner::new(
+    let scanner = ARPScanner::new(
         &interface,
         wire.0,
         wire.1,
         ip_targets,
-        port_targets,
+        source_port,
         vendor,
         host_names,
         idle_timeout,
         tx,
-        source_port,
     );
 
-    let mut results: Vec<SYNScanResult> = Vec::new();
+    let mut results: Vec<Device> = Vec::new();
 
     let handle = scanner.scan();
 
@@ -53,7 +51,7 @@ fn main() {
                 println!("scanning complete");
                 break;
             }
-            ScanMessage::SYNScanResult(result) => results.push(result),
+            ScanMessage::ARPScanResult(result) => results.push(result),
             _ => {
                 println!("{:?}", msg)
             }
