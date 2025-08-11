@@ -1,7 +1,7 @@
 # r-lanscan
 
-[![Build Status](https://github.com/robgonnella/r-lanscan/actions/workflows/test.yml/badge.svg)](https://github.com/robgonnella/r-lanscan/actions)
-[![Build Status](https://github.com/robgonnella/r-lanscan/actions/workflows/release.yml/badge.svg)](https://github.com/robgonnella/r-lanscan/actions)
+[![test](https://github.com/robgonnella/r-lanscan/actions/workflows/test.yml/badge.svg)](https://github.com/robgonnella/r-lanscan/actions/workflows/test.yml)
+![GitHub Release](https://img.shields.io/github/v/release/robgonnella/r-lanscan)
 
 A comprehensive suite of network scanning tools for local area networks, written
 in Rust. This is the modern Rust implementation of the
