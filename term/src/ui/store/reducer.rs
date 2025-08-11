@@ -27,8 +27,6 @@ impl Reducer {
     }
 
     pub fn reduce(&self, prev_state: State, action: Action) -> State {
-        
-
         match action {
             Action::SetUIPaused(value) => {
                 let mut state = prev_state.clone();
@@ -89,13 +87,13 @@ impl Reducer {
                 // keep devices that may have been missed in last scan but
                 // up to a max limit of misses
                 for d in state.arp_history.iter() {
-                    let mut count = d.1 .1;
+                    let mut count = d.1.1;
                     if !state.device_map.contains_key(d.0) {
                         count += 1;
                     }
 
                     if count < MAX_ARP_MISS {
-                        arp_history.insert(d.0.clone(), (d.1 .0.clone(), count));
+                        arp_history.insert(d.0.clone(), (d.1.0.clone(), count));
                     }
                 }
 
@@ -110,7 +108,9 @@ impl Reducer {
                     .arp_history
                     .insert(device.mac.clone(), (arp_device, 0));
 
-                if let std::collections::hash_map::Entry::Vacant(e) = state.device_map.entry(device.mac.clone()) {
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    state.device_map.entry(device.mac.clone())
+                {
                     state.devices.push(device.clone());
                     e.insert(device.clone());
                 } else {

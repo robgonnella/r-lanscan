@@ -12,7 +12,7 @@
 //! sudo r-lancli
 //! ```
 use clap::Parser;
-use color_eyre::eyre::{eyre, Report, Result};
+use color_eyre::eyre::{Report, Result, eyre};
 use core::time;
 use itertools::Itertools;
 use log::*;
@@ -20,9 +20,9 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet,
     scanners::{
+        Device, DeviceWithPorts, IDLE_TIMEOUT, ScanError, ScanMessage, Scanner,
         arp_scanner::{ARPScanner, ARPScannerArgs},
         syn_scanner::{SYNScanner, SYNScannerArgs},
-        Device, DeviceWithPorts, ScanError, ScanMessage, Scanner, IDLE_TIMEOUT,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
@@ -32,8 +32,8 @@ use std::{
     net::Ipv4Addr,
     str::FromStr,
     sync::{
-        mpsc::{self, Receiver},
         Arc,
+        mpsc::{self, Receiver},
     },
 };
 

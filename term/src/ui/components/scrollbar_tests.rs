@@ -2,7 +2,7 @@ use crate::ui::store::state::State;
 
 use super::*;
 use insta::assert_snapshot;
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{Terminal, backend::TestBackend};
 
 #[test]
 fn renders_scrollbar_component() {

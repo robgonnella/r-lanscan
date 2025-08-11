@@ -1,6 +1,6 @@
 use std::fmt;
 
-use ratatui::style::{palette::tailwind, Color};
+use ratatui::style::{Color, palette::tailwind};
 
 #[derive(Clone, Debug)]
 pub struct Colors {

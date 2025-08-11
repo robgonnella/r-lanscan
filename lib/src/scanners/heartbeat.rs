@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::packet::{build_heartbeat_packet, Sender};
+use crate::packet::{Sender, build_heartbeat_packet};
 
 pub struct HeartBeat {
     source_mac: MacAddr,
@@ -35,9 +35,10 @@ impl HeartBeat {
                 self.source_mac,
                 self.source_ipv4,
                 self.source_port,
-            )) {
-                error!("error sending heartbeat: {}", e);
-            }
+            ))
+        {
+            error!("error sending heartbeat: {}", e);
+        }
     }
 }
 

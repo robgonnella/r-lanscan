@@ -2,22 +2,22 @@
 
 use log::*;
 use pnet::{
-    packet::{ethernet, ip, ipv4, tcp, Packet},
+    packet::{Packet, ethernet, ip, ipv4, tcp},
     util,
 };
 use std::{
     io::Error as IOError,
     net,
     str::FromStr,
-    sync::{self, mpsc, Arc, Mutex},
+    sync::{self, Arc, Mutex, mpsc},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
 use crate::{
     network::NetworkInterface,
-    packet::{self, rst_packet, syn_packet, Reader, Sender},
-    scanners::{heartbeat::HeartBeat, ScanError, Scanning},
+    packet::{self, Reader, Sender, rst_packet, syn_packet},
+    scanners::{ScanError, Scanning, heartbeat::HeartBeat},
     targets::ports::PortTargets,
 };
 

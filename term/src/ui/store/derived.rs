@@ -28,8 +28,8 @@ pub fn get_detected_devices(state: &State) -> Vec<Device> {
     state
         .arp_history
         .iter()
-        .filter(|d| d.1 .1 == 0)
-        .map(|d| d.1 .0.clone())
+        .filter(|d| d.1.1 == 0)
+        .map(|d| d.1.0.clone())
         .collect::<Vec<Device>>()
 }
 

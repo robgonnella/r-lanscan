@@ -2,7 +2,7 @@ use nanoid::nanoid;
 use ratatui::backend::TestBackend;
 use std::{
     fs,
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
 };
 
 use crate::config::ConfigManager;

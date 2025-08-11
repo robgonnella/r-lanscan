@@ -1,22 +1,22 @@
 use std::{
     collections::HashMap,
     rc::Rc,
-    sync::{mpsc::Sender, Arc},
+    sync::{Arc, mpsc::Sender},
 };
 
 use crate::ui::{
     components::{footer::InfoFooter, header::Header, popover::get_popover_area},
     events::types::Event,
     store::{
+        Store,
         action::Action,
         state::{State, ViewID},
-        Store,
     },
 };
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode},
     layout::{Constraint, Layout, Rect},
-    style::{palette::tailwind, Style},
+    style::{Style, palette::tailwind},
     text::Line,
     widgets::{Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget, WidgetRef},
 };
@@ -267,33 +267,33 @@ impl EventHandler for MainView {
 
         if ctx.state.error.is_some() {
             if let CrossTermEvent::Key(key) = evt
-                && key.code == KeyCode::Enter {
-                    self.store.dispatch(Action::SetError(None));
-                }
+                && key.code == KeyCode::Enter
+            {
+                self.store.dispatch(Action::SetError(None));
+            }
             true
         } else {
             let view_id = ctx.state.view_id.clone();
             let view = self.sub_views.get(&view_id).unwrap();
             let mut handled = view.process_event(evt, ctx);
 
-            if !handled
-                && let CrossTermEvent::Key(key) = evt {
-                    match key.code {
-                        KeyCode::Char('v') => {
-                            if !ctx.state.render_view_select {
-                                handled = true;
-                                self.store.dispatch(Action::ToggleViewSelect);
-                            }
+            if !handled && let CrossTermEvent::Key(key) = evt {
+                match key.code {
+                    KeyCode::Char('v') => {
+                        if !ctx.state.render_view_select {
+                            handled = true;
+                            self.store.dispatch(Action::ToggleViewSelect);
                         }
-                        KeyCode::Esc => {
-                            if ctx.state.render_view_select {
-                                handled = true;
-                                self.store.dispatch(Action::ToggleViewSelect);
-                            }
-                        }
-                        _ => {}
                     }
+                    KeyCode::Esc => {
+                        if ctx.state.render_view_select {
+                            handled = true;
+                            self.store.dispatch(Action::ToggleViewSelect);
+                        }
+                    }
+                    _ => {}
                 }
+            }
 
             handled
         }

@@ -3,8 +3,8 @@ use std::{env, sync::mpsc, time::Duration};
 use r_lanlib::{
     network, packet,
     scanners::{
-        syn_scanner::{SYNScanner, SYNScannerArgs},
         Device, SYNScanResult, ScanMessage, Scanner,
+        syn_scanner::{SYNScanner, SYNScannerArgs},
     },
     targets::ports::PortTargets,
 };

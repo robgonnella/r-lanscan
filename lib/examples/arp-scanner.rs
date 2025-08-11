@@ -3,8 +3,8 @@ use std::{env, sync::mpsc, time::Duration};
 use r_lanlib::{
     network, packet,
     scanners::{
-        arp_scanner::{ARPScanner, ARPScannerArgs},
         Device, ScanMessage, Scanner,
+        arp_scanner::{ARPScanner, ARPScannerArgs},
     },
     targets::ips::IPTargets,
 };

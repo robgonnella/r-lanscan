@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use super::*;
 
-use crate::packet::mocks::MockPacketSender;
 use crate::packet::Sender;
+use crate::packet::mocks::MockPacketSender;
 
 #[test]
 fn new() {

@@ -2,7 +2,7 @@
 
 use log::*;
 use std::{
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
     thread::JoinHandle,
     time::Duration,
 };
@@ -14,9 +14,9 @@ use crate::{
 };
 
 use super::{
+    Device, ScanError, ScanMessage, Scanner,
     arp_scanner::{ARPScanner, ARPScannerArgs},
     syn_scanner::{SYNScanner, SYNScannerArgs},
-    Device, ScanError, ScanMessage, Scanner,
 };
 
 /// Data structure representing a Full scanner (ARP + SYN)

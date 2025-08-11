@@ -6,10 +6,10 @@ use crate::ui::{
     },
     events::types::{Command, Event},
     store::{
+        Store,
         action::Action,
         derived::get_selected_device_config_from_state,
         state::{State, ViewID},
-        Store,
     },
 };
 use itertools::Itertools;
@@ -144,19 +144,28 @@ impl DeviceView {
                 .join(", ")
         );
 
-        let [host_area, _, ip_area, _, mac_area, _, vendor_area, _, ports_area] =
-            Layout::vertical([
-                Constraint::Length(1),       // hostname
-                Constraint::Length(1),       // spacer
-                Constraint::Length(1),       // ip
-                Constraint::Length(1),       // spacer
-                Constraint::Length(1),       // mac
-                Constraint::Length(1),       // spacer
-                Constraint::Length(1),       // vendor
-                Constraint::Length(1),       // spacer
-                Constraint::Percentage(100), // ports
-            ])
-            .areas(info_area);
+        let [
+            host_area,
+            _,
+            ip_area,
+            _,
+            mac_area,
+            _,
+            vendor_area,
+            _,
+            ports_area,
+        ] = Layout::vertical([
+            Constraint::Length(1),       // hostname
+            Constraint::Length(1),       // spacer
+            Constraint::Length(1),       // ip
+            Constraint::Length(1),       // spacer
+            Constraint::Length(1),       // mac
+            Constraint::Length(1),       // spacer
+            Constraint::Length(1),       // vendor
+            Constraint::Length(1),       // spacer
+            Constraint::Percentage(100), // ports
+        ])
+        .areas(info_area);
 
         let header = Header::new("Device Info".to_string());
         let host = Line::from(host_str);

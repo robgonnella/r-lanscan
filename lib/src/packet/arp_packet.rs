@@ -1,7 +1,7 @@
 //! Provides helpers for creating ARP packets
 
 use pnet::{
-    packet::{arp, ethernet, MutablePacket},
+    packet::{MutablePacket, arp, ethernet},
     util,
 };
 use std::net;

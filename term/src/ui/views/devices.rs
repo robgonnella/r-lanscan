@@ -8,9 +8,9 @@ use std::{cell::RefCell, sync::Arc};
 use crate::ui::{
     components::table::{self, Table},
     store::{
+        Store,
         action::Action,
         state::{State, ViewID},
-        Store,
     },
 };
 

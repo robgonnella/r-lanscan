@@ -21,7 +21,7 @@
 //! ```
 
 use clap::Parser;
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
@@ -30,9 +30,9 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet::{self, Reader as WireReader, Sender as WireSender},
     scanners::{
+        DeviceWithPorts, IDLE_TIMEOUT, ScanError, ScanMessage, Scanner,
         arp_scanner::{ARPScanner, ARPScannerArgs},
         syn_scanner::{SYNScanner, SYNScannerArgs},
-        DeviceWithPorts, ScanError, ScanMessage, Scanner, IDLE_TIMEOUT,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
@@ -41,15 +41,15 @@ use std::{
     collections::HashSet,
     env, fs,
     sync::{
-        mpsc::{self, channel, Receiver},
         Arc, Mutex,
+        mpsc::{self, Receiver, channel},
     },
     thread::{self, JoinHandle},
 };
 
 use ui::{
     app, events,
-    store::{action::Action, derived::get_detected_devices, Store},
+    store::{Store, action::Action, derived::get_detected_devices},
 };
 
 #[doc(hidden)]

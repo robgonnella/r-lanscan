@@ -1,7 +1,7 @@
 //! Provides Scanner implementation for ARP scanning
 
 use log::*;
-use pnet::packet::{arp, ethernet, Packet};
+use pnet::packet::{Packet, arp, ethernet};
 use std::{
     io::Error as IOError,
     net,
@@ -12,12 +12,12 @@ use std::{
 
 use crate::{
     network::NetworkInterface,
-    packet::{self, arp_packet, Reader, Sender},
+    packet::{self, Reader, Sender, arp_packet},
     scanners::{Device, ScanError, Scanning},
     targets::ips::IPTargets,
 };
 
-use super::{heartbeat::HeartBeat, ScanMessage, Scanner};
+use super::{ScanMessage, Scanner, heartbeat::HeartBeat};
 
 /// Data structure representing an ARP scanner
 pub struct ARPScanner<'net> {
@@ -175,10 +175,9 @@ impl ARPScanner<'_> {
                     }
 
                     let mut vendor = String::from("");
-                    if include_vendor
-                        && let Some(vendor_data) = oui_data::lookup(&mac) {
-                            vendor = vendor_data.organization().to_owned();
-                        }
+                    if include_vendor && let Some(vendor_data) = oui_data::lookup(&mac) {
+                        vendor = vendor_data.organization().to_owned();
+                    }
 
                     let _ = notification_sender.send(ScanMessage::ARPScanResult(Device {
                         hostname,

@@ -1,6 +1,6 @@
 use super::*;
 use insta::assert_snapshot;
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{Terminal, backend::TestBackend};
 
 #[test]
 fn renders_field_component() {

@@ -2,11 +2,11 @@ use insta::assert_snapshot;
 use nanoid::nanoid;
 use pnet::util::MacAddr;
 use r_lanlib::scanners::{DeviceWithPorts, Port};
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{Terminal, backend::TestBackend};
 use std::{
     collections::HashSet,
     fs,
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
 };
 
 use crate::config::{Config, ConfigManager};

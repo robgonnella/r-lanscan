@@ -6,9 +6,9 @@ use crate::ui::{
         input::{Input, InputState},
     },
     store::{
+        Store,
         action::Action,
         state::{State, ViewID},
-        Store,
     },
 };
 use itertools::Itertools;

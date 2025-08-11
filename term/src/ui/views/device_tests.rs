@@ -2,7 +2,7 @@ use insta::assert_snapshot;
 use nanoid::nanoid;
 use pnet::util::MacAddr;
 use r_lanlib::scanners::Port;
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{Terminal, backend::TestBackend};
 use std::{
     collections::{HashMap, HashSet},
     fs,

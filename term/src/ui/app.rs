@@ -2,6 +2,7 @@ use color_eyre::eyre::{Context, Result};
 use core::time;
 use log::*;
 use ratatui::{
+    Terminal,
     backend::TestBackend,
     crossterm::{
         event::{
@@ -9,24 +10,23 @@ use ratatui::{
             KeyModifiers,
         },
         execute,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
     layout::Rect,
     prelude::CrosstermBackend,
-    Terminal,
 };
 use std::{
     cell::RefCell,
     io::{self, Stdout},
     sync::{
-        mpsc::{Receiver, Sender},
         Arc,
+        mpsc::{Receiver, Sender},
     },
 };
 
 use super::{
     events::types::Event,
-    store::{action::Action, Store},
+    store::{Store, action::Action},
     views::{
         main::MainView,
         traits::{CustomWidgetContext, View},
@@ -105,19 +105,21 @@ impl App {
 
             if state.ui_paused {
                 if let Ok(evt) = self.event_loop_receiver.recv()
-                    && evt == Event::ResumeUI {
-                        self.restart()?;
-                        self.store.dispatch(Action::SetUIPaused(false));
-                        self.event_loop_sender.send(Event::UIResumed)?;
-                        continue;
-                    }
-            } else if let Ok(evt) = self.event_loop_receiver.try_recv()
-                && evt == Event::PauseUI {
-                    self.pause()?;
-                    self.store.dispatch(Action::SetUIPaused(true));
-                    self.event_loop_sender.send(Event::UIPaused)?;
+                    && evt == Event::ResumeUI
+                {
+                    self.restart()?;
+                    self.store.dispatch(Action::SetUIPaused(false));
+                    self.event_loop_sender.send(Event::UIResumed)?;
                     continue;
                 }
+            } else if let Ok(evt) = self.event_loop_receiver.try_recv()
+                && evt == Event::PauseUI
+            {
+                self.pause()?;
+                self.store.dispatch(Action::SetUIPaused(true));
+                self.event_loop_sender.send(Event::UIPaused)?;
+                continue;
+            }
 
             let mut ctx = CustomWidgetContext {
                 state: state.clone(),
@@ -152,32 +154,33 @@ impl App {
             // Use poll here so we don't block the thread, this will allow
             // rendering of incoming device data from network as it's received
             if let Ok(has_event) = event::poll(time::Duration::from_millis(60))
-                && has_event {
-                    let evt = event::read()?;
+                && has_event
+            {
+                let evt = event::read()?;
 
-                    let handled = self.main_view.process_event(&evt, &ctx);
+                let handled = self.main_view.process_event(&evt, &ctx);
 
-                    if let CrossTermEvent::Key(key) = evt {
-                        match key.code {
-                            KeyCode::Char('q') => {
-                                // allow overriding q key
-                                if !handled {
-                                    self.event_loop_sender.send(Event::Quit)?;
-                                    return Ok(());
-                                }
+                if let CrossTermEvent::Key(key) = evt {
+                    match key.code {
+                        KeyCode::Char('q') => {
+                            // allow overriding q key
+                            if !handled {
+                                self.event_loop_sender.send(Event::Quit)?;
+                                return Ok(());
                             }
-                            KeyCode::Char('c') => {
-                                // do not allow overriding ctrl-c
-                                if key.modifiers == KeyModifiers::CONTROL {
-                                    info!("APP RECEIVED CONTROL-C SEQUENCE");
-                                    self.event_loop_sender.send(Event::Quit)?;
-                                    return Ok(());
-                                }
-                            }
-                            _ => {}
                         }
+                        KeyCode::Char('c') => {
+                            // do not allow overriding ctrl-c
+                            if key.modifiers == KeyModifiers::CONTROL {
+                                info!("APP RECEIVED CONTROL-C SEQUENCE");
+                                self.event_loop_sender.send(Event::Quit)?;
+                                return Ok(());
+                            }
+                        }
+                        _ => {}
                     }
                 }
+            }
         }
     }
 

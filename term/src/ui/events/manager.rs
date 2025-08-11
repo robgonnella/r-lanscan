@@ -3,12 +3,12 @@ use mockall_double::double;
 use std::{
     io::{BufReader, Read},
     sync::{
-        mpsc::{Receiver, Sender},
         Arc, Mutex, MutexGuard,
+        mpsc::{Receiver, Sender},
     },
 };
 
-use crate::ui::store::{action::Action, Store};
+use crate::ui::store::{Store, action::Action};
 
 use super::types::{Command as AppCommand, Event};
 
@@ -68,9 +68,10 @@ impl EventManager {
                 self.tx.send(Event::PauseUI)?;
                 loop {
                     if let Ok(evt) = rx.recv()
-                        && evt == Event::UIPaused {
-                            break;
-                        }
+                        && evt == Event::UIPaused
+                    {
+                        break;
+                    }
                 }
 
                 let res = self.commander.ssh(device, device_config);
@@ -113,9 +114,10 @@ impl EventManager {
                 self.tx.send(Event::PauseUI)?;
                 loop {
                     if let Ok(evt) = rx.recv()
-                        && evt == Event::UIPaused {
-                            break;
-                        }
+                        && evt == Event::UIPaused
+                    {
+                        break;
+                    }
                 }
 
                 let res = self.commander.lynx(device, port);

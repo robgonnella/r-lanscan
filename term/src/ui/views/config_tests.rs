@@ -1,6 +1,6 @@
 use insta::assert_snapshot;
 use nanoid::nanoid;
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{Terminal, backend::TestBackend};
 use std::{collections::HashMap, fs, sync::Mutex};
 
 use crate::config::{Config, ConfigManager};

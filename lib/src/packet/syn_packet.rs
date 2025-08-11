@@ -3,7 +3,7 @@
 use std::net;
 
 use pnet::{
-    packet::{ethernet, ip, ipv4, tcp, MutablePacket},
+    packet::{MutablePacket, ethernet, ip, ipv4, tcp},
     util,
 };
 
