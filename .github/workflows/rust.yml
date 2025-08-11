@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/rust-setup/action.yml
+      - uses: ./.github/actions/rust-setup
       - name: Build
         run: cargo build --verbose
 
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/rust-setup/action.yml
+      - uses: ./.github/actions/rust-setup
       - name: Lint
         run: cargo clippy --all-targets --all-features
 
@@ -30,14 +30,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/rust-setup/action.yml
+      - uses: ./.github/actions/rust-setup
       - name: fmt
-        run: cargo fmt -- --all --check
+        run: cargo fmt --all --check
 
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/rust-setup/action.yml
+      - uses: ./.github/actions/rust-setup
       - name: Test
         run: script -q /dev/null -c "cargo llvm-cov"
