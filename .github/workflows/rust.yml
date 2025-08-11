@@ -14,10 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Modify the rust toolchain version
-        run: rustup override set 1.89.0
-      - name: Output cargo version
-        run: cargo --version
+      - uses: ./.github/actions/rust-setup/action.yml
       - name: Build
         run: cargo build --verbose
 
@@ -25,12 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Modify the rust toolchain version
-        run: rustup override set 1.89.0
-      - name: Output cargo version
-        run: cargo --version
-      - name: Add clippy component
-        run: rustup component add clippy
+      - uses: ./.github/actions/rust-setup/action.yml
       - name: Lint
         run: cargo clippy --all-targets --all-features
 
@@ -38,13 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: modify the rust toolchain version
-        run: rustup override set 1.89.0
-      - name: Output cargo version
-        run: cargo --version
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: rustfmt
+      - uses: ./.github/actions/rust-setup/action.yml
       - name: fmt
         run: cargo fmt -- --all --check
 
@@ -52,12 +38,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Modify the rust toolchain version
-        run: rustup override set 1.89.0
-      - name: Output cargo version
-        run: cargo --version
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-llvm-cov
+      - uses: ./.github/actions/rust-setup/action.yml
       - name: Test
         run: script -q /dev/null -c "cargo llvm-cov"
