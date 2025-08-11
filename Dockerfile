@@ -5,9 +5,9 @@ RUN apk add alpine-sdk openssl-dev openssl-libs-static openssh lynx ncurses
 WORKDIR /workspace
 
 COPY Cargo.lock Cargo.toml ./
-COPY r-lanlib r-lanlib
-COPY r-lancli r-lancli
-COPY r-lanterm r-lanterm
+COPY lib lib
+COPY cli cli
+COPY term term
 
 RUN cargo build
 
