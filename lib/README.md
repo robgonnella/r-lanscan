@@ -1,6 +1,8 @@
 # r-lanlib
 
-A Rust library crate for performing network scanning operations on any local area network (LAN). This is the Rust version of the [go-lanscan package](https://github.com/robgonnella/go-lanscan).
+A Rust library crate for performing network scanning operations on any local
+area network (LAN). This is the Rust version of the
+[go-lanscan package](https://github.com/robgonnella/go-lanscan).
 
 ## Features
 
@@ -14,9 +16,11 @@ A Rust library crate for performing network scanning operations on any local are
 
 ## Requirements
 
-- **Root privileges required**: This library performs raw packet operations that require elevated permissions
+- **Root privileges required**: This library performs raw packet operations that
+  require elevated permissions
 - **Rust 1.89.0+** with 2024 edition support
-- **System dependencies**: `libssl-dev` (Linux), `openssl` (macOS) for cryptographic operations
+- **System dependencies**: `libssl-dev` (Linux), `openssl` (macOS) for
+  cryptographic operations
 
 ## Installation
 
@@ -337,28 +341,6 @@ pub struct ScanError {
 ```
 
 All scanner operations return `Result<(), ScanError>` for proper error handling.
-
-## Dependencies
-
-- `pnet` - Low-level networking primitives and packet crafting
-- `ipnet` - IP network utilities and CIDR block handling
-- `oui-data` - IEEE OUI database for MAC address vendor lookup
-- `dns-lookup` - Hostname resolution and reverse DNS
-- `serde` - Serialization/deserialization with derive support
-- `log` - Structured logging interface
-- `paris` - Enhanced logging with timestamps and colors
-- `simplelog` - Simple logging implementation with paris integration
-
-### Development Dependencies
-- `mockall` ^0.13 - Mock object generation for testing
-
-## License
-
-This project uses the same license as the parent r-lanscan project.
-
-## Contributing
-
-See the main project [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines.
 
 ## Related Projects
 

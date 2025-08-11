@@ -1,6 +1,9 @@
 # r-lanterm
 
-A full-featured terminal user interface (TUI) application for managing and interacting with networked LAN devices. This is the new and improved Rust version of [ops](https://github.com/robgonnella/ops), providing an interactive way to discover, monitor, and connect to devices on your local network.
+A full-featured terminal user interface (TUI) application for managing and
+interacting with networked LAN devices. This is the new and improved Rust
+version of [ops](https://github.com/robgonnella/ops), providing an interactive
+way to discover, monitor, and connect to devices on your local network.
 
 ## Features
 
@@ -446,29 +449,10 @@ scp config.yml user@remote:~/.config/r-lanterm/
 - **[r-lancli](../cli/README.md)**: Command-line interface for batch scanning
 - **SSH clients**: Works with any SSH client (OpenSSH, PuTTY, etc.)
 
-## Dependencies
-
-### Core Dependencies
-- `ratatui`: Terminal UI framework
-- `r-lanlib`: Network scanning library (located at `../lib`)
-- `clap`: Command-line argument parsing
-- `serde`: Configuration serialization
-- `directories`: Cross-platform configuration directories
-- `ctrlc`: Signal handling for graceful shutdown
-- `signal-hook`: Additional signal handling
-
 ### Optional External Tools
 - `ssh`: SSH client for device connections
 - `traceroute`: Network path analysis
 - `lynx`: Terminal web browser
-
-## Contributing
-
-See the main project [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines.
-
-## License
-
-This project uses the same license as the parent r-lanscan project.
 
 ## Changelog
 

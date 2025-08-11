@@ -2,15 +2,21 @@
 
 [![Build Status](https://github.com/robgonnella/r-lanscan/actions/workflows/rust.yml/badge.svg)](https://github.com/robgonnella/r-lanscan/actions)
 
-A comprehensive suite of network scanning tools for local area networks, written in Rust. This is the modern Rust implementation of the [go-lanscan](https://github.com/robgonnella/go-lanscan) project, offering improved performance, safety, and usability.
+A comprehensive suite of network scanning tools for local area networks, written
+in Rust. This is the modern Rust implementation of the
+[go-lanscan](https://github.com/robgonnella/go-lanscan) project, offering
+improved performance, safety, and usability.
 
 ## Features
 
 - 🔍 **ARP Scanning** - Discover active devices on your network
-- 🔌 **SYN Port Scanning** - Detect open ports and services on discovered devices
-- 🖥️ **Terminal UI** - Interactive interface for network management and device interaction
+- 🔌 **SYN Port Scanning** - Detect open ports and services on discovered
+  devices
+- 🖥️ **Terminal UI** - Interactive interface for network management and device
+  interaction
 - 📚 **Library Crate** - Build custom network scanning applications
-- 🚀 **High Performance** - Optimized Rust implementation with concurrent scanning
+- 🚀 **High Performance** - Optimized Rust implementation with concurrent
+  scanning
 - 🛡️ **Memory Safe** - Rust's safety guarantees prevent common networking bugs
 
 ## Components
@@ -19,7 +25,8 @@ r-lanscan is organized as a Cargo workspace with three main components:
 
 ### 📚 [r-lanlib](./lib/README.md) - Network Scanning Library
 
-The core library providing network scanning capabilities for building custom applications.
+The core library providing network scanning capabilities for building custom
+applications.
 
 ```rust
 use r_lanlib::{network, packet, scanners::*};
@@ -97,7 +104,7 @@ cargo build --release -p r-lancli
 cargo build --release -p r-lanterm
 ```
 
-### Using Justfile (Recommended)
+### Using Justfile
 
 The project includes a comprehensive Justfile for common development tasks:
 
@@ -151,7 +158,7 @@ sudo r-lanterm  # Launch terminal UI for full interactive experience
 
 ## Requirements
 
-- **Rust 1.89.0+** with Rust 2024 edition support - Install via [rustup.rs](https://rustup.rs/)
+- **Rust 1.89.0+** with Rust 2024 edition support - Install via [rustup.rs]
 - **Root/Administrator privileges** - Required for raw socket operations
 - **Optional external tools** (for terminal UI):
   - `ssh` - For device connections
@@ -160,9 +167,12 @@ sudo r-lanterm  # Launch terminal UI for full interactive experience
 
 ## Documentation
 
-- 📖 **[Library Documentation](./lib/README.md)** - API reference and examples for r-lanlib
-- 💻 **[CLI Documentation](./cli/README.md)** - Complete command-line reference and usage examples
-- 🖥️ **[Terminal UI Documentation](./term/README.md)** - Interactive interface guide and keyboard shortcuts
+- 📖 **[Library Documentation](./lib/README.md)** - API reference and examples
+  for r-lanlib
+- 💻 **[CLI Documentation](./cli/README.md)** - Complete command-line reference
+  and usage examples
+- 🖥️ **[Terminal UI Documentation](./term/README.md)** - Interactive interface
+  guide and keyboard shortcuts
 
 ## Use Cases
 
@@ -226,7 +236,9 @@ just logs
 just down
 ```
 
-**Note**: Docker networking limitations may affect scanning capabilities and performance. For full functionality and optimal performance, run natively on the host system.
+**Note**: Docker networking limitations may affect scanning capabilities and
+performance. For full functionality and optimal performance, run natively on the
+host system.
 
 ### Project Structure
 
@@ -235,13 +247,14 @@ r-lanscan/
 ├── lib/          # Core scanning library (r-lanlib)
 ├── cli/          # Command-line interface (r-lancli)
 ├── term/         # Terminal UI application (r-lanterm)
-├── book/         # Documentation and examples
 └── Cargo.toml    # Workspace configuration
 ```
 
 ## Security and Ethics
 
-⚠️ **Important:** This tool is designed for legitimate network administration and security analysis. Always ensure you have proper authorization before scanning networks.
+⚠️ **Important:** This tool is designed for legitimate network administration
+and security analysis. Always ensure you have proper authorization before
+scanning networks.
 
 - Only scan networks you own or have explicit permission to test
 - Be aware that network scanning may trigger security monitoring systems
@@ -250,19 +263,18 @@ r-lanscan/
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on:
+We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for
+guidelines on:
 
 - Setting up the development environment
 - Running tests and generating coverage reports
 - Code style and formatting requirements
 - Submitting pull requests
 
-## License
-
-This project is open source. Please see the LICENSE file for full license details.
-
 ## Related Projects
 
 - [go-lanscan](https://github.com/robgonnella/go-lanscan) - Original Go implementation
 - [ops](https://github.com/robgonnella/ops) - Original terminal UI concept
 - [nmap](https://nmap.org/) - Comprehensive network discovery and security auditing
+
+[rustup.rs]: https://rustup.rs/

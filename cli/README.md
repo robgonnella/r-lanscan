@@ -330,7 +330,7 @@ import subprocess
 
 # Run scan
 result = subprocess.run([
-    'sudo', 'r-lancli', 
+    'sudo', 'r-lancli',
     '--json', '--quiet',
     '--targets', '192.168.1.0/24'
 ], capture_output=True, text=True)
@@ -373,8 +373,8 @@ sudo r-lancli
    ```bash
    # Linux
    ip link show
-   
-   # macOS/BSD  
+
+   # macOS/BSD
    ifconfig
    ```
 
@@ -445,21 +445,3 @@ sudo r-lancli
 
 - **[r-lanlib](../lib/README.md)**: The underlying Rust library powering this CLI
 - **[r-lanterm](../term/README.md)**: Terminal UI application for interactive network management
-
-## Dependencies
-
-- `clap`: Command-line argument parsing
-- `r-lanlib`: Core scanning library (located at `../lib`)
-- `prettytable-rs`: Table formatting for output
-- `serde_json`: JSON serialization
-- `color-eyre`: Enhanced error reporting
-- `itertools`: Iterator utilities
-- `pnet`: Low-level networking
-
-## Contributing
-
-See the main project [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines.
-
-## License
-
-This project uses the same license as the parent r-lanscan project.
