@@ -1,7 +1,5 @@
 {
-  "plugins": [
-    "cargo-workspace"
-  ],
+  "plugins": ["cargo-workspace"],
   "release-type": "rust",
   "changelog-path": "CHANGELOG.md",
   "bump-minor-pre-major": false,
@@ -9,9 +7,6 @@
   "draft": false,
   "prerelease": false,
   "packages": {
-    "r-lanlib": {},
-    "r-lancli": {},
-    "r-lanterm": {},
     ".": {
       "changelog-path": "CHANGELOG.md",
       "release-type": "rust",
