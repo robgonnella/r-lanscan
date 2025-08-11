@@ -1,4 +1,5 @@
 [env]
+# auto-load .env file into environment (like direnv)
 _.file = '.env'
 
 [tools]
