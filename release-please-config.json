@@ -1,5 +1,7 @@
 {
-  "plugins": ["cargo-workspace"],
+  "plugins": [
+    "cargo-workspace"
+  ],
   "release-type": "rust",
   "changelog-path": "CHANGELOG.md",
   "bump-minor-pre-major": false,
