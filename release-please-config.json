@@ -1,4 +1,5 @@
 {
+  "plugins": ["cargo-workspace"],
   "packages": {
     ".": {
       "changelog-path": "CHANGELOG.md",
