@@ -1,25 +1,9 @@
 {
   "plugins": ["cargo-workspace"],
   "packages": {
-    "./lib": {
+    ".": {
       "changelog-path": "CHANGELOG.md",
-      "release-type": "rust",
-      "bump-minor-pre-major": false,
-      "bump-patch-for-minor-pre-major": false,
-      "draft": false,
-      "prerelease": false
-    },
-    "./cli": {
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "rust",
-      "bump-minor-pre-major": false,
-      "bump-patch-for-minor-pre-major": false,
-      "draft": false,
-      "prerelease": false
-    },
-    "./term": {
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "rust",
+      "release-type": "simple",
       "bump-minor-pre-major": false,
       "bump-patch-for-minor-pre-major": false,
       "draft": false,
