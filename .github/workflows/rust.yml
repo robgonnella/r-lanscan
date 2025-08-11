@@ -46,7 +46,7 @@ jobs:
         with:
           tool: rustfmt
       - name: fmt
-        run: cargo fmt --check --all
+        run: cargo fmt -- --all --check
 
   test:
     runs-on: ubuntu-latest
