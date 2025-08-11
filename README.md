@@ -1,6 +1,6 @@
 # r-lanscan
 
-[![Build Status](https://github.com/robgonnella/r-lanscan/actions/workflows/rust.yml/badge.svg)](https://github.com/robgonnella/r-lanscan/actions)
+[![Build Status](https://github.com/robgonnella/r-lanscan/actions/workflows/test.yml/badge.svg)](https://github.com/robgonnella/r-lanscan/actions)
 
 A comprehensive suite of network scanning tools for local area networks, written
 in Rust. This is the modern Rust implementation of the
@@ -38,6 +38,7 @@ let devices = scanner.scan()?;
 ```
 
 **Key Features:**
+
 - ARP and SYN scanning implementations
 - Flexible target specification (IPs, ranges, CIDR blocks)
 - Real-time results via channels
@@ -60,6 +61,7 @@ sudo r-lancli --json --quiet > scan_results.json
 ```
 
 **Key Features:**
+
 - Comprehensive network scanning with customizable options
 - Human-readable tables and JSON output
 - Flexible target and port specification
@@ -79,6 +81,7 @@ sudo r-lanterm --ports 22,80,443,3389,5900
 ```
 
 **Key Features:**
+
 - Real-time network monitoring with live updates
 - SSH integration for direct device access
 - Built-in traceroute and web browsing (lynx)
@@ -142,16 +145,19 @@ just logs                         # View container logs
 ### Basic Usage Examples
 
 **Quick Network Scan:**
+
 ```bash
 sudo r-lancli --arp-only --vendor --host-names
 ```
 
 **Comprehensive Port Analysis:**
+
 ```bash
 sudo r-lancli --ports 1-1000 --json > network_audit.json
 ```
 
 **Interactive Network Management:**
+
 ```bash
 sudo r-lanterm  # Launch terminal UI for full interactive experience
 ```
@@ -177,18 +183,21 @@ sudo r-lanterm  # Launch terminal UI for full interactive experience
 ## Use Cases
 
 ### Network Administration
+
 - Discover all devices on your network segments
 - Monitor network changes and new device connections
 - Audit open ports and services across your infrastructure
 - Quick SSH access to multiple servers and devices
 
 ### Security Analysis
+
 - Identify unauthorized devices on your network
 - Detect unexpected open ports and services
 - Map network topology and device relationships
 - Monitor for security compliance across network segments
 
 ### Development and Testing
+
 - Verify service availability during development
 - Test network connectivity and firewall rules
 - Debug network issues with integrated diagnostic tools
