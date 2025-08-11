@@ -1,0 +1,4 @@
+{
+  "plugins": ["cargo-workspace"],
+  "release-type": "rust"
+}

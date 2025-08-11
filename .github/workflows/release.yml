@@ -14,6 +14,3 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: googleapis/release-please-action@v4
-        with:
-          release-type: rust
-          plugins: cargo-workspace
