@@ -5,7 +5,10 @@ use std::{collections::HashSet, fs, os::unix::process::ExitStatusExt, process::O
 
 use crate::{
     config::Config,
-    ui::{events::types::Command, store::state::ViewID},
+    ui::{
+        events::types::{BrowseArgs, Command},
+        store::state::ViewID,
+    },
 };
 
 use super::*;
@@ -281,11 +284,22 @@ fn test_set_command_in_progress() {
     let port: u16 = 80;
     let state = reducer.reduce(
         starting_state,
-        Action::SetCommandInProgress(Some(Command::Browse(dev.clone(), port))),
+        Action::SetCommandInProgress(Some(Command::Browse(BrowseArgs {
+            device: dev.clone(),
+            port,
+            use_lynx: false,
+        }))),
     );
     assert!(state.cmd_in_progress.is_some());
     let cmd = state.cmd_in_progress.unwrap();
-    assert_eq!(cmd, Command::Browse(dev, port));
+    assert_eq!(
+        cmd,
+        Command::Browse(BrowseArgs {
+            device: dev,
+            port,
+            use_lynx: false
+        })
+    );
     tear_down(conf_path);
 }
 
@@ -300,7 +314,11 @@ fn test_update_command_output() {
         vendor: "dev_vendor".to_string(),
     };
     let port: u16 = 80;
-    let cmd = Command::Browse(dev.clone(), port);
+    let cmd = Command::Browse(BrowseArgs {
+        device: dev.clone(),
+        port,
+        use_lynx: false,
+    });
 
     let output = Output {
         status: ExitStatusExt::from_raw(0),

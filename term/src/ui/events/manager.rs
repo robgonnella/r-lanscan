@@ -110,7 +110,7 @@ impl EventManager {
                     }
                 }
             }
-            AppCommand::Browse(device, port) => {
+            AppCommand::Browse(args) => {
                 self.tx.send(Event::PauseUI)?;
                 loop {
                     if let Ok(evt) = rx.recv()
@@ -120,7 +120,7 @@ impl EventManager {
                     }
                 }
 
-                let res = self.commander.lynx(device, port);
+                let res = self.commander.browse(args);
 
                 self.tx.send(Event::ResumeUI)?;
 

@@ -5,10 +5,17 @@ use r_lanlib::scanners::Device;
 use crate::config::DeviceConfig;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+pub struct BrowseArgs {
+    pub device: Device,
+    pub port: u16,
+    pub use_lynx: bool,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Command {
     Ssh(Device, DeviceConfig),
     TraceRoute(Device),
-    Browse(Device, u16),
+    Browse(BrowseArgs),
 }
 
 impl Display for Command {
@@ -16,7 +23,7 @@ impl Display for Command {
         match self {
             Command::Ssh(_, _) => write!(f, "ssh"),
             Command::TraceRoute(_) => write!(f, "traceroute"),
-            Command::Browse(_, _) => write!(f, "browse"),
+            Command::Browse(_) => write!(f, "browse"),
         }
     }
 }
