@@ -1144,7 +1144,7 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
 name = "r-lancli"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap",
  "color-eyre",
@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "r-lanlib"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dns-lookup",
  "ipnet",
@@ -1178,7 +1178,7 @@ dependencies = [
 
 [[package]]
 name = "r-lanterm"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "clap",
  "color-eyre",
