@@ -15,5 +15,5 @@ jobs:
       - uses: ./.github/actions/rust-setup
       - uses: katyo/publish-crates@v2
         with:
-          path: cli
+          path: ./cli
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
