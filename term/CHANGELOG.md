@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.1](https://github.com/robgonnella/r-lanscan/compare/r-lanterm-v0.2.0...r-lanterm-v0.2.1) (2025-08-12)
+
+
+### Bug Fixes
+
+* specify r-lanlib version in cli and term ([eaa75cc](https://github.com/robgonnella/r-lanscan/commit/eaa75ccc744bea4b5438bf102756f35a44c6070b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * r-lanlib bumped from 0.1.1 to 0.1.2
+
 ## [0.2.0](https://github.com/robgonnella/r-lanscan/compare/r-lanterm-v0.1.0...r-lanterm-v0.2.0) (2025-08-12)
 
 
