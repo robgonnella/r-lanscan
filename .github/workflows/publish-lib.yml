@@ -7,8 +7,7 @@ on:
       - "r-lanlib-v*"
 
 jobs:
-  publish:
-    name: Publish r-lanlib
+  publish-lib:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

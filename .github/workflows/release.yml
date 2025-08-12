@@ -1,4 +1,4 @@
-name: release
+name: gh-release
 
 on:
   push:
@@ -9,8 +9,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  release:
-    name: Create GitHub Release
+  release-please:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
