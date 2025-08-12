@@ -2,6 +2,10 @@
 name = "r-lanlib"
 version = "0.1.2"
 categories = ["network-programming"]
+readme = "README.md"
+documentation = "https://docs.rs/r-lanlib"
+repository.workspace = true
+homepage.workspace = true
 license.workspace = true
 keywords.workspace = true
 edition.workspace = true

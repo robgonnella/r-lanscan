@@ -4,6 +4,7 @@ version = "0.1.2"
 categories = ["command-line-utilities", "network-programming"]
 description = "A command-line interface for performing network scanning operations on local area networks (LANs)"
 readme = "README.md"
+documentation = "https://docs.rs/r-lancli"
 repository.workspace = true
 homepage.workspace = true
 license.workspace = true

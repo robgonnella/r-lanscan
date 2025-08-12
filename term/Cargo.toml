@@ -2,6 +2,10 @@
 name = "r-lanterm"
 version = "0.2.1"
 categories = ["command-line-utilities", "network-programming"]
+readme = "README.md"
+documentation = "https://docs.rs/r-lanterm"
+repository.workspace = true
+homepage.workspace = true
 license.workspace = true
 keywords.workspace = true
 edition.workspace = true
