@@ -1,0 +1,19 @@
+name: publish-lib
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "r-lanlib-v*"
+
+jobs:
+  publish:
+    name: Publish r-lanlib
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/rust-setup
+      - name: publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p r-lanlib
