@@ -1,6 +1,6 @@
 [package]
 name = "r-lanterm"
-version = "0.1.0"
+version = "0.3.0"
 categories = ["command-line-utilities", "network-programming"]
 license.workspace = true
 keywords.workspace = true
