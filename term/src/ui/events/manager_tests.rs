@@ -7,7 +7,10 @@ use std::{
     process::{ChildStderr, ExitStatus, Output},
 };
 
-use crate::config::{ConfigManager, DeviceConfig};
+use crate::{
+    config::{ConfigManager, DeviceConfig},
+    ui::events::types::BrowseArgs,
+};
 
 use super::*;
 
@@ -334,8 +337,8 @@ fn handles_browse_command_err() {
     let mut mock_commander = Commander::default();
 
     mock_commander
-        .expect_lynx()
-        .returning(|_, _| Err(Box::from("mock error")));
+        .expect_browse()
+        .returning(|_| Err(Box::from("mock error")));
 
     let test = setup(conf_manager, mock_commander);
 
@@ -351,7 +354,14 @@ fn handles_browse_command_err() {
     assert!(res.is_ok());
 
     let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(rx, AppCommand::Browse(device, 80));
+    let res = test.manager.handle_cmd(
+        rx,
+        AppCommand::Browse(BrowseArgs {
+            device,
+            port: 80,
+            use_lynx: false,
+        }),
+    );
     assert!(res.is_ok());
 
     let state = test.store.get_state();
@@ -369,8 +379,8 @@ fn handles_browse_command_ok() {
     let mut mock_commander = Commander::default();
 
     mock_commander
-        .expect_lynx()
-        .returning(|_, _| Ok((ExitStatus::default(), None)));
+        .expect_browse()
+        .returning(|_| Ok((ExitStatus::default(), None)));
 
     let test = setup(conf_manager, mock_commander);
 
@@ -386,7 +396,14 @@ fn handles_browse_command_ok() {
     assert!(res.is_ok());
 
     let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(rx, AppCommand::Browse(device, 80));
+    let res = test.manager.handle_cmd(
+        rx,
+        AppCommand::Browse(BrowseArgs {
+            device,
+            port: 80,
+            use_lynx: false,
+        }),
+    );
     assert!(res.is_ok());
 
     let state = test.store.get_state();
@@ -403,7 +420,7 @@ fn handles_browse_command_ok_err() {
 
     let mut mock_commander = Commander::default();
 
-    mock_commander.expect_lynx().returning(|_, _| {
+    mock_commander.expect_browse().returning(|_| {
         let mut tmpfile: File = tempfile::tempfile().unwrap();
         writeln!(tmpfile, "test error").unwrap();
         tmpfile.seek(SeekFrom::Start(0)).unwrap();
@@ -429,7 +446,14 @@ fn handles_browse_command_ok_err() {
     assert!(res.is_ok());
 
     let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(rx, AppCommand::Browse(device, 80));
+    let res = test.manager.handle_cmd(
+        rx,
+        AppCommand::Browse(BrowseArgs {
+            device,
+            port: 80,
+            use_lynx: false,
+        }),
+    );
     assert!(res.is_ok());
 
     let state = test.store.get_state();
@@ -449,7 +473,7 @@ fn handles_browse_command_ok_err_empty() {
 
     let mut mock_commander = Commander::default();
 
-    mock_commander.expect_lynx().returning(|_, _| {
+    mock_commander.expect_browse().returning(|_| {
         let status = ExitStatusExt::from_raw(1);
         Ok((status, None))
     });
@@ -468,7 +492,14 @@ fn handles_browse_command_ok_err_empty() {
     assert!(res.is_ok());
 
     let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(rx, AppCommand::Browse(device, 80));
+    let res = test.manager.handle_cmd(
+        rx,
+        AppCommand::Browse(BrowseArgs {
+            device,
+            port: 80,
+            use_lynx: false,
+        }),
+    );
     assert!(res.is_ok());
 
     let state = test.store.get_state();

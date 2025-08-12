@@ -4,7 +4,7 @@ use crate::ui::{
         input::{Input, InputState},
         popover::get_popover_area,
     },
-    events::types::{Command, Event},
+    events::types::{BrowseArgs, Command, Event},
     store::{
         Store,
         action::Action,
@@ -32,6 +32,7 @@ enum Focus {
     SSHUser,
     SSHPort,
     SSHIdentity,
+    BrowserSelect,
     BrowserPort,
 }
 
@@ -43,6 +44,7 @@ pub struct DeviceView {
     ssh_port_state: RefCell<InputState>,
     ssh_identity_state: RefCell<InputState>,
     browser_port_state: RefCell<InputState>,
+    browser_select_state: RefCell<InputState>,
 }
 
 impl DeviceView {
@@ -65,7 +67,11 @@ impl DeviceView {
             }),
             browser_port_state: RefCell::new(InputState {
                 editing: false,
-                value: String::from(""),
+                value: String::from("80"),
+            }),
+            browser_select_state: RefCell::new(InputState {
+                editing: false,
+                value: String::from("default"),
             }),
         }
     }
@@ -76,7 +82,10 @@ impl DeviceView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        if !*self.editing.borrow() || self.browser_port_state.borrow().editing {
+        if !*self.editing.borrow()
+            || self.browser_select_state.borrow().editing
+            || self.browser_port_state.borrow().editing
+        {
             let device_config = get_selected_device_config_from_state(&ctx.state);
             self.ssh_user_state.borrow_mut().value = device_config.ssh_user.clone();
             self.ssh_port_state.borrow_mut().value = device_config.ssh_port.to_string();
@@ -231,35 +240,54 @@ impl DeviceView {
         }
     }
 
-    fn render_browser_port_select_popover(
+    fn next_browser(&self) {
+        let mut next = "default".to_string();
+        if self.browser_select_state.borrow().value == "default" {
+            next = "lynx".to_string();
+        }
+        self.browser_select_state.borrow_mut().value = next;
+    }
+
+    fn render_browser_config_popover(
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        if *self.editing.borrow() && self.browser_port_state.borrow().editing {
+        if *self.editing.borrow()
+            && (self.browser_select_state.borrow().editing
+                || self.browser_port_state.borrow().editing)
+        {
             let block = Block::bordered()
                 .border_type(BorderType::Double)
                 .border_style(Style::new().fg(ctx.state.colors.border_color))
                 .padding(Padding::uniform(2))
                 .style(Style::new().bg(ctx.state.colors.buffer_bg));
             let inner_area = block.inner(area);
-            let [header_area, _, port_area, message_area] = Layout::vertical([
+            let [header_area, _, browser_area, port_area, message_area] = Layout::vertical([
                 Constraint::Length(1),       // header
                 Constraint::Length(1),       // spacer
+                Constraint::Percentage(50),  // browser choice
                 Constraint::Percentage(100), // port select
                 Constraint::Length(1),       // enter to submit message
             ])
             .areas(inner_area);
 
             let header = Header::new("Enter port to browse".to_string());
-            let input = Input::new("Port");
+            let browser_input = Input::new("Browser Select <->");
+            let port_input = Input::new("Port");
             let message = Paragraph::new("Press enter to open browser or esc to cancel").centered();
 
             Clear.render(area, buf);
             block.render(area, buf);
             header.render(header_area, buf, ctx);
-            input.render(
+            browser_input.render(
+                browser_area,
+                buf,
+                &mut self.browser_select_state.borrow_mut(),
+                ctx,
+            );
+            port_input.render(
                 port_area,
                 buf,
                 &mut self.browser_port_state.borrow_mut(),
@@ -275,6 +303,7 @@ impl DeviceView {
             Focus::SSHUser => self.ssh_user_state.borrow_mut().value.push(char),
             Focus::SSHPort => self.ssh_port_state.borrow_mut().value.push(char),
             Focus::SSHIdentity => self.ssh_identity_state.borrow_mut().value.push(char),
+            _ => {}
         };
     }
 
@@ -284,10 +313,12 @@ impl DeviceView {
             Focus::SSHUser => self.ssh_user_state.borrow_mut().value.pop(),
             Focus::SSHPort => self.ssh_port_state.borrow_mut().value.pop(),
             Focus::SSHIdentity => self.ssh_identity_state.borrow_mut().value.pop(),
+            _ => None,
         };
     }
 
     fn reset_input_state(&self) {
+        self.browser_select_state.borrow_mut().editing = false;
         self.browser_port_state.borrow_mut().editing = false;
         self.ssh_user_state.borrow_mut().editing = false;
         self.ssh_port_state.borrow_mut().editing = false;
@@ -298,8 +329,19 @@ impl DeviceView {
 
     fn focus_next(&self) {
         let next_focus = match *self.focus.borrow() {
+            Focus::BrowserSelect => {
+                if *self.editing.borrow() {
+                    self.browser_select_state.borrow_mut().editing = false;
+                    self.browser_port_state.borrow_mut().editing = true;
+                    self.ssh_identity_state.borrow_mut().editing = false;
+                    self.ssh_port_state.borrow_mut().editing = false;
+                    self.ssh_user_state.borrow_mut().editing = false;
+                }
+                Focus::BrowserPort
+            }
             Focus::BrowserPort => {
                 if *self.editing.borrow() {
+                    self.browser_select_state.borrow_mut().editing = false;
                     self.browser_port_state.borrow_mut().editing = true;
                     self.ssh_identity_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
@@ -338,14 +380,25 @@ impl DeviceView {
 
     fn focus_previous(&self) {
         let next_focus = match *self.focus.borrow() {
-            Focus::BrowserPort => {
+            Focus::BrowserSelect => {
                 if *self.editing.borrow() {
-                    self.browser_port_state.borrow_mut().editing = true;
+                    self.browser_select_state.borrow_mut().editing = true;
+                    self.browser_port_state.borrow_mut().editing = false;
                     self.ssh_identity_state.borrow_mut().editing = false;
                     self.ssh_port_state.borrow_mut().editing = false;
                     self.ssh_user_state.borrow_mut().editing = false;
                 }
-                Focus::BrowserPort
+                Focus::BrowserSelect
+            }
+            Focus::BrowserPort => {
+                if *self.editing.borrow() {
+                    self.browser_select_state.borrow_mut().editing = true;
+                    self.browser_port_state.borrow_mut().editing = false;
+                    self.ssh_identity_state.borrow_mut().editing = false;
+                    self.ssh_port_state.borrow_mut().editing = false;
+                    self.ssh_user_state.borrow_mut().editing = false;
+                }
+                Focus::BrowserSelect
             }
             Focus::SSHIdentity => {
                 if *self.editing.borrow() {
@@ -434,7 +487,7 @@ impl CustomWidgetRef for DeviceView {
             self.render_device_info(info_area, buf, &device, ctx);
             self.render_cmd_output(right_area, buf, ctx);
             // important that this is last so it properly layers on top
-            self.render_browser_port_select_popover(popover_area, buf, ctx);
+            self.render_browser_config_popover(popover_area, buf, ctx);
         }
     }
 }
@@ -464,6 +517,18 @@ impl EventHandler for DeviceView {
                         handled = true;
                     }
                 }
+                KeyCode::Right => {
+                    if *self.editing.borrow() && self.browser_select_state.borrow().editing {
+                        self.next_browser();
+                        handled = true;
+                    }
+                }
+                KeyCode::Left => {
+                    if *self.editing.borrow() && self.browser_select_state.borrow().editing {
+                        self.next_browser();
+                        handled = true;
+                    }
+                }
                 KeyCode::Tab => {
                     if *self.editing.borrow() {
                         self.focus_next();
@@ -478,12 +543,18 @@ impl EventHandler for DeviceView {
                 }
                 KeyCode::Enter => {
                     if *self.editing.borrow() {
-                        if self.browser_port_state.borrow().editing {
+                        if self.browser_select_state.borrow().editing
+                            || self.browser_port_state.borrow().editing
+                        {
                             let port_str = self.browser_port_state.borrow().value.clone();
                             if let Ok(port) = port_str.parse::<u16>() {
                                 let _ = ctx.events.send(Event::ExecCommand(Command::Browse(
-                                    ctx.state.selected_device.clone().unwrap().into(),
-                                    port,
+                                    BrowseArgs {
+                                        device: ctx.state.selected_device.clone().unwrap().into(),
+                                        port,
+                                        use_lynx: self.browser_select_state.borrow().value
+                                            == "lynx",
+                                    },
                                 )));
                                 self.reset_input_state();
                                 handled = true;
@@ -542,9 +613,9 @@ impl EventHandler for DeviceView {
                         }
                     } else if c == 'b' {
                         *self.focus.borrow_mut() = Focus::BrowserPort;
-                        let mut browser_state = self.browser_port_state.borrow_mut();
+                        let mut browser_state = self.browser_select_state.borrow_mut();
                         browser_state.editing = true;
-                        browser_state.value = "80".to_string();
+                        browser_state.value = "default".to_string();
                         *self.editing.borrow_mut() = true;
                         handled = true;
                     }

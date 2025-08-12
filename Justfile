@@ -7,10 +7,10 @@ generate-dot-env:
     echo "PUBLIC_KEY=\"$(cat ${HOME}/.ssh/id_rsa.pub)\"" >> .env
 
 term *args:
-    cargo run -p r-lanterm -- {{args}}
+    sudo -E cargo run -p r-lanterm -- {{args}}
 
 scan *args:
-    cargo run -p r-lancli -- {{args}}
+    sudo -E cargo run -p r-lancli -- {{args}}
 
 up *args: generate-dot-env
     docker compose up --build -d {{args}}

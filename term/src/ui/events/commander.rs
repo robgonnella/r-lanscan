@@ -7,7 +7,17 @@ use std::{
     process::{ChildStderr, Command as ShellCommand, ExitStatus, Output, Stdio},
 };
 
-use crate::config::DeviceConfig;
+use crate::{config::DeviceConfig, ui::events::types::BrowseArgs};
+
+#[cfg(target_os = "linux")]
+const fn browser_command() -> &'static str {
+    "xdg-open"
+}
+
+#[cfg(target_os = "macos")]
+const fn browser_command() -> &'static str {
+    "open"
+}
 
 pub struct Commander {}
 
@@ -48,19 +58,32 @@ impl Commander {
             .map_err(|e| Box::from(e.to_string()))
     }
 
-    pub fn lynx(
+    pub fn browse(
         &self,
-        device: Device,
-        port: u16,
+        args: BrowseArgs,
     ) -> Result<(ExitStatus, Option<ChildStderr>), Box<dyn Error>> {
-        let mut handle = ShellCommand::new("lynx")
-            .arg(format!("{}:{}", device.ip, port))
+        let mut protocol = "http";
+        if args.port == 443 {
+            protocol = "https"
+        }
+        let url = format!("{}://{}:{}", protocol, args.device.ip, args.port);
+        if args.use_lynx {
+            let mut handle = ShellCommand::new("lynx")
+                .arg(url)
+                .stderr(Stdio::piped())
+                .env("TERM", "xterm")
+                .spawn()?;
+
+            let status = handle.wait().map_err(Box::new)?;
+            return Ok((status, handle.stderr));
+        }
+
+        let mut handle = ShellCommand::new(browser_command())
+            .arg(url)
             .stderr(Stdio::piped())
-            .env("TERM", "xterm")
             .spawn()?;
 
         let status = handle.wait().map_err(Box::new)?;
-
         Ok((status, handle.stderr))
     }
 }

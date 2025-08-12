@@ -23,6 +23,10 @@ fn displays_command() {
     let traceroute = Command::TraceRoute(device.clone());
     assert_eq!("traceroute", traceroute.to_string());
 
-    let browse = Command::Browse(device, 80);
+    let browse = Command::Browse(BrowseArgs {
+        device,
+        port: 80,
+        use_lynx: false,
+    });
     assert_eq!("browse", browse.to_string());
 }
