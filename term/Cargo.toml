@@ -1,6 +1,7 @@
 [package]
 name = "r-lanterm"
 version = "0.2.2"
+description = "A full-featured terminal user interface (TUI) application for managing and interacting with networked LAN devices"
 categories = ["command-line-utilities", "network-programming"]
 readme = "README.md"
 documentation = "https://docs.rs/r-lanterm"
