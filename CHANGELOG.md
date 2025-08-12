@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/robgonnella/r-lanscan/compare/v0.2.0...v0.3.0) (2025-08-12)
+
+
+### Features
+
+* super important comment feature ([b3bda11](https://github.com/robgonnella/r-lanscan/commit/b3bda11890a898287b77a180ea859a679b549655))
+* **term:** adds support for using default browser ([a55f76b](https://github.com/robgonnella/r-lanscan/commit/a55f76b798bef19e235ae48c6cfe80cfd4373f67))
+* **term:** adds support for using default browser ([9baa139](https://github.com/robgonnella/r-lanscan/commit/9baa13998fbbe595fad91e0cf747f6fcb80676b2))
+
+
+### Bug Fixes
+
+* run release job on pushes to main ([33b7850](https://github.com/robgonnella/r-lanscan/commit/33b785014d7b25354db179ba4d7b192c9dee1ea5))
+
 ## [0.2.0](https://github.com/robgonnella/r-lanscan/compare/v0.1.0...v0.2.0) (2025-08-11)
 
 
