@@ -19,8 +19,6 @@ area network (LAN). This is the Rust version of the
 - **Root privileges required**: This library performs raw packet operations that
   require elevated permissions
 - **Rust 1.89.0+** with 2024 edition support
-- **System dependencies**: `libssl-dev` (Linux), `openssl` (macOS) for
-  cryptographic operations
 
 ## Installation
 
@@ -185,31 +183,41 @@ let handle = scanner.scan();
 ### Core Modules
 
 #### `network`
+
 Provides helpers for selecting network interfaces:
+
 - `get_default_interface()` - Get the default network interface
 - `get_interface(name)` - Get a specific interface by name
 - `get_available_port()` - Find an available port for scanning
 
 #### `packet`
+
 Low-level packet creation and transmission:
+
 - `wire::default(interface)` - Create default packet reader/sender pair
 - Various packet builders for ARP, SYN, RST packets
 
 #### `scanners`
+
 Main scanning implementations:
+
 - `ARPScanner` - Discover devices using ARP
 - `SYNScanner` - Scan ports on known devices
 - `FullScanner` - Combined ARP + SYN scanning
 
 #### `targets`
+
 Target specification utilities:
+
 - `ips::IPTargets` - Define IP ranges and CIDR blocks
 - `ports::PortTargets` - Define port ranges and individual ports
 
 ### Data Structures
 
 #### `Device`
+
 Represents a discovered network device:
+
 ```rust
 pub struct Device {
     pub hostname: String,
@@ -221,7 +229,9 @@ pub struct Device {
 ```
 
 #### `Port`
+
 Represents a network port:
+
 ```rust
 pub struct Port {
     pub id: u16,
@@ -230,7 +240,9 @@ pub struct Port {
 ```
 
 #### `SYNScanResult`
+
 Result of a SYN scan operation:
+
 ```rust
 pub struct SYNScanResult {
     pub device: Device,
@@ -239,7 +251,9 @@ pub struct SYNScanResult {
 ```
 
 #### `ScanMessage`
+
 Messages sent over the notification channel:
+
 ```rust
 pub enum ScanMessage {
     Done,                           // Scanning complete
@@ -252,6 +266,7 @@ pub enum ScanMessage {
 ### Target Specification
 
 #### IP Targets
+
 ```rust
 // CIDR blocks
 IPTargets::new(vec!["192.168.1.0/24".to_string()]);
@@ -264,6 +279,7 @@ IPTargets::new(vec!["192.168.1.1".to_string(), "10.0.0.1".to_string()]);
 ```
 
 #### Port Targets
+
 ```rust
 // Port ranges
 PortTargets::new(vec!["1-1000".to_string()]);
@@ -288,6 +304,7 @@ The library includes several complete examples in the `examples/` directory:
 - **`full-scanner.rs`** - Complete network reconnaissance
 
 Run examples from the workspace root with:
+
 ```bash
 sudo -E cargo run --example arp-scanner -p r-lanlib
 sudo -E cargo run --example syn-scanner -p r-lanlib
@@ -297,16 +314,19 @@ sudo -E cargo run --example full-scanner -p r-lanlib
 ## Configuration Options
 
 ### Scanner Timeouts
+
 - `idle_timeout` - How long to wait for responses before concluding scan
 - Default: 10 seconds (10,000ms)
 - Recommended: 5-30 seconds depending on network size and latency
 
 ### Scanner Features
+
 - `include_vendor` - Perform MAC address vendor lookup using IEEE OUI database
 - `include_host_names` - Resolve hostnames via reverse DNS lookup
 - `source_port` - Source port for scan packets (auto-selected if not specified)
 
 ### Performance Tuning
+
 - **Concurrent scanning**: Multiple threads handle packet I/O for optimal throughput
 - **Memory efficiency**: Zero-copy packet processing where possible
 - **Network-aware**: Automatic rate limiting to prevent network congestion
@@ -323,6 +343,7 @@ sudo -E cargo run --example full-scanner -p r-lanlib
 - **Logging**: All scan activities can be logged for audit purposes
 
 ### Ethical Usage Guidelines
+
 - Always obtain proper authorization before scanning
 - Respect network resources and avoid aggressive scanning
 - Be aware that scanning activities may be logged by network security systems
