@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/robgonnella/r-lanscan/compare/r-lanlib-v0.1.2...r-lanlib-v0.1.3) (2025-08-12)
+
+
+### Bug Fixes
+
+* add missing manifest fields in crates ([9dd4408](https://github.com/robgonnella/r-lanscan/commit/9dd44089b5f8b11e8e34f8027baa2729e386f970))
+
 ## [0.1.2](https://github.com/robgonnella/r-lanscan/compare/r-lanlib-v0.1.1...r-lanlib-v0.1.2) (2025-08-12)
 
 
