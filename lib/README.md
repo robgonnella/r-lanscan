@@ -22,11 +22,8 @@ area network (LAN). This is the Rust version of the
 
 ## Installation
 
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-r-lanlib = "0.1.0"
+```bash
+cargo add r-lanlib
 ```
 
 ## Quick Start
