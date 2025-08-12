@@ -17,3 +17,11 @@ jobs:
       - uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
+  publish-dry-run:
+    name: Publish Dry Run
+    runs-on: ubuntu-latest
+    needs: [release]
+    steps:
+      - uses: katyo/publish-crates@v2
+        with:
+          dry-run: true
