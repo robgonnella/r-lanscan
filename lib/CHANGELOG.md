@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/robgonnella/r-lanscan/compare/r-lanlib-v0.1.3...r-lanlib-v0.1.4) (2025-08-12)
+
+
+### Bug Fixes
+
+* add missing discription in lib and term crates ([3c77f92](https://github.com/robgonnella/r-lanscan/commit/3c77f92c516e877daddd23821d5745cefa92eaac))
+
 ## [0.1.3](https://github.com/robgonnella/r-lanscan/compare/r-lanlib-v0.1.2...r-lanlib-v0.1.3) (2025-08-12)
 
 

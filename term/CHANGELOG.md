@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.3](https://github.com/robgonnella/r-lanscan/compare/r-lanterm-v0.2.2...r-lanterm-v0.2.3) (2025-08-12)
+
+
+### Bug Fixes
+
+* add missing discription in lib and term crates ([3c77f92](https://github.com/robgonnella/r-lanscan/commit/3c77f92c516e877daddd23821d5745cefa92eaac))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * r-lanlib bumped from 0.1.3 to 0.1.4
+
 ## [0.2.2](https://github.com/robgonnella/r-lanscan/compare/r-lanterm-v0.2.1...r-lanterm-v0.2.2) (2025-08-12)
 
 

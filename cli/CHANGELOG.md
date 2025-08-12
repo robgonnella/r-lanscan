@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.4](https://github.com/robgonnella/r-lanscan/compare/r-lancli-v0.1.3...r-lancli-v0.1.4) (2025-08-12)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * r-lanlib bumped from 0.1.3 to 0.1.4
+
 ## [0.1.3](https://github.com/robgonnella/r-lanscan/compare/r-lancli-v0.1.2...r-lancli-v0.1.3) (2025-08-12)
 
 
