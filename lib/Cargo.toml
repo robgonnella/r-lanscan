@@ -1,6 +1,6 @@
 [package]
 name = "r-lanlib"
-version = "0.1.0"
+version = "0.1.1"
 categories = ["network-programming"]
 license.workspace = true
 keywords.workspace = true
