@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: googleapis/release-please-action@v4
+      - uses: apricote/releaser-pleaser@v0.6.1
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
+      # - uses: googleapis/release-please-action@v4
+      #   with:
+      #     token: ${{ secrets.RELEASE_TOKEN }}
