@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/robgonnella/r-lanscan/compare/r-lanlib-v0.1.4...r-lanlib-v0.1.5) (2025-08-14)
+
+
+### Bug Fixes
+
+* **lib:** updates license doc in lib ([a65a199](https://github.com/robgonnella/r-lanscan/commit/a65a1990171f8d3ae28bb1972e9c2b35bf7b6bb0))
+
 ## [0.1.4](https://github.com/robgonnella/r-lanscan/compare/r-lanlib-v0.1.3...r-lanlib-v0.1.4) (2025-08-12)
 
 

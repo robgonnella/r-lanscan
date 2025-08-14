@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.5](https://github.com/robgonnella/r-lanscan/compare/r-lancli-v0.1.4...r-lancli-v0.1.5) (2025-08-14)
+
+
+### Bug Fixes
+
+* **cli:** updates license doc in cli ([26e4edb](https://github.com/robgonnella/r-lanscan/commit/26e4edb28fbadab80679b8cfb7954d62ecb896dc))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * r-lanlib bumped from 0.1.4 to 0.1.5
+
 ## [0.1.4](https://github.com/robgonnella/r-lanscan/compare/r-lancli-v0.1.3...r-lancli-v0.1.4) (2025-08-12)
 
 
