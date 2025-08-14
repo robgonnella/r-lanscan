@@ -53,6 +53,7 @@ sudo r-lanterm
 ```
 
 The application will automatically:
+
 1. Detect your default network interface
 2. Start scanning your local network (CIDR block)
 3. Discover devices using ARP scanning
@@ -72,11 +73,13 @@ Debug mode disables the UI and shows detailed logging information.
 ## Command Line Options
 
 ### `--ports, -p <PORTS>`
+
 Comma-separated list of ports and port ranges to scan.
 
 **Default**: `22,80,443,2000-9999,27017`
 
 **Examples**:
+
 ```bash
 # Common ports only
 sudo r-lanterm --ports 22,80,443
@@ -89,6 +92,7 @@ sudo r-lanterm --ports 22,80,443,8080,8443,3000-4000
 ```
 
 ### `--debug, -d`
+
 Run in debug mode - prints logs instead of showing the UI.
 
 **Use case**: Troubleshooting network issues, debugging scan problems.
@@ -104,33 +108,39 @@ sudo r-lanterm --debug
 The application provides several interactive views:
 
 #### 1. Devices View (Default)
+
 - **Purpose**: Display all discovered network devices in a table
 - **Columns**: IP Address, Hostname, Vendor, MAC Address, Open Ports
 - **Navigation**: Use arrow keys or `j`/`k` to navigate
 - **Selection**: Press `Enter` to view device details
 
 #### 2. Device Detail View
+
 - **Purpose**: Detailed information and actions for a specific device
 - **Features**: SSH connection, traceroute, port browsing, device configuration
 
 #### 3. Configuration View
+
 - **Purpose**: Manage global and device-specific settings
 - **Options**: SSH credentials, port ranges, themes, network settings
 
 ### Navigation and Controls
 
 #### Global Controls
+
 - **`q`** - Quit application
 - **`Ctrl+C`** - Force quit (also handles external commands)
 - **`v`** - Change view / Open view selection menu
 - **`Esc`** - Cancel current action or go back
 
 #### Devices View
+
 - **`j` / `↓`** - Move down in device list
 - **`k` / `↑`** - Move up in device list
 - **`Enter`** - View selected device details
 
 #### Device Detail View
+
 - **`Esc`** - Back to devices list
 - **`c`** - Configure device-specific SSH settings
 - **`s`** - Connect to device via SSH
@@ -138,6 +148,7 @@ The application provides several interactive views:
 - **`b`** - Browse device via web browser (specify port)
 
 #### Configuration View
+
 - **`c`** - Start/enter configuration mode
 - **`Tab`** - Focus next input field
 - **`Shift+Tab`** - Focus previous input field
@@ -185,7 +196,7 @@ Override global settings for individual devices:
 
 ```yaml
 device_configs:
-  "aa:bb:cc:dd:ee:ff":  # MAC address as key
+  "aa:bb:cc:dd:ee:ff": # MAC address as key
     id: "router"
     ssh_port: 2222
     ssh_identity_file: "/home/user/.ssh/router_key"
@@ -219,12 +230,14 @@ r-lanterm continuously monitors your network:
 **Prerequisites**: SSH client must be installed on your system
 
 **Features**:
+
 - Uses configured SSH credentials (global or device-specific)
 - Supports custom SSH ports and identity files
 - Seamless transition - UI pauses while SSH session is active
 - Returns to UI when SSH session ends
 
 **Configuration**:
+
 1. Navigate to Configuration view (`v` → select Config)
 2. Press `c` to enter configuration mode
 3. Set SSH user, port, and identity file path
@@ -235,12 +248,14 @@ r-lanterm continuously monitors your network:
 **Prerequisites**: `traceroute` command must be installed
 
 **Features**:
+
 - Shows network path to selected device
 - Displays hop-by-hop latency information
 - Results shown directly in the device detail view
 - Uses ICMP traceroute for accurate results
 
 **Usage**:
+
 1. Select device in Devices view (`Enter`)
 2. Press `t` in Device Detail view
 3. Results appear in real-time
@@ -250,12 +265,14 @@ r-lanterm continuously monitors your network:
 **Prerequisites**: `lynx` terminal web browser must be installed
 
 **Features**:
+
 - Browse web interfaces on any device port
 - Terminal-based browsing with lynx
 - Custom port specification
 - Useful for router admin interfaces, web servers, etc.
 
 **Usage**:
+
 1. Select device in Device Detail view
 2. Press `b` to browse
 3. Enter port number when prompted
@@ -264,12 +281,14 @@ r-lanterm continuously monitors your network:
 ### Port Scanning
 
 **Configurable Ranges**:
+
 - Default: `22,80,443,2000-9999,27017`
 - Supports individual ports: `22,80,443`
 - Supports port ranges: `8000-9000`
 - Mixed specifications: `22,80,8000-9000`
 
 **Scan Process**:
+
 1. ARP scan discovers active devices
 2. SYN scan checks configured ports on each device
 3. Results update in real-time as ports are discovered
@@ -282,6 +301,7 @@ r-lanterm continuously monitors your network:
 **Error**: `permission denied: must run with root privileges`
 
 **Solution**: Run with sudo:
+
 ```bash
 sudo r-lanterm
 ```
@@ -289,6 +309,7 @@ sudo r-lanterm
 ### No Devices Found
 
 **Possible Causes**:
+
 - Network interface detection issues
 - Firewall blocking scan packets
 - Devices configured to ignore ARP requests
@@ -296,6 +317,7 @@ sudo r-lanterm
 **Solutions**:
 
 1. **Check network connectivity**:
+
    ```bash
    # Verify your network configuration
    ip route show  # Linux
@@ -303,6 +325,7 @@ sudo r-lanterm
    ```
 
 2. **Use debug mode**:
+
    ```bash
    sudo r-lanterm --debug
    ```
@@ -314,6 +337,7 @@ sudo r-lanterm
 ### SSH Connection Issues
 
 **Common Problems**:
+
 - SSH key permissions
 - Incorrect SSH port or username
 - SSH service not running on target device
@@ -321,12 +345,14 @@ sudo r-lanterm
 **Solutions**:
 
 1. **Verify SSH key permissions**:
+
    ```bash
    chmod 600 ~/.ssh/id_rsa
    chmod 644 ~/.ssh/id_rsa.pub
    ```
 
 2. **Test SSH manually**:
+
    ```bash
    ssh -i ~/.ssh/id_rsa user@device_ip -p 22
    ```
@@ -338,6 +364,7 @@ sudo r-lanterm
 ### External Command Issues
 
 **Missing Commands**:
+
 - `ssh`: Install OpenSSH client
 - `traceroute`: Install traceroute package
 - `lynx`: Install lynx web browser
@@ -363,11 +390,13 @@ sudo dnf install openssh-clients traceroute lynx
 ### Performance Issues
 
 **Large Networks**:
+
 - Reduce port scan range: `--ports 22,80,443`
 - Network scans are performed every 15 seconds
 - UI rendering optimized for real-time updates
 
 **Slow Terminal**:
+
 - Try different themes for better performance
 - Reduce terminal window size if rendering is slow
 - Use debug mode to check for underlying issues
@@ -443,6 +472,15 @@ scp config.yml user@remote:~/.config/r-lanterm/
 - **File Permissions**: Ensure config directory has appropriate permissions
 - **Sensitive Data**: Consider encrypting configuration files if needed
 
+## License
+
+This project is dual-licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT License ([LICENSE-MIT](../LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
 ## Related Tools
 
 - **[r-lanlib](../lib/README.md)**: The underlying Rust library powering this application
@@ -450,6 +488,7 @@ scp config.yml user@remote:~/.config/r-lanterm/
 - **SSH clients**: Works with any SSH client (OpenSSH, PuTTY, etc.)
 
 ### Optional External Tools
+
 - `ssh`: SSH client for device connections
 - `traceroute`: Network path analysis
 - `lynx`: Terminal web browser
