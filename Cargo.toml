@@ -1,8 +1,10 @@
 [workspace]
 resolver = "2"
 members = ["cli", "lib", "term"]
-package.repository = "https://github.com/robgonnella/r-lanscan"
-package.homepage = "https://github.com/robgonnella/r-lanscan"
-package.license  = "GPL-3.0-or-later"
-package.keywords = ["network", "network-scanner", "network-scanning", "ARP", "SYN"]
-package.edition = "2024"
+
+[workspace.package]
+repository = "https://github.com/robgonnella/r-lanscan"
+homepage = "https://github.com/robgonnella/r-lanscan"
+license  = "MIT OR Apache-2.0"
+keywords = ["network-scanner", "port-scanner", "packet", "ARP", "SYN"]
+edition = "2024"
