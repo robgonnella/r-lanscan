@@ -80,6 +80,7 @@ sudo r-lancli --json --quiet > scan_results.json
 ### Target Specification
 
 #### `--targets, -t <TARGETS>`
+
 Comma-separated list of scan targets. Supports:
 
 - **Individual IPs**: `192.168.1.1`
@@ -89,6 +90,7 @@ Comma-separated list of scan targets. Supports:
 **Default**: Uses the CIDR block of the selected network interface
 
 **Examples**:
+
 ```bash
 # Single IP
 sudo r-lancli --targets 192.168.1.1
@@ -107,11 +109,13 @@ sudo r-lancli --targets 192.168.1.1,192.168.1.10-20,10.0.0.0/24
 ```
 
 #### `--ports, -p <PORTS>`
+
 Comma-separated list of ports and port ranges to scan.
 
 **Default**: `1-65535` (all ports)
 
 **Examples**:
+
 ```bash
 # Common ports
 sudo r-lancli --ports 22,80,443
@@ -126,6 +130,7 @@ sudo r-lancli --ports 22,80,443,8000-9000,3389
 ### Scan Options
 
 #### `--arp-only`
+
 Perform only ARP scanning, skipping SYN port scanning.
 
 **Use case**: Quick device discovery without the time overhead of port scanning.
@@ -135,6 +140,7 @@ sudo r-lancli --arp-only --vendor --host-names
 ```
 
 #### `--vendor`
+
 Enable MAC address vendor lookup to identify device manufacturers.
 
 ```bash
@@ -142,6 +148,7 @@ sudo r-lancli --vendor
 ```
 
 #### `--host-names`
+
 Enable reverse DNS lookup to resolve hostnames for discovered devices.
 
 ```bash
@@ -151,11 +158,13 @@ sudo r-lancli --host-names
 ### Network Configuration
 
 #### `--interface, -i <INTERFACE>`
+
 Select a specific network interface for scanning.
 
 **Default**: Automatically selects the default network interface
 
 **Examples**:
+
 ```bash
 # Use specific interface
 sudo r-lancli --interface eth0
@@ -166,6 +175,7 @@ ifconfig      # macOS/BSD
 ```
 
 #### `--source-port <SOURCE_PORT>`
+
 Set the source port for outgoing scan packets.
 
 **Default**: Automatically selects an available port
@@ -177,6 +187,7 @@ sudo r-lancli --source-port 12345
 ### Output Options
 
 #### `--json`
+
 Output results in JSON format instead of human-readable tables.
 
 **Use case**: Programmatic processing, integration with other tools.
@@ -186,6 +197,7 @@ sudo r-lancli --json > results.json
 ```
 
 #### `--quiet, -q`
+
 Suppress progress messages, only show final results.
 
 **Use case**: Cleaner output for scripting and automation.
@@ -197,6 +209,7 @@ sudo r-lancli --quiet --json
 ### Timing and Performance
 
 #### `--idle-timeout-ms <MILLISECONDS>`
+
 Set the idle timeout for scan operations.
 
 **Default**: `10000` (10 seconds)
@@ -214,6 +227,7 @@ sudo r-lancli --idle-timeout-ms 30000
 ### Debugging
 
 #### `--debug`
+
 Enable debug logging for troubleshooting scan operations.
 
 ```bash
@@ -225,6 +239,7 @@ sudo r-lancli --debug
 ### Table Format (Default)
 
 **ARP Results**:
+
 ```
 +---------------+----------+-------------------+------------------------+
 | IP            | HOSTNAME | MAC               | VENDOR                 |
@@ -236,6 +251,7 @@ sudo r-lancli --debug
 ```
 
 **SYN Results** (with port scanning):
+
 ```
 +---------------+----------+-------------------+------------------------+-------------+
 | IP            | HOSTNAME | MAC               | VENDOR                 | OPEN_PORTS  |
@@ -256,9 +272,9 @@ sudo r-lancli --debug
     "vendor": "Netgear",
     "is_current_host": false,
     "open_ports": [
-      {"id": 22, "service": "ssh"},
-      {"id": 80, "service": "http"},
-      {"id": 443, "service": "https"}
+      { "id": 22, "service": "ssh" },
+      { "id": 80, "service": "http" },
+      { "id": 443, "service": "https" }
     ]
   }
 ]
@@ -360,6 +376,7 @@ for device in devices:
 **Error**: `permission denied: must run with root privileges`
 
 **Solution**: Run with `sudo`:
+
 ```bash
 sudo r-lancli
 ```
@@ -369,7 +386,9 @@ sudo r-lancli
 **Error**: `cannot find interface`
 
 **Solutions**:
+
 1. List available interfaces:
+
    ```bash
    # Linux
    ip link show
@@ -386,17 +405,21 @@ sudo r-lancli
 ### No Results Found
 
 **Possible causes**:
+
 - Firewall blocking scan packets
 - Network devices configured to ignore ARP/ICMP
 - Incorrect network range specified
 
 **Solutions**:
+
 1. Increase timeout:
+
    ```bash
    sudo r-lancli --idle-timeout-ms 30000
    ```
 
 2. Use debug mode:
+
    ```bash
    sudo r-lancli --debug
    ```
@@ -411,12 +434,15 @@ sudo r-lancli
 ### Performance Issues
 
 **For large networks**:
+
 1. Use ARP-only for initial discovery:
+
    ```bash
    sudo r-lancli --arp-only
    ```
 
 2. Limit port ranges:
+
    ```bash
    sudo r-lancli --ports 1-1000
    ```
@@ -440,6 +466,15 @@ sudo r-lancli
 - Network scanning may be restricted by local laws and regulations
 - Corporate networks often have policies against unauthorized scanning
 - Always obtain proper authorization before scanning
+
+## License
+
+This project is dual-licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT License ([LICENSE-MIT](../LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
 
 ## Related Tools
 
