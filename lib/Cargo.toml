@@ -1,6 +1,6 @@
 [package]
 name = "r-lanlib"
-version = "0.1.4"
+version = "0.1.5"
 description = "A library crate for performing network scanning operations on any local area network (LAN)"
 categories = ["network-programming"]
 readme = "README.md"
