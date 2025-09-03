@@ -2,3 +2,4 @@
 .obsidian/
 /target
 generated/
+.env
