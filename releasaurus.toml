@@ -1,8 +1,12 @@
 [[package]]
 path = "cli"
+tag_prefix = "r-lancli-v"
 
 [[package]]
 path = "lib"
+tag_prefix = "r-lanlib-v"
+
 
 [[package]]
 path = "term"
+tag_prefix = "r-lanterm-v"
