@@ -17,4 +17,4 @@ outputs: {}
 runs:
   using: docker
   image: rgonnella/releasaurus:v0.2.0
-  entrypoint: ./.github/actions/entrypoint.sh
+  entrypoint: /github/workspace/.github/actions/entrypoint.sh
