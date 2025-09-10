@@ -13,6 +13,12 @@ inputs:
   debug:
     description: Enables debug logs
     default: "false"
+  git_user_name:
+    description: The git user name to use when committing and creating tags
+    default: "ReleasaurusCI"
+  git_user_email:
+    description: The git user email to use when committing and creating tags
+    default: releasaurus-ci@noreply.com
 outputs: {}
 runs:
   using: docker
