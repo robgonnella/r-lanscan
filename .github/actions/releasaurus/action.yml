@@ -1,0 +1,26 @@
+name: releasaurus 🦕
+description: Runs releasaurus to automate release process
+inputs:
+  repo:
+    description: The github repo to affect
+    default: ${{ github.server_url }}/${{ github.repository }}
+  token:
+    description: The github token to use. This token will need privileges to create PRs, tags, labels, and releases
+    default: ${{ github.token }}
+  clone_depth:
+    description: Sets the clone depth for the target repository. Set to 0 to clone all history
+    default: "250"
+  debug:
+    description: Enables debug logs
+    default: "false"
+outputs: {}
+runs:
+  using: docker
+  image: robgonnella/releasaurus:v0.2.0
+  entrypoint: |
+    args=""
+    if [ "${{ inputs.debug }}" = "true" ]; then
+      args="--debug"
+    fi
+    releasaurus release --github-repo ${{ inputs.repo }} --github-token ${{ inputs.token }} --clone-depth ${{ inputs.clone_depth }} ${args}
+    releasaurus release-pr --github-repo ${{ inputs.repo }} --github-token ${{ inputs.token }} --clone-depth ${{ inputs.clone_depth }} ${args}
