@@ -8,6 +8,9 @@ if [ "${INPUT_DEBUG}" = "true" ]; then
   ARGS="--debug"
 fi
 
+git config --global user.name "ReleasaurusCI"
+git config --global user.email "releasaurus-ci@noreply.com"
+
 releasaurus release \
 --github-repo ${INPUT_REPO} \
 --github-token ${INPUT_TOKEN} \
