@@ -17,10 +17,19 @@ outputs: {}
 runs:
   using: docker
   image: robgonnella/releasaurus:v0.2.0
+  args:
+    - ${{ inputs.repo }}
+    - ${{ inputs.token }}
+    - ${{ inputs.clone_depth }}
+    - ${{ inputs.debug }}
   entrypoint: |
+    REPO="$1"
+    TOKEN="$2"
+    CLONE_DEPTH="$3"
+    DEBUG="$4"
     args=""
-    if [ "${{ inputs.debug }}" = "true" ]; then
+    if [ "${DEBUG}" = "true" ]; then
       args="--debug"
     fi
-    releasaurus release --github-repo ${{ inputs.repo }} --github-token ${{ inputs.token }} --clone-depth ${{ inputs.clone_depth }} ${args}
-    releasaurus release-pr --github-repo ${{ inputs.repo }} --github-token ${{ inputs.token }} --clone-depth ${{ inputs.clone_depth }} ${args}
+    releasaurus release --github-repo ${REPO} --github-token ${TOKEN} --clone-depth ${CLONE_DEPTH} ${args}
+    releasaurus release-pr --github-repo ${REPO} --github-token ${TOKEN} --clone-depth ${CLONE_DEPTH} ${args}
