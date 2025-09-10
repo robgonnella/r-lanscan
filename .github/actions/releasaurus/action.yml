@@ -17,4 +17,3 @@ outputs: {}
 runs:
   using: docker
   image: Dockerfile
-  entrypoint: /entrypoint.sh
