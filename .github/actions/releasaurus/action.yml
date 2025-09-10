@@ -16,7 +16,7 @@ inputs:
 outputs: {}
 runs:
   using: docker
-  image: robgonnella/releasaurus:v0.2.0
+  image: rgonnella/releasaurus:v0.2.0
   args:
     - ${{ inputs.repo }}
     - ${{ inputs.token }}
