@@ -9,6 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/releasaurus
+      - uses: robgonnella/releasaurus@v1
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
