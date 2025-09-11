@@ -5,10 +5,10 @@ on:
     branches: ["main"]
 
 jobs:
-  release-please:
+  releasaurus:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: robgonnella/releasaurus@v1
+      - uses: robgonnella/releasaurus-action@v1
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
