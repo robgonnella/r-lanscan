@@ -76,8 +76,8 @@ impl DevicesView {
 
     fn set_store_selected(&self, i: usize, state: &State) {
         if !state.devices.is_empty() && i < state.devices.len() {
-            let mac = state.devices[i].mac.clone();
-            self.store.dispatch(Action::UpdateSelectedDevice(mac));
+            let ip = state.devices[i].ip.clone();
+            self.store.dispatch(Action::UpdateSelectedDevice(ip));
         }
     }
 

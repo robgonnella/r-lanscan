@@ -54,7 +54,7 @@ fn test_get_device_config_from_state() {
         ssh_identity_file: "dev_1_id_rsa".to_string(),
         ssh_user: "dev1_user".to_string(),
     }));
-    store.dispatch(Action::UpdateSelectedDevice(device_1.mac.clone()));
+    store.dispatch(Action::UpdateSelectedDevice(device_1.ip.clone()));
 
     let state = store.get_state();
 

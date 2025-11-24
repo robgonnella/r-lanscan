@@ -7,8 +7,11 @@ on:
 jobs:
   releasaurus:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: robgonnella/releasaurus-action@v2
+      - uses: robgonnella/releasaurus/action/github@v0.3.3
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
