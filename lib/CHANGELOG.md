@@ -2,6 +2,22 @@
 
 ### 🐛 Bug Fixes
 
+- fix release workflow [_(40cf842)_](https://github.com/robgonnella/r-lanscan/commit/40cf842110f4c92e690ca7a711faa922adb9d3f9)
+
+- fixes how devices are stored in state in term (#72) [_(b889a2e)_](https://github.com/robgonnella/r-lanscan/commit/b889a2e5a31b1524e4af9da950c325a42e1d3617)
+
+- another fix for releasaurus action [_(cadd02d)_](https://github.com/robgonnella/r-lanscan/commit/cadd02d86fdfff6dd1ca82e11e496ebe2d705534)
+
+- fixes releasaurs action [_(22dc7a3)_](https://github.com/robgonnella/r-lanscan/commit/22dc7a339888691e00a48bd0382a90d469ddf672)
+
+- fixes use of custom releasaurus action [_(db7ba5f)_](https://github.com/robgonnella/r-lanscan/commit/db7ba5f4ae4a41f202f329456ae9007c07050544)
+
+- switches to releasaurs for release process (#71) [_(3d9d70d)_](https://github.com/robgonnella/r-lanscan/commit/3d9d70dd20d72b6e588420120228b47432efa840)
+
+# [0.1.6](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanlib-v0.1.6) - 2025-09-10
+
+### 🐛 Bug Fixes
+
 - fixes how devices are stored in state in term (#72) [_(b889a2e)_](https://github.com/robgonnella/r-lanscan/commit/b889a2e5a31b1524e4af9da950c325a42e1d3617)
 
 - another fix for releasaurus action [_(cadd02d)_](https://github.com/robgonnella/r-lanscan/commit/cadd02d86fdfff6dd1ca82e11e496ebe2d705534)

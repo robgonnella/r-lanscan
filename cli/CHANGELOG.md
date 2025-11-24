@@ -1,3 +1,9 @@
+# [0.1.7](https://github.com/robgonnella/r-lanscan/releases/tag/r-lancli-v0.1.7) - 2025-11-24
+
+### 🐛 Bug Fixes
+
+- fix release workflow [_(40cf842)_](https://github.com/robgonnella/r-lanscan/commit/40cf842110f4c92e690ca7a711faa922adb9d3f9)
+
 # [0.1.6](https://github.com/robgonnella/r-lanscan/releases/tag/r-lancli-v0.1.6) - 2025-09-10
 
 ### 🐛 Bug Fixes
