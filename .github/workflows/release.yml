@@ -12,7 +12,7 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: robgonnella/releasaurus/action/github@v0.3.5
+      - uses: robgonnella/releasaurus/action/github@v0.3.6
         with:
           debug: "true"
           token: ${{ secrets.RELEASE_TOKEN }}
