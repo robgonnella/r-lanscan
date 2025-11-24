@@ -5,11 +5,14 @@ skip_chore = true
 [[package]]
 path = "cli"
 tag_prefix = "r-lancli-v"
+release_type = "rust"
 
 [[package]]
 path = "lib"
 tag_prefix = "r-lanlib-v"
+release_type = "rust"
 
 [[package]]
 path = "term"
 tag_prefix = "r-lanterm-v"
+release_type = "rust"
