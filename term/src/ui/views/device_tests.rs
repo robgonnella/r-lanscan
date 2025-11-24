@@ -46,7 +46,7 @@ fn setup() -> (DeviceView, Arc<Store>, String) {
     };
 
     store.dispatch(Action::AddDevice(device.clone()));
-    store.dispatch(Action::UpdateSelectedDevice(device.mac.clone()));
+    store.dispatch(Action::UpdateSelectedDevice(device.ip.clone()));
     (DeviceView::new(Arc::clone(&store)), store, tmp_path)
 }
 

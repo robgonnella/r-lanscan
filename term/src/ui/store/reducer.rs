@@ -74,7 +74,7 @@ impl Reducer {
                 let mut arp_history: HashMap<String, (Device, i8)> = HashMap::new();
 
                 for d in devices.iter() {
-                    new_map.insert(d.mac.clone(), d.clone());
+                    new_map.insert(d.ip.clone(), d.clone());
                 }
 
                 state.devices = devices.clone();
@@ -104,12 +104,10 @@ impl Reducer {
                 let mut state = prev_state.clone();
                 let arp_device: Device = device.clone().into();
 
-                state
-                    .arp_history
-                    .insert(device.mac.clone(), (arp_device, 0));
+                state.arp_history.insert(device.ip.clone(), (arp_device, 0));
 
                 if let std::collections::hash_map::Entry::Vacant(e) =
-                    state.device_map.entry(device.mac.clone())
+                    state.device_map.entry(device.ip.clone())
                 {
                     state.devices.push(device.clone());
                     e.insert(device.clone());
@@ -117,7 +115,7 @@ impl Reducer {
                     let found_device = state
                         .devices
                         .iter_mut()
-                        .find(|d| d.mac == device.mac)
+                        .find(|d| d.ip == device.ip)
                         .unwrap();
                     found_device.hostname = device.hostname.clone();
                     found_device.ip = device.ip.clone();
@@ -128,7 +126,7 @@ impl Reducer {
                     }
 
                     found_device.open_ports.iter().sorted_by_key(|p| p.id);
-                    let mapped_device = state.device_map.get_mut(&device.mac.clone()).unwrap();
+                    let mapped_device = state.device_map.get_mut(&device.ip.clone()).unwrap();
                     *mapped_device = found_device.clone();
                 }
 

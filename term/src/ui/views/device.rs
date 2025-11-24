@@ -570,8 +570,7 @@ impl EventHandler for DeviceView {
                                 self.ssh_identity_state.borrow().value.clone();
                             self.store
                                 .dispatch(Action::UpdateDeviceConfig(device_config));
-                            self.store
-                                .dispatch(Action::UpdateSelectedDevice(device.mac));
+                            self.store.dispatch(Action::UpdateSelectedDevice(device.ip));
                             self.reset_input_state();
                             handled = true;
                         }

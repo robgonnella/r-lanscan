@@ -231,7 +231,7 @@ fn test_update_selected_device() {
         state,
         Action::UpdateAllDevices(vec![dev1.clone(), dev2.clone()]),
     );
-    state = reducer.reduce(state, Action::UpdateSelectedDevice(dev2.mac.clone()));
+    state = reducer.reduce(state, Action::UpdateSelectedDevice(dev2.ip.clone()));
     assert!(state.selected_device.is_some());
     let selected = state.selected_device.unwrap();
     assert_eq!(selected.mac, dev2.mac);
@@ -261,7 +261,7 @@ fn test_update_device_config() {
     let mut state = reducer.reduce(starting_state, Action::AddDevice(dev.clone()));
     state = reducer.reduce(state, Action::UpdateAllDevices(vec![dev.clone()]));
     state = reducer.reduce(state, Action::UpdateDeviceConfig(dev_config.clone()));
-    state = reducer.reduce(state, Action::UpdateSelectedDevice(dev.mac.clone()));
+    state = reducer.reduce(state, Action::UpdateSelectedDevice(dev.ip.clone()));
 
     assert!(state.selected_device_config.is_some());
     let selected = state.selected_device_config.unwrap();
