@@ -167,7 +167,7 @@ sudo r-lanterm  # Launch terminal UI for full interactive experience
 
 ## Requirements
 
-- **Rust 1.89.0+** with Rust 2024 edition support - Install via [rustup.rs]
+- **Rust 1.90.0+** with Rust 2024 edition support - Install via [rustup.rs]
 - **Root/Administrator privileges** - Required for raw socket operations
 - **Optional external tools** (for terminal UI):
   - `ssh` - For device connections
