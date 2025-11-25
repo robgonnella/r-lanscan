@@ -275,13 +275,9 @@ scanning networks.
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for
-guidelines on:
+We welcome contributions!
 
-- Setting up the development environment
-- Running tests and generating coverage reports
-- Code style and formatting requirements
-- Submitting pull requests
+Doc coming soon...
 
 ## License
 
