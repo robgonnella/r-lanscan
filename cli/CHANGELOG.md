@@ -1,3 +1,9 @@
+# [0.1.8](https://github.com/robgonnella/r-lanscan/releases/tag/r-lancli-v0.1.8) - 2025-11-24
+
+### 🐛 Bug Fixes
+
+- fixes releasaurus.toml [_(62b2fc1)_](https://github.com/robgonnella/r-lanscan/commit/62b2fc13fed80062953bd405623d29b954cda376)
+
 # [0.1.7](https://github.com/robgonnella/r-lanscan/releases/tag/r-lancli-v0.1.7) - 2025-11-24
 
 ### 🐛 Bug Fixes
