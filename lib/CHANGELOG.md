@@ -1,3 +1,9 @@
+# [0.1.9](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanlib-v0.1.9) - 2025-11-25
+
+### 🐛 Bug Fixes
+
+- bump ci versions [_(d16f5ab)_](https://github.com/robgonnella/r-lanscan/commit/d16f5ab47acffda0349cbe2266d46502a6eeafef)
+
 # [0.1.8](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanlib-v0.1.8) - 2025-11-25
 
 ### 🐛 Bug Fixes
