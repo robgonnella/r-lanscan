@@ -1,3 +1,9 @@
+# [0.2.7](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanterm-v0.2.7) - 2025-11-25
+
+### 🐛 Bug Fixes
+
+- another minor readme fix to trigger release [_(2ec340a)_](https://github.com/robgonnella/r-lanscan/commit/2ec340a677c148216d5350247f341e2f1c68a0da)
+
 # [0.2.6](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanterm-v0.2.6) - 2025-11-24
 
 ### 🐛 Bug Fixes
