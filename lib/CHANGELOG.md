@@ -1,3 +1,11 @@
+# [0.1.7](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanlib-v0.1.7) - 2025-11-24
+
+### 🐛 Bug Fixes
+
+- minor fix to trigger release [_(fadd5bc)_](https://github.com/robgonnella/r-lanscan/commit/fadd5bce846ea8f5500a3715052db08a21f15070)
+
+- fixes releasaurus.toml [_(62b2fc1)_](https://github.com/robgonnella/r-lanscan/commit/62b2fc13fed80062953bd405623d29b954cda376)
+
 # [0.1.6](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanlib-v0.1.6) - 2025-09-10
 
 ### 🐛 Bug Fixes
