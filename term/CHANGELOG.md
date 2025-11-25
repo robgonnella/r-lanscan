@@ -1,3 +1,9 @@
+# [0.2.6](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanterm-v0.2.6) - 2025-11-24
+
+### 🐛 Bug Fixes
+
+- fixes releasaurus.toml [_(62b2fc1)_](https://github.com/robgonnella/r-lanscan/commit/62b2fc13fed80062953bd405623d29b954cda376)
+
 # [0.2.5](https://github.com/robgonnella/r-lanscan/releases/tag/r-lanterm-v0.2.5) - 2025-09-10
 
 ### 🐛 Bug Fixes
