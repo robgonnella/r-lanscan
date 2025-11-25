@@ -18,7 +18,7 @@ jobs:
           - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/rust-setup
       - name: Build
         run: cargo build --release
@@ -26,7 +26,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/rust-setup
       - name: Lint
         run: cargo clippy --all-targets --all-features
@@ -34,7 +34,7 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/rust-setup
       - name: Fmt
         run: cargo fmt --all --check
@@ -52,7 +52,7 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/rust-setup
       - name: Test
         run: ${{ matrix.cmd }}
