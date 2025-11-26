@@ -157,7 +157,7 @@ impl CustomWidgetRef for Table {
             let mut line_break_count = self.item_height / 2;
             let mut line_breaks = String::from("");
 
-            if line_break_count > 1 && line_break_count % 2 == 0 {
+            if line_break_count > 1 && line_break_count.is_multiple_of(2) {
                 line_break_count -= 1;
             }
 
