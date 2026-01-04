@@ -8,6 +8,7 @@ on:
 
 jobs:
   publish:
+    if: ${{ github.repository == 'robgonnella/r-lanscan' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -17,3 +18,66 @@ jobs:
       - uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  package-binaries:
+    if: ${{ github.repository == 'robgonnella/r-lanscan' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os-name: Linux-x86_64
+            runs-on: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+
+          - os-name: Linux-aarch64
+            runs-on: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+
+          - os-name: MacOS-aarch64
+            runs-on: macOS-latest
+            target: aarch64-apple-darwin
+        package: [r-lancli, r-lanterm]
+    runs-on: ${{ matrix.platform.runs-on }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Build with cross
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          toolchain: 1.90.0
+          target: ${{ matrix.platform.target }}
+          args: "-p ${{ matrix.package }} --locked --release"
+
+      - name: Package
+        uses: a7ul/tar-action@v1.2.0
+        with:
+          command: c
+          files: |
+            ./target/${{ matrix.platform.target }}/release/${{ matrix.package }}
+          outPath: ${{ matrix.package }}-${{ github.ref_name }}-${{ matrix.platform.target }}.tgz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.package }}-${{ github.ref_name }}-${{ matrix.platform.target }}.tgz
+          path: ${{ matrix.package }}-${{ github.ref_name }}-${{ matrix.platform.target }}.tgz
+
+  update-release:
+    if: ${{ github.repository == 'robgonnella/r-lanscan' }}
+    runs-on: ubuntu-latest
+    needs: package-binaries
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: "*.tgz"
+          path: ./dist/
+          merge-multiple: true
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.RELEASE_TOKEN }}
+          file_glob: true
+          file: ./dist/*.tgz
