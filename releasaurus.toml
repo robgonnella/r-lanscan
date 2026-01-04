@@ -8,26 +8,19 @@ reword = [
 ]
 
 [[package]]
-name = "r-lanscan"
+name = "r-lancli"
+path = "cli"
+tag_prefix = "r-lancli-v"
 release_type = "rust"
 
 [[package]]
 name = "r-lanlib"
-release_type = "rust"
-workspace_root = "."
 path = "lib"
-tag_prefix = "v"
-
-[[package]]
-name = "r-lancli"
+tag_prefix = "r-lanlib-v"
 release_type = "rust"
-workspace_root = "."
-path = "cli"
-tag_prefix = "v"
 
 [[package]]
 name = "r-lanterm"
-release_type = "rust"
-workspace_root = "."
 path = "term"
-tag_prefix = "v"
+tag_prefix = "r-lanterm-v"
+release_type = "rust"
