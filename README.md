@@ -1,3 +1,5 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/robgonnella/r-lanscan)
+
 # r-lanscan
 
 [![test](https://github.com/robgonnella/r-lanscan/actions/workflows/test.yml/badge.svg)](https://github.com/robgonnella/r-lanscan/actions/workflows/test.yml)
