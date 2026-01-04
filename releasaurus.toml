@@ -10,3 +10,24 @@ reword = [
 [[package]]
 name = "r-lanscan"
 release_type = "rust"
+
+[[package]]
+name = "r-lanlib"
+release_type = "rust"
+workspace_root = "."
+path = "lib"
+tag_prefix = "v"
+
+[[package]]
+name = "r-lancli"
+release_type = "rust"
+workspace_root = "."
+path = "cli"
+tag_prefix = "v"
+
+[[package]]
+name = "r-lanterm"
+release_type = "rust"
+workspace_root = "."
+path = "term"
+tag_prefix = "v"
