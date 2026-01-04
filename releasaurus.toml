@@ -10,17 +10,17 @@ reword = [
 [[package]]
 name = "r-lancli"
 path = "cli"
-tag_prefix = "r-lancli-v"
 release_type = "rust"
+additional_paths = ["."]
 
 [[package]]
 name = "r-lanlib"
 path = "lib"
-tag_prefix = "r-lanlib-v"
 release_type = "rust"
+additional_paths = ["."]
 
 [[package]]
 name = "r-lanterm"
 path = "term"
-tag_prefix = "r-lanterm-v"
 release_type = "rust"
+additional_paths = ["."]
