@@ -1,4 +1,4 @@
-#:schema https://raw.githubusercontent.com/robgonnella/releasaurus/refs/heads/main/schema/schema.json
+# schema: ../releasaurus/schema/schema.json
 
 [changelog]
 skip_ci = true
@@ -8,19 +8,10 @@ reword = [
 ]
 
 [[package]]
-name = "r-lancli"
-path = "cli"
 release_type = "rust"
-additional_paths = ["."]
-
-[[package]]
-name = "r-lanlib"
-path = "lib"
-release_type = "rust"
-additional_paths = ["."]
-
-[[package]]
-name = "r-lanterm"
-path = "term"
-release_type = "rust"
-additional_paths = ["."]
+tag_prefix = "v"
+sub_packages = [
+  { name = "r-lancli", path = "cli", release_type = "rust" },
+  { name = "r-lanlib", path = "lib", release_type = "rust" },
+  { name = "r-lanterm", path = "term", release_type = "rust" },
+]
