@@ -12,6 +12,9 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+      - name: pause for PR availability
+        run: sleep 20
+        shell: bash
       - uses: robgonnella/releasaurus/action@v0.10.1
         with:
           command: release
