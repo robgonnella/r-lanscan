@@ -8,8 +8,8 @@ reword = [
 ]
 
 [[package]]
-name = "r-lancli"
-path = "cli"
+name = "r-lanscan"
+path = "."
 release_type = "rust"
 sub_packages = [
   { name = "r-lancli", path = "cli", release_type = "rust" },
