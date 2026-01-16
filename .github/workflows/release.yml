@@ -19,6 +19,7 @@ jobs:
             --forge github
             --repo ${{ github.server_url}}/${{ github.repository }}
             --token ${{ secrets.RELEASE_TOKEN }}
+            --debug
       - uses: robgonnella/releasaurus/action@v0.10.1
         with:
           command: release-pr
@@ -26,3 +27,4 @@ jobs:
             --forge github
             --repo ${{ github.server_url}}/${{ github.repository }}
             --token ${{ secrets.RELEASE_TOKEN }}
+            --debug
