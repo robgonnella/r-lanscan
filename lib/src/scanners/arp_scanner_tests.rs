@@ -260,9 +260,13 @@ fn reports_error_on_packet_read_error() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
-    receiver
-        .expect_next_packet()
-        .returning(|| Err(Box::from("oh no an error")));
+    receiver.expect_next_packet().returning(|| {
+        Err(ScanError {
+            error: Box::from("oh no an error"),
+            ip: None,
+            port: None,
+        })
+    });
 
     sender.expect_send().returning(|_| Ok(()));
 
@@ -385,9 +389,13 @@ fn reports_error_on_packet_send_errors() {
     let mut sender = MockPacketSender::new();
 
     receiver.expect_next_packet().returning(|| Ok(&[1]));
-    sender
-        .expect_send()
-        .returning(|_| Err(Box::from("oh no a send error")));
+    sender.expect_send().returning(|_| {
+        Err(ScanError {
+            error: Box::from("oh no a send error"),
+            ip: None,
+            port: None,
+        })
+    });
 
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
@@ -426,9 +434,13 @@ fn reports_errors_from_read_handle() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
-    receiver
-        .expect_next_packet()
-        .returning(|| Err(Box::from("oh no a read error")));
+    receiver.expect_next_packet().returning(|| {
+        Err(ScanError {
+            error: Box::from("oh no a read error"),
+            ip: None,
+            port: None,
+        })
+    });
 
     sender.expect_send().returning(|_| Ok(()));
 

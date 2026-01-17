@@ -10,11 +10,12 @@ use std::{
 use crate::{
     network::NetworkInterface,
     packet::{Reader, Sender},
+    scanners::Result,
     targets::{ips::IPTargets, ports::PortTargets},
 };
 
 use super::{
-    Device, ScanError, ScanMessage, Scanner,
+    Device, ScanMessage, Scanner,
     arp_scanner::{ARPScanner, ARPScannerArgs},
     syn_scanner::{SYNScanner, SYNScannerArgs},
 };
@@ -121,7 +122,7 @@ impl FullScanner<'_> {
 
 // Implements the Scanner trait for FullScanner
 impl Scanner for FullScanner<'_> {
-    fn scan(&self) -> JoinHandle<Result<(), ScanError>> {
+    fn scan(&self) -> JoinHandle<Result<()>> {
         let syn_targets = self.get_syn_targets_from_arp_scan();
         let syn = SYNScanner::new(SYNScannerArgs {
             interface: self.interface,

@@ -3,7 +3,6 @@ use nanoid::nanoid;
 use pnet::util::MacAddr;
 use r_lanlib::packet::{Reader, Sender};
 use r_lanlib::scanners::{Device, Port, SYNScanResult};
-use std::error::Error;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::time::Duration;
@@ -13,14 +12,14 @@ use super::*;
 mock! {
         pub PacketReader {}
         impl Reader for PacketReader {
-            fn next_packet(&mut self) -> Result<&'static [u8], Box<dyn Error>>;
+            fn next_packet(&mut self) -> Result<&'static [u8]>;
         }
 }
 
 mock! {
     pub PacketSender {}
     impl Sender for PacketSender {
-        fn send(&mut self, packet: &[u8]) -> Result<(), Box<dyn Error>>;
+        fn send(&mut self, packet: &[u8]) -> Result<()>;
     }
 }
 

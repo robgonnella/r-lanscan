@@ -12,14 +12,14 @@ use super::*;
 mock! {
     ArpScanner{}
     impl Scanner for ArpScanner {
-        fn scan(&self) -> JoinHandle<Result<(), ScanError>>;
+        fn scan(&self) -> JoinHandle<Result<()>>;
     }
 }
 
 mock! {
     SynScanner{}
     impl Scanner for SynScanner {
-        fn scan(&self) -> JoinHandle<Result<(), ScanError>>;
+        fn scan(&self) -> JoinHandle<Result<()>>;
     }
 }
 
@@ -212,7 +212,7 @@ fn performs_arp_scan() {
     });
 
     arp.expect_scan().returning(|| {
-        let handle: JoinHandle<Result<(), ScanError>> = thread::spawn(|| Ok(()));
+        let handle: JoinHandle<Result<()>> = thread::spawn(|| Ok(()));
         handle
     });
 
@@ -257,7 +257,7 @@ fn performs_syn_scan() {
     });
 
     syn.expect_scan().returning(|| {
-        let handle: JoinHandle<Result<(), ScanError>> = thread::spawn(|| Ok(()));
+        let handle: JoinHandle<Result<()>> = thread::spawn(|| Ok(()));
         handle
     });
 

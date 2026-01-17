@@ -21,21 +21,11 @@
 //! ```
 
 use clap::Parser;
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::{Result as EyreResult, eyre};
 use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
 use log::*;
-use r_lanlib::{
-    network::{self, NetworkInterface},
-    packet::{self, Reader as WireReader, Sender as WireSender},
-    scanners::{
-        DeviceWithPorts, IDLE_TIMEOUT, ScanError, ScanMessage, Scanner,
-        arp_scanner::{ARPScanner, ARPScannerArgs},
-        syn_scanner::{SYNScanner, SYNScannerArgs},
-    },
-    targets::{ips::IPTargets, ports::PortTargets},
-};
 use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
     collections::HashSet,
@@ -45,6 +35,17 @@ use std::{
         mpsc::{self, Receiver, channel},
     },
     thread,
+};
+
+use r_lanlib::{
+    network::{self, NetworkInterface},
+    packet::{self, Reader as WireReader, Sender as WireSender},
+    scanners::{
+        DeviceWithPorts, IDLE_TIMEOUT, Result, ScanError, ScanMessage, Scanner,
+        arp_scanner::{ARPScanner, ARPScannerArgs},
+        syn_scanner::{SYNScanner, SYNScannerArgs},
+    },
+    targets::{ips::IPTargets, ports::PortTargets},
 };
 
 use ui::{
@@ -106,7 +107,7 @@ fn process_arp(
     args: ARPScannerArgs,
     rx: Receiver<ScanMessage>,
     store: Arc<Store>,
-) -> Result<Receiver<ScanMessage>, ScanError> {
+) -> Result<Receiver<ScanMessage>> {
     let scanner = ARPScanner::new(args);
 
     store.dispatch(Action::UpdateMessage(Some(String::from(
@@ -157,7 +158,7 @@ fn process_syn(
     args: SYNScannerArgs,
     rx: Receiver<ScanMessage>,
     store: Arc<Store>,
-) -> Result<Vec<DeviceWithPorts>, ScanError> {
+) -> Result<Vec<DeviceWithPorts>> {
     let state = store.get_state();
     let arp_devices = get_detected_devices(&state);
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
@@ -226,7 +227,7 @@ fn monitor_network(
     config: Arc<Config>,
     interface: Arc<NetworkInterface>,
     store: Arc<Store>,
-) -> Result<(), ScanError> {
+) -> Result<()> {
     info!("starting network monitor");
 
     loop {
@@ -323,7 +324,7 @@ fn is_root() -> bool {
 }
 
 #[doc(hidden)]
-fn main() -> Result<()> {
+fn main() -> EyreResult<()> {
     color_eyre::install()?;
 
     let args = Args::parse();
@@ -338,17 +339,13 @@ fn main() -> Result<()> {
     let (config, store) = init(&args, &interface);
     let (_, exit_rx) = mpsc::channel();
 
-    let wire = packet::wire::default(&interface).map_err(|e| ScanError {
-        ip: None,
-        port: None,
-        error: e,
-    })?;
+    let wire = packet::wire::default(&interface)?;
 
     let store_clone = Arc::clone(&store);
 
     // ignore handle here - we will forcefully exit instead of waiting
     // for scan to finish
-    thread::spawn(move || -> Result<(), ScanError> {
+    thread::spawn(move || -> Result<()> {
         monitor_network(
             exit_rx,
             wire.0,

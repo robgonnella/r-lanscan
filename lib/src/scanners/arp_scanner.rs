@@ -13,7 +13,7 @@ use std::{
 use crate::{
     network::NetworkInterface,
     packet::{self, Reader, Sender, arp_packet},
-    scanners::{Device, ScanError, Scanning},
+    scanners::{Device, Result, ScanError, Scanning},
     targets::ips::IPTargets,
 };
 
@@ -79,7 +79,7 @@ impl<'net> ARPScanner<'net> {
 impl ARPScanner<'_> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self, done: sync::mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
+    fn read_packets(&self, done: sync::mpsc::Receiver<()>) -> JoinHandle<Result<()>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let packet_sender = Arc::clone(&self.packet_sender);
         let include_host_names = self.include_host_names;
@@ -110,7 +110,7 @@ impl ARPScanner<'_> {
             }
         });
 
-        thread::spawn(move || -> Result<(), ScanError> {
+        thread::spawn(move || -> Result<()> {
             let mut reader = packet_reader.lock().map_err(|e| ScanError {
                 ip: None,
                 port: None,
@@ -126,11 +126,7 @@ impl ARPScanner<'_> {
                     break;
                 }
 
-                let pkt = reader.next_packet().map_err(|e| ScanError {
-                    ip: None,
-                    port: None,
-                    error: e,
-                })?;
+                let pkt = reader.next_packet()?;
 
                 let eth = ethernet::EthernetPacket::new(pkt);
 
@@ -196,7 +192,7 @@ impl ARPScanner<'_> {
 
 // Implements the Scanner trait for ARPScanner
 impl Scanner for ARPScanner<'_> {
-    fn scan(&self) -> JoinHandle<Result<(), ScanError>> {
+    fn scan(&self) -> JoinHandle<Result<()>> {
         debug!("performing ARP scan on targets: {:?}", self.targets);
         debug!("include_vendor: {}", self.include_vendor);
         debug!("include_host_names: {}", self.include_host_names);
@@ -212,7 +208,7 @@ impl Scanner for ARPScanner<'_> {
         let read_handle = self.read_packets(done_rx);
 
         // prevent blocking thread so messages can be freely sent to consumer
-        thread::spawn(move || -> Result<(), ScanError> {
+        thread::spawn(move || -> Result<()> {
             let process_target = |target_ipv4: net::Ipv4Addr| {
                 // throttle packet sending to prevent packet loss
                 thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
@@ -242,8 +238,8 @@ impl Scanner for ARPScanner<'_> {
                 // Send to the broadcast address
                 pkt_sender.send(&pkt_buf).map_err(|e| ScanError {
                     ip: Some(target_ipv4.to_string()),
-                    port: None,
-                    error: e,
+                    port: e.port,
+                    error: e.error,
                 })?;
 
                 Ok(())

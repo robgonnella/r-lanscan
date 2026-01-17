@@ -1,18 +1,19 @@
 use mockall::mock;
-use std::error::Error;
+
+use crate::scanners::Result;
 
 use super::{Reader, Sender};
 
 mock! {
         pub PacketReader {}
         impl Reader for PacketReader {
-            fn next_packet(&mut self) -> Result<&'static [u8], Box<dyn Error>>;
+            fn next_packet(&mut self) -> Result<&'static [u8]>;
         }
 }
 
 mock! {
     pub PacketSender {}
     impl Sender for PacketSender {
-        fn send(&mut self, packet: &[u8]) -> Result<(), Box<dyn Error>>;
+        fn send(&mut self, packet: &[u8]) -> Result<()>;
     }
 }
