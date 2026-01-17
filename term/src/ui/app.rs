@@ -24,8 +24,9 @@ use std::{
     },
 };
 
+use crate::events::types::Event;
+
 use super::{
-    events::types::Event,
     store::{Store, action::Action},
     views::{
         main::MainView,

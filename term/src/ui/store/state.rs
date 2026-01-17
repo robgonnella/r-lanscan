@@ -5,7 +5,8 @@ use r_lanlib::scanners::{Device, DeviceWithPorts};
 
 use crate::{
     config::{Config, DeviceConfig},
-    ui::{colors::Colors, events::types::Command},
+    events::types::Command,
+    ui::colors::Colors,
 };
 
 #[cfg(test)]

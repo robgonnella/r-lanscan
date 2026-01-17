@@ -1,15 +1,17 @@
-use crate::ui::{
-    components::{
-        header::Header,
-        input::{Input, InputState},
-        popover::get_popover_area,
-    },
+use crate::{
     events::types::{BrowseArgs, Command, Event},
-    store::{
-        Store,
-        action::Action,
-        derived::get_selected_device_config_from_state,
-        state::{State, ViewID},
+    ui::{
+        components::{
+            header::Header,
+            input::{Input, InputState},
+            popover::get_popover_area,
+        },
+        store::{
+            Store,
+            action::Action,
+            derived::get_selected_device_config_from_state,
+            state::{State, ViewID},
+        },
     },
 };
 use itertools::Itertools;

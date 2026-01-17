@@ -4,7 +4,8 @@ use r_lanlib::scanners::DeviceWithPorts;
 
 use crate::{
     config::{Config, DeviceConfig},
-    ui::{colors::Theme, events::types::Command},
+    events::types::Command,
+    ui::colors::Theme,
 };
 
 use super::state::ViewID;

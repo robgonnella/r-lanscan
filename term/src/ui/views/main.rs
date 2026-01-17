@@ -4,13 +4,15 @@ use std::{
     sync::{Arc, mpsc::Sender},
 };
 
-use crate::ui::{
-    components::{footer::InfoFooter, header::Header, popover::get_popover_area},
+use crate::{
     events::types::Event,
-    store::{
-        Store,
-        action::Action,
-        state::{State, ViewID},
+    ui::{
+        components::{footer::InfoFooter, header::Header, popover::get_popover_area},
+        store::{
+            Store,
+            action::Action,
+            state::{State, ViewID},
+        },
     },
 };
 use ratatui::{

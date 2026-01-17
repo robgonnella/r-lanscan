@@ -219,14 +219,16 @@ fn test_monitor_network() {
     .join()
     .unwrap();
 
-    let handle = monitor_network(
-        exit_rx,
-        Arc::new(Mutex::new(mock_packet_reader)),
-        Arc::new(Mutex::new(mock_packet_sender)),
-        Arc::new(config),
-        Arc::new(interface),
-        store,
-    );
+    let handle = thread::spawn(move || {
+        monitor_network(
+            exit_rx,
+            Arc::new(Mutex::new(mock_packet_reader)),
+            Arc::new(Mutex::new(mock_packet_sender)),
+            Arc::new(config),
+            Arc::new(interface),
+            store,
+        )
+    });
 
     let _ = handle.join().unwrap();
 

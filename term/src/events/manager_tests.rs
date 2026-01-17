@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     config::{ConfigManager, DeviceConfig},
-    ui::events::types::BrowseArgs,
+    events::types::BrowseArgs,
 };
 
 use super::*;

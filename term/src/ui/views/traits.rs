@@ -2,9 +2,9 @@ use std::sync::mpsc::Sender;
 
 use ratatui::{crossterm::event::Event as CrossTermEvent, layout::Rect};
 
-use crate::ui::{
+use crate::{
     events::types::Event,
-    store::state::{State, ViewID},
+    ui::store::state::{State, ViewID},
 };
 
 pub trait EventHandler {

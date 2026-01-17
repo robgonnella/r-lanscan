@@ -5,10 +5,8 @@ use std::{collections::HashSet, fs, os::unix::process::ExitStatusExt, process::O
 
 use crate::{
     config::Config,
-    ui::{
-        events::types::{BrowseArgs, Command},
-        store::state::ViewID,
-    },
+    events::types::{BrowseArgs, Command},
+    ui::store::state::ViewID,
 };
 
 use super::*;

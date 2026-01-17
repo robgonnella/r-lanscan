@@ -7,7 +7,7 @@ use std::{
     process::{ChildStderr, Command as ShellCommand, ExitStatus, Output, Stdio},
 };
 
-use crate::{config::DeviceConfig, ui::events::types::BrowseArgs};
+use crate::{config::DeviceConfig, events::types::BrowseArgs};
 
 #[cfg(target_os = "linux")]
 const fn browser_command() -> &'static str {

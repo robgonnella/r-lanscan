@@ -44,16 +44,18 @@ use std::{
         Arc, Mutex,
         mpsc::{self, Receiver, channel},
     },
-    thread::{self, JoinHandle},
+    thread,
 };
 
 use ui::{
-    app, events,
+    app,
     store::{Store, action::Action, derived::get_detected_devices},
 };
 
 #[doc(hidden)]
 mod config;
+#[doc(hidden)]
+mod events;
 #[doc(hidden)]
 mod ui;
 
@@ -224,66 +226,64 @@ fn monitor_network(
     config: Arc<Config>,
     interface: Arc<NetworkInterface>,
     store: Arc<Store>,
-) -> JoinHandle<Result<(), ScanError>> {
+) -> Result<(), ScanError> {
     info!("starting network monitor");
 
-    thread::spawn(move || -> Result<(), ScanError> {
-        loop {
-            let res = exit.try_recv();
+    loop {
+        let res = exit.try_recv();
 
-            if res.is_ok() {
-                return Ok(());
-            }
-
-            let source_port = network::get_available_port().map_err(|e| ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(e),
-            })?;
-
-            let (tx, rx) = mpsc::channel::<ScanMessage>();
-
-            let rx = process_arp(
-                ARPScannerArgs {
-                    interface: &interface,
-                    packet_reader: Arc::clone(&packet_reader),
-                    packet_sender: Arc::clone(&packet_sender),
-                    targets: IPTargets::new(vec![interface.cidr.clone()]),
-                    include_host_names: true,
-                    include_vendor: true,
-                    idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-                    source_port,
-                    notifier: tx.clone(),
-                },
-                rx,
-                Arc::clone(&store),
-            )?;
-
-            let state = store.get_state();
-            let arp_devices = get_detected_devices(&state);
-
-            let results = process_syn(
-                SYNScannerArgs {
-                    interface: &interface,
-                    packet_reader: Arc::clone(&packet_reader),
-                    packet_sender: Arc::clone(&packet_sender),
-                    targets: arp_devices,
-                    ports: PortTargets::new(config.ports.clone()),
-                    source_port,
-                    idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-                    notifier: tx.clone(),
-                },
-                rx,
-                Arc::clone(&store),
-            )?;
-
-            store.dispatch(Action::UpdateAllDevices(results));
-
-            debug!("network scan completed");
-
-            thread::sleep(time::Duration::from_secs(15));
+        if res.is_ok() {
+            return Ok(());
         }
-    })
+
+        let source_port = network::get_available_port().map_err(|e| ScanError {
+            ip: None,
+            port: None,
+            error: Box::from(e),
+        })?;
+
+        let (tx, rx) = mpsc::channel::<ScanMessage>();
+
+        let rx = process_arp(
+            ARPScannerArgs {
+                interface: &interface,
+                packet_reader: Arc::clone(&packet_reader),
+                packet_sender: Arc::clone(&packet_sender),
+                targets: IPTargets::new(vec![interface.cidr.clone()]),
+                include_host_names: true,
+                include_vendor: true,
+                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
+                source_port,
+                notifier: tx.clone(),
+            },
+            rx,
+            Arc::clone(&store),
+        )?;
+
+        let state = store.get_state();
+        let arp_devices = get_detected_devices(&state);
+
+        let results = process_syn(
+            SYNScannerArgs {
+                interface: &interface,
+                packet_reader: Arc::clone(&packet_reader),
+                packet_sender: Arc::clone(&packet_sender),
+                targets: arp_devices,
+                ports: PortTargets::new(config.ports.clone()),
+                source_port,
+                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
+                notifier: tx.clone(),
+            },
+            rx,
+            Arc::clone(&store),
+        )?;
+
+        store.dispatch(Action::UpdateAllDevices(results));
+
+        debug!("network scan completed");
+
+        thread::sleep(time::Duration::from_secs(15));
+    }
 }
 
 #[doc(hidden)]
@@ -344,14 +344,20 @@ fn main() -> Result<()> {
         error: e,
     })?;
 
-    monitor_network(
-        exit_rx,
-        wire.0,
-        wire.1,
-        Arc::new(config),
-        Arc::new(interface),
-        Arc::clone(&store),
-    );
+    let store_clone = Arc::clone(&store);
+
+    // ignore handle here - we will forcefully exit instead of waiting
+    // for scan to finish
+    thread::spawn(move || -> Result<(), ScanError> {
+        monitor_network(
+            exit_rx,
+            wire.0,
+            wire.1,
+            Arc::new(config),
+            Arc::new(interface),
+            store_clone,
+        )
+    });
 
     if args.debug {
         let mut signals = Signals::new([SIGINT]).unwrap();
@@ -364,7 +370,7 @@ fn main() -> Result<()> {
     // and capture ctrl-c here to prevent exiting app and just let ctrl-c
     // be handled by the command being executed, which should return us
     // to our app where we can restart our ui and key-handlers
-    ctrlc::set_handler(move || println!("captured ctrl-c!")).expect("Error setting Ctrl-C handler");
+    ctrlc::set_handler(move || println!("captured ctrl-c!"))?;
 
     let event_manager_channel = channel();
     let app_channel = channel();
@@ -377,10 +383,11 @@ fn main() -> Result<()> {
 
     let application = app::create_app(event_manager_channel.0, app_channel.1, store)?;
 
-    let handle = thread::spawn(move || event_manager.start_event_loop());
+    let event_handle = thread::spawn(move || event_manager.start_event_loop());
 
     application.launch()?;
-    handle.join().unwrap()
+    event_handle.join().unwrap()?;
+    Ok(())
 }
 
 #[cfg(test)]
