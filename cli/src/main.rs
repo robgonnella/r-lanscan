@@ -12,7 +12,7 @@
 //! sudo r-lancli
 //! ```
 use clap::Parser;
-use color_eyre::eyre::{Report, Result, eyre};
+use color_eyre::eyre::{Result as EyreResult, eyre};
 use core::time;
 use itertools::Itertools;
 use log::*;
@@ -20,7 +20,7 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        Device, DeviceWithPorts, IDLE_TIMEOUT, ScanError, ScanMessage, Scanner,
+        Device, DeviceWithPorts, IDLE_TIMEOUT, Result, ScanError, ScanMessage, Scanner,
         arp_scanner::{ARPScanner, ARPScannerArgs},
         syn_scanner::{SYNScanner, SYNScannerArgs},
     },
@@ -126,7 +126,7 @@ fn print_args(args: &Args, interface: &NetworkInterface) {
 fn process_arp(
     scanner: &dyn Scanner,
     rx: Receiver<ScanMessage>,
-) -> Result<(Vec<Device>, Receiver<ScanMessage>), ScanError> {
+) -> Result<(Vec<Device>, Receiver<ScanMessage>)> {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
     info!("starting arp scan...");
@@ -196,7 +196,7 @@ fn process_syn(
     scanner: &dyn Scanner,
     devices: Vec<Device>,
     rx: Receiver<ScanMessage>,
-) -> Result<Vec<DeviceWithPorts>, ScanError> {
+) -> Result<Vec<DeviceWithPorts>> {
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
     for d in devices.iter() {
@@ -299,7 +299,7 @@ fn is_root() -> bool {
 }
 
 #[doc(hidden)]
-fn main() -> Result<(), Report> {
+fn main() -> EyreResult<()> {
     color_eyre::install()?;
 
     let mut args = Args::parse();
@@ -322,11 +322,7 @@ fn main() -> Result<(), Report> {
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let wire = packet::wire::default(&interface).map_err(|e| ScanError {
-        ip: None,
-        port: None,
-        error: e,
-    })?;
+    let wire = packet::wire::default(&interface)?;
 
     let arp = ARPScanner::new(ARPScannerArgs {
         interface: &interface,

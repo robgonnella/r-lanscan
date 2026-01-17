@@ -17,7 +17,7 @@ use std::{
 use crate::{
     network::NetworkInterface,
     packet::{self, Reader, Sender, rst_packet, syn_packet},
-    scanners::{ScanError, Scanning, heartbeat::HeartBeat},
+    scanners::{Result, ScanError, Scanning, heartbeat::HeartBeat},
     targets::ports::PortTargets,
 };
 
@@ -79,7 +79,7 @@ impl<'net> SYNScanner<'net> {
 impl SYNScanner<'_> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<(), ScanError>> {
+    fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<()>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let heartbeat_packet_sender = Arc::clone(&self.packet_sender);
         let rst_packet_sender = Arc::clone(&self.packet_sender);
@@ -115,7 +115,7 @@ impl SYNScanner<'_> {
             }
         });
 
-        thread::spawn(move || -> Result<(), ScanError> {
+        thread::spawn(move || -> Result<()> {
             let mut reader = packet_reader.lock().map_err(|e| ScanError {
                 ip: None,
                 port: None,
@@ -135,7 +135,7 @@ impl SYNScanner<'_> {
                 let pkt = reader.next_packet().map_err(|e| ScanError {
                     ip: None,
                     port: None,
-                    error: e,
+                    error: e.error,
                 })?;
 
                 let eth = ethernet::EthernetPacket::new(pkt);
@@ -220,7 +220,7 @@ impl SYNScanner<'_> {
                 rst_sender.send(&rst_packet).map_err(|e| ScanError {
                     ip: Some(device.ip.clone()),
                     port: Some(port.to_string()),
-                    error: e,
+                    error: e.error,
                 })?;
 
                 notifier
@@ -245,7 +245,7 @@ impl SYNScanner<'_> {
 
 // Implements the Scanner trait for SYNScanner
 impl Scanner for SYNScanner<'_> {
-    fn scan(&self) -> JoinHandle<Result<(), ScanError>> {
+    fn scan(&self) -> JoinHandle<Result<()>> {
         debug!("performing SYN scan on targets: {:?}", self.targets);
 
         debug!("starting syn packet reader");
@@ -264,11 +264,11 @@ impl Scanner for SYNScanner<'_> {
         let read_handle = self.read_packets(done_rx);
 
         // prevent blocking thread so messages can be freely sent to consumer
-        thread::spawn(move || -> Result<(), ScanError> {
+        thread::spawn(move || -> Result<()> {
             let mut scan_error: Option<ScanError> = None;
 
-            let process_port = |port: u16| -> Result<(), ScanError> {
-                let mut res: Result<(), ScanError> = Ok(());
+            let process_port = |port: u16| -> Result<()> {
+                let mut res: Result<()> = Ok(());
 
                 for device in targets.iter() {
                     // throttle packet sending to prevent packet loss
@@ -339,7 +339,7 @@ impl Scanner for SYNScanner<'_> {
                     let sent = sender.unwrap().send(&pkt_buf).map_err(|e| ScanError {
                         ip: Some(device.ip.clone()),
                         port: Some(port.to_string()),
-                        error: e,
+                        error: e.error,
                     });
 
                     if sent.is_err() {

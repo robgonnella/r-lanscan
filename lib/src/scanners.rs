@@ -109,6 +109,10 @@ impl Error for ScanError {}
 unsafe impl Send for ScanError {}
 unsafe impl Sync for ScanError {}
 
+/// Custom Result type for this library. All Errors exposed by this library
+/// will be returned as [`ScanError`]
+pub type Result<T> = std::result::Result<T, ScanError>;
+
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// Data structure representing the result of SYN scan on a device for a port
 pub struct SYNScanResult {
@@ -136,7 +140,7 @@ pub enum ScanMessage {
 /// Trait used by all scanners
 pub trait Scanner: Sync + Send {
     /// Performs network scanning
-    fn scan(&self) -> JoinHandle<Result<(), ScanError>>;
+    fn scan(&self) -> JoinHandle<Result<()>>;
 }
 
 pub mod arp_scanner;

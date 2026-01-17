@@ -9,6 +9,7 @@ use std::{
 use crate::{
     network::NetworkInterface,
     packet::{Reader, Sender},
+    scanners::{Result, ScanError},
 };
 
 /// Represents a packet Reader and packet Sender tuple
@@ -21,8 +22,12 @@ pub struct PNetReader {
 
 // Implements the Reader trait for our PNet implementation
 impl Reader for PNetReader {
-    fn next_packet(&mut self) -> Result<&[u8], Box<dyn Error>> {
-        self.receiver.next().map_err(Box::from)
+    fn next_packet(&mut self) -> Result<&[u8]> {
+        self.receiver.next().map_err(|e| ScanError {
+            error: Box::from(e),
+            ip: None,
+            port: None,
+        })
     }
 }
 
@@ -35,11 +40,19 @@ pub struct PNetSender {
 
 // Implements the Sender trait for our PNet implementation
 impl Sender for PNetSender {
-    fn send(&mut self, packet: &[u8]) -> Result<(), Box<dyn Error>> {
+    fn send(&mut self, packet: &[u8]) -> Result<()> {
         let opt = self.sender.send_to(packet, None);
         match opt {
-            Some(res) => Ok(res?),
-            None => Err(Box::from("failed to send packet")),
+            Some(res) => Ok(res.map_err(|e| ScanError {
+                error: Box::from(e),
+                ip: None,
+                port: None,
+            })?),
+            None => Err(ScanError {
+                error: Box::from("failed to send packet"),
+                ip: None,
+                port: None,
+            }),
         }
     }
 }
@@ -56,16 +69,24 @@ unsafe impl Sync for PNetSender {}
 /// let interface = network::get_default_interface().unwrap();
 /// let packet_wire = wire::default(&interface).unwrap();
 /// ```
-pub fn default(interface: &NetworkInterface) -> Result<Wire, Box<dyn Error>> {
+pub fn default(interface: &NetworkInterface) -> Result<Wire> {
     let cfg = pnet::datalink::Config::default();
 
     let channel = match pnet::datalink::channel(&interface.into(), cfg) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
         Ok(_) => {
             let e: Box<dyn Error> = Box::from("failed to create packet reader");
-            Err(e)
+            Err(ScanError {
+                error: e,
+                ip: None,
+                port: None,
+            })
         }
-        Err(e) => Err(Box::from(e.to_string())),
+        Err(e) => Err(ScanError {
+            error: Box::from(e),
+            ip: None,
+            port: None,
+        }),
     }?;
 
     Ok((
