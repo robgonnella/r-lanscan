@@ -29,6 +29,7 @@
 //! ```
 
 #![deny(missing_docs)]
+pub mod error;
 pub mod network;
 pub mod packet;
 pub mod scanners;

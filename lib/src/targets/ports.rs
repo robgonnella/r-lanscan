@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::scanners::ScanError;
+use crate::error::{RLanLibError, Result};
 
 #[derive(Debug)]
 /// Represents a list of Port targets
@@ -19,9 +19,9 @@ use crate::scanners::ScanError;
 /// # Examples
 ///
 /// ```
-/// # use r_lanlib::scanners::ScanError;
+/// # use r_lanlib::error::Result;
 /// # use r_lanlib::targets::ports::PortTargets;
-/// let print_port = |port: u16| -> Result<(), ScanError> {
+/// let print_port = |port: u16| -> Result<()> {
 ///   println!("port: {}", port);
 ///   Ok(())
 /// };
@@ -30,32 +30,25 @@ use crate::scanners::ScanError;
 /// ```
 pub struct PortTargets(Vec<String>, usize);
 
-fn loop_ports<F: FnMut(u16) -> Result<(), ScanError>>(
-    list: &[String],
-    mut cb: F,
-) -> Result<(), ScanError> {
+fn loop_ports<F: FnMut(u16) -> Result<()>>(list: &[String], mut cb: F) -> Result<()> {
     for target in list.iter() {
         if target.contains("-") {
             let parts: Vec<&str> = target.split("-").collect();
-            let begin = parts[0].parse::<u16>().map_err(|e| ScanError {
-                ip: None,
-                port: Some(target.to_string()),
-                error: Box::from(e),
-            })?;
-            let end = parts[1].parse::<u16>().map_err(|e| ScanError {
-                ip: None,
-                port: Some(target.to_string()),
-                error: Box::from(e),
-            })?;
+            let begin = parts[0]
+                .parse::<u16>()
+                .map_err(|e| RLanLibError::from_port_parse_int_err(&target.to_string(), e))?;
+            let end = parts[1]
+                .parse::<u16>()
+                .map_err(|e| RLanLibError::from_port_parse_int_err(&target.to_string(), e))?;
+
             for port in begin..=end {
                 cb(port)?;
             }
         } else {
-            let port = target.parse::<u16>().map_err(|e| ScanError {
-                ip: None,
-                port: Some(target.to_string()),
-                error: Box::from(e),
-            })?;
+            let port = target
+                .parse::<u16>()
+                .map_err(|e| RLanLibError::from_port_parse_int_err(&target.to_string(), e))?;
+
             cb(port)?;
         }
     }
@@ -89,10 +82,7 @@ impl PortTargets {
 
     /// loops over all targets including those that are not explicitly in the
     /// list but fall within a range defined in the list
-    pub fn lazy_loop<F: FnMut(u16) -> Result<(), ScanError>>(
-        &self,
-        cb: F,
-    ) -> Result<(), ScanError> {
+    pub fn lazy_loop<F: FnMut(u16) -> Result<()>>(&self, cb: F) -> Result<()> {
         loop_ports(&self.0, cb)
     }
 }

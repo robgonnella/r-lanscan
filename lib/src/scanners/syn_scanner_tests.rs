@@ -454,13 +454,9 @@ fn reports_error_on_rst_packet_send_errors() {
         .expect_next_packet()
         .return_once(|| Ok(unsafe { &PACKET }));
 
-    sender.expect_send().returning(|_| {
-        Err(ScanError {
-            error: Box::from("oh no packet send error"),
-            ip: None,
-            port: None,
-        })
-    });
+    sender
+        .expect_send()
+        .returning(|_| Err(RLanLibError::Wire("oh no packet send error".into())));
 
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
@@ -516,13 +512,9 @@ fn reports_error_on_packet_read_error() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
-    receiver.expect_next_packet().returning(|| {
-        Err(ScanError {
-            error: Box::from("oh no an error"),
-            ip: None,
-            port: None,
-        })
-    });
+    receiver
+        .expect_next_packet()
+        .returning(|| Err(RLanLibError::Wire("oh no an error".into())));
 
     sender.expect_send().returning(|_| Ok(()));
 
@@ -679,13 +671,9 @@ fn reports_error_on_packet_send_errors() {
     let mut sender = MockPacketSender::new();
 
     receiver.expect_next_packet().returning(|| Ok(&[1]));
-    sender.expect_send().returning(|_| {
-        Err(ScanError {
-            error: Box::from("oh no a send error"),
-            ip: None,
-            port: None,
-        })
-    });
+    sender
+        .expect_send()
+        .returning(|_| Err(RLanLibError::Wire("oh no a send error".into())));
 
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
@@ -736,13 +724,9 @@ fn reports_errors_from_read_handle() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
-    receiver.expect_next_packet().returning(|| {
-        Err(ScanError {
-            error: Box::from("oh no a read error"),
-            ip: None,
-            port: None,
-        })
-    });
+    receiver
+        .expect_next_packet()
+        .returning(|| Err(RLanLibError::Wire("oh no a read error".into())));
 
     sender.expect_send().returning(|_| Ok(()));
 

@@ -12,7 +12,7 @@
 //! sudo r-lancli
 //! ```
 use clap::Parser;
-use color_eyre::eyre::{Result as EyreResult, eyre};
+use color_eyre::eyre::{Result, eyre};
 use core::time;
 use itertools::Itertools;
 use log::*;
@@ -20,7 +20,7 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        Device, DeviceWithPorts, IDLE_TIMEOUT, Result, ScanError, ScanMessage, Scanner,
+        Device, DeviceWithPorts, IDLE_TIMEOUT, ScanMessage, Scanner,
         arp_scanner::{ARPScanner, ARPScannerArgs},
         syn_scanner::{SYNScanner, SYNScannerArgs},
     },
@@ -134,11 +134,7 @@ fn process_arp(
     let handle = scanner.scan();
 
     loop {
-        let msg = rx.recv().map_err(|e| ScanError {
-            ip: None,
-            port: None,
-            error: Box::new(e),
-        })?;
+        let msg = rx.recv()?;
 
         match msg {
             ScanMessage::Done => {
@@ -215,11 +211,7 @@ fn process_syn(
     let handle = scanner.scan();
 
     loop {
-        let msg = rx.recv().map_err(|e| ScanError {
-            ip: None,
-            port: None,
-            error: Box::new(e),
-        })?;
+        let msg = rx.recv()?;
 
         match msg {
             ScanMessage::Done => {
@@ -299,7 +291,7 @@ fn is_root() -> bool {
 }
 
 #[doc(hidden)]
-fn main() -> EyreResult<()> {
+fn main() -> Result<()> {
     color_eyre::install()?;
 
     let mut args = Args::parse();

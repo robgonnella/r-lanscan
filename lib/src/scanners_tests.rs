@@ -2,18 +2,7 @@ use std::collections::HashSet;
 
 use crate::scanners::Device;
 
-use super::{DeviceWithPorts, ScanError};
-
-#[test]
-fn test_scan_error_display() {
-    let err = ScanError {
-        ip: None,
-        port: None,
-        error: Box::new(std::io::Error::other("mock error")),
-    };
-
-    println!("{}", err);
-}
+use super::DeviceWithPorts;
 
 #[test]
 fn test_device_from_device_with_ports() {

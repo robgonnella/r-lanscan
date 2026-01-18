@@ -11,9 +11,9 @@ use mockall::{automock, predicate::*};
 use serde;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::error::Error;
-use std::fmt;
 use std::thread::JoinHandle;
+
+use crate::error::Result;
 
 /// The default idle timeout for a scanner
 pub const IDLE_TIMEOUT: u16 = 10000;
@@ -81,37 +81,6 @@ pub struct Scanning {
     /// Port being scanned
     pub port: Option<String>,
 }
-
-#[derive(Debug)]
-/// Data structure representing a message that an error occurred while scanning
-pub struct ScanError {
-    /// The IPv4 of device being scanned if known
-    pub ip: Option<String>,
-    /// The port being scanned if known
-    pub port: Option<String>,
-    /// The error encountered
-    pub error: Box<dyn Error>,
-}
-
-impl fmt::Display for ScanError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let ip = self.ip.clone().unwrap_or(String::from(""));
-        let port = self.port.clone().unwrap_or(String::from(""));
-        let msg = format!(
-            "scanning error: ip {ip}, port: {port}, msg: {0}",
-            self.error
-        );
-        write!(f, "{msg}")
-    }
-}
-
-impl Error for ScanError {}
-unsafe impl Send for ScanError {}
-unsafe impl Sync for ScanError {}
-
-/// Custom Result type for this library. All Errors exposed by this library
-/// will be returned as [`ScanError`]
-pub type Result<T> = std::result::Result<T, ScanError>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 /// Data structure representing the result of SYN scan on a device for a port
