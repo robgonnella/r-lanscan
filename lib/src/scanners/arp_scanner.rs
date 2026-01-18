@@ -8,6 +8,7 @@ use std::{
     thread::{self, JoinHandle},
     time::Duration,
 };
+use threadpool::ThreadPool;
 
 use crate::{
     error::{RLanLibError, Result},
@@ -86,7 +87,7 @@ impl ARPScanner<'_> {
         let include_vendor = self.include_vendor;
         let source_ipv4 = self.interface.ipv4;
         let source_mac = self.interface.mac;
-        let source_port = self.source_port.to_owned();
+        let source_port = self.source_port;
         let notifier = self.notifier.clone();
         let (heartbeat_tx, heartbeat_rx) = sync::mpsc::channel::<()>();
 
@@ -112,6 +113,9 @@ impl ARPScanner<'_> {
 
         thread::spawn(move || -> Result<()> {
             let mut reader = packet_reader.lock()?;
+            // Use a bounded thread pool for DNS/vendor lookups to prevent
+            // spawning thousands of threads on large networks
+            let lookup_pool = ThreadPool::new(8);
 
             loop {
                 if done.try_recv().is_ok() {
@@ -124,29 +128,17 @@ impl ARPScanner<'_> {
 
                 let pkt = reader.next_packet()?;
 
-                let eth = ethernet::EthernetPacket::new(pkt);
-
-                if eth.is_none() {
+                let Some(eth) = ethernet::EthernetPacket::new(pkt) else {
                     continue;
-                }
+                };
 
-                let eth = eth.unwrap();
-
-                let header = arp::ArpPacket::new(eth.payload());
-
-                if header.is_none() {
+                let Some(header) = arp::ArpPacket::new(eth.payload()) else {
                     continue;
-                }
+                };
 
-                let header = header.unwrap();
-
-                let op = header.get_operation();
-
-                // Capture ANY ARP reply as it's an indiction that there's a
+                // Capture ANY ARP reply as it's an indication that there's a
                 // device on the network
-                let is_expected_arp_packet = op == arp::ArpOperations::Reply;
-
-                if !is_expected_arp_packet {
+                if header.get_operation() != arp::ArpOperations::Reply {
                     continue;
                 }
 
@@ -155,21 +147,23 @@ impl ARPScanner<'_> {
 
                 let notification_sender = notifier.clone();
 
-                // use a separate thread here so we don't slow down packet
-                // processing
-                thread::spawn(move || {
-                    let mut hostname: String = String::from("");
-                    if include_host_names {
+                // use a thread pool here so we don't slow down packet
+                // processing while limiting concurrent threads
+                lookup_pool.execute(move || {
+                    let hostname = if include_host_names {
                         debug!("looking up hostname for {}", ip4);
-                        if let Ok(host) = dns_lookup::lookup_addr(&ip4.into()) {
-                            hostname = host;
-                        }
-                    }
+                        dns_lookup::lookup_addr(&ip4.into()).unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
 
-                    let mut vendor = String::from("");
-                    if include_vendor && let Some(vendor_data) = oui_data::lookup(&mac) {
-                        vendor = vendor_data.organization().to_owned();
-                    }
+                    let vendor = if include_vendor {
+                        oui_data::lookup(&mac)
+                            .map(|v| v.organization().to_owned())
+                            .unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
 
                     let _ = notification_sender.send(ScanMessage::ARPScanResult(Device {
                         hostname,

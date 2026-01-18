@@ -6,6 +6,7 @@ use pnet::{
     util,
 };
 use std::{
+    collections::HashMap,
     net,
     str::FromStr,
     sync::{self, Arc, Mutex, mpsc},
@@ -83,11 +84,16 @@ impl SYNScanner<'_> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let heartbeat_packet_sender = Arc::clone(&self.packet_sender);
         let rst_packet_sender = Arc::clone(&self.packet_sender);
-        let devices = self.targets.to_owned();
+        // Build a HashMap for O(1) device lookups instead of O(n) linear search
+        let device_map: HashMap<String, Device> = self
+            .targets
+            .iter()
+            .map(|d| (d.ip.clone(), d.clone()))
+            .collect();
         let notifier = self.notifier.clone();
         let source_ipv4 = self.interface.ipv4;
         let source_mac = self.interface.mac;
-        let source_port = self.source_port.to_owned();
+        let source_port = self.source_port;
         let (heartbeat_tx, heartbeat_rx) = sync::mpsc::channel::<()>();
 
         // since reading packets off the wire is a blocking operation, we
@@ -130,22 +136,15 @@ impl SYNScanner<'_> {
 
                 let pkt = reader.next_packet()?;
 
-                let eth = ethernet::EthernetPacket::new(pkt);
-
-                if eth.is_none() {
+                let Some(eth) = ethernet::EthernetPacket::new(pkt) else {
                     continue;
-                }
+                };
 
-                let eth = eth.unwrap();
-                let header = ipv4::Ipv4Packet::new(eth.payload());
-
-                if header.is_none() {
+                let Some(header) = ipv4::Ipv4Packet::new(eth.payload()) else {
                     continue;
-                }
+                };
 
-                let header = header.unwrap();
-
-                let device_ip = net::IpAddr::V4(header.get_source());
+                let device_ip = header.get_source();
                 let protocol = header.get_next_level_protocol();
                 let payload = header.payload();
 
@@ -153,50 +152,49 @@ impl SYNScanner<'_> {
                     continue;
                 }
 
-                let tcp_packet = tcp::TcpPacket::new(payload);
-
-                if tcp_packet.is_none() {
+                let Some(tcp_packet) = tcp::TcpPacket::new(payload) else {
                     continue;
-                }
-
-                let tcp_packet = tcp_packet.unwrap();
+                };
 
                 let destination_port = tcp_packet.get_destination();
                 let matches_destination = destination_port == source_port;
                 let flags: u8 = tcp_packet.get_flags();
                 let sequence = tcp_packet.get_sequence();
                 let is_syn_ack = flags == tcp::TcpFlags::SYN + tcp::TcpFlags::ACK;
-                let is_expected_packet = matches_destination && is_syn_ack;
 
-                if !is_expected_packet {
+                if !matches_destination || !is_syn_ack {
                     continue;
                 }
 
-                let device = devices.iter().find(|&d| d.ip == device_ip.to_string());
-
-                if device.is_none() {
+                let Some(device) = device_map.get(&device_ip.to_string()) else {
                     continue;
-                }
+                };
 
-                let device = device.unwrap();
-
-                let port = u16::from_str(&tcp_packet.get_source().to_string());
-
-                if port.is_err() {
-                    continue;
-                }
-
-                let port = port.unwrap();
+                let port = tcp_packet.get_source();
 
                 // send rst packet to prevent SYN Flooding
                 // https://en.wikipedia.org/wiki/SYN_flood
                 // https://security.stackexchange.com/questions/128196/whats-the-advantage-of-sending-an-rst-packet-after-getting-a-response-in-a-syn
+                let dest_ipv4 =
+                    net::Ipv4Addr::from_str(&device.ip).map_err(|e| RLanLibError::Scan {
+                        ip: Some(device.ip.clone()),
+                        port: Some(port.to_string()),
+                        error: e.to_string(),
+                    })?;
+
+                let dest_mac =
+                    util::MacAddr::from_str(&device.mac).map_err(|e| RLanLibError::Scan {
+                        ip: Some(device.ip.clone()),
+                        port: Some(port.to_string()),
+                        error: e.to_string(),
+                    })?;
+
                 let rst_packet = rst_packet::build(
                     source_mac,
                     source_ipv4,
                     source_port,
-                    net::Ipv4Addr::from_str(device.ip.as_str()).unwrap(),
-                    util::MacAddr::from_str(device.mac.as_str()).unwrap(),
+                    dest_ipv4,
+                    dest_mac,
                     port,
                     sequence + 1,
                 );
@@ -209,10 +207,10 @@ impl SYNScanner<'_> {
 
                 notifier
                     .send(ScanMessage::SYNScanResult(SYNScanResult {
-                        device: device.to_owned(),
+                        device: device.clone(),
                         open_port: Port {
                             id: port,
-                            service: String::from(""),
+                            service: String::new(),
                         },
                     }))
                     .map_err(RLanLibError::from_channel_send_error)?;
@@ -238,8 +236,8 @@ impl Scanner for SYNScanner<'_> {
         let source_ipv4 = interface.ipv4;
         let source_mac = self.interface.mac;
         let ports = Arc::clone(&self.ports);
-        let idle_timeout = self.idle_timeout.to_owned();
-        let source_port = self.source_port.to_owned();
+        let idle_timeout = self.idle_timeout;
+        let source_port = self.source_port;
 
         let read_handle = self.read_packets(done_rx);
 
