@@ -36,6 +36,7 @@ pnet = "^0.35"
 oui-data = "^0.2"
 dns-lookup = "^2.0"
 openssl = { version = "0.10.75", features = ["vendored"] }
+thiserror = "2.0.17"
 
 [dev-dependencies]
 mockall = "^0.13.1"

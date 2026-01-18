@@ -10,7 +10,7 @@ pub mod wire;
 
 pub use heartbeat_packet::build as build_heartbeat_packet;
 
-use crate::scanners::Result;
+use crate::error::Result;
 
 /// Default timing for throttling packet sends to prevent packet loss
 pub const DEFAULT_PACKET_SEND_TIMING: time::Duration = time::Duration::from_micros(50);

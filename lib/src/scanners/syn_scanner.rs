@@ -6,7 +6,6 @@ use pnet::{
     util,
 };
 use std::{
-    io::Error as IOError,
     net,
     str::FromStr,
     sync::{self, Arc, Mutex, mpsc},
@@ -15,9 +14,10 @@ use std::{
 };
 
 use crate::{
+    error::{RLanLibError, Result},
     network::NetworkInterface,
     packet::{self, Reader, Sender, rst_packet, syn_packet},
-    scanners::{Result, ScanError, Scanning, heartbeat::HeartBeat},
+    scanners::{Scanning, heartbeat::HeartBeat},
     targets::ports::PortTargets,
 };
 
@@ -116,11 +116,7 @@ impl SYNScanner<'_> {
         });
 
         thread::spawn(move || -> Result<()> {
-            let mut reader = packet_reader.lock().map_err(|e| ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(e.to_string()),
-            })?;
+            let mut reader = packet_reader.lock()?;
 
             loop {
                 if done_rx.try_recv().is_ok() {
@@ -132,11 +128,7 @@ impl SYNScanner<'_> {
                     break;
                 }
 
-                let pkt = reader.next_packet().map_err(|e| ScanError {
-                    ip: None,
-                    port: None,
-                    error: e.error,
-                })?;
+                let pkt = reader.next_packet()?;
 
                 let eth = ethernet::EthernetPacket::new(pkt);
 
@@ -209,19 +201,11 @@ impl SYNScanner<'_> {
                     sequence + 1,
                 );
 
-                let mut rst_sender = rst_packet_sender.lock().map_err(|e| ScanError {
-                    ip: None,
-                    port: None,
-                    error: Box::from(IOError::other(e.to_string())),
-                })?;
+                let mut rst_sender = rst_packet_sender.lock()?;
 
                 debug!("sending RST packet to {}:{}", device.ip, port);
 
-                rst_sender.send(&rst_packet).map_err(|e| ScanError {
-                    ip: Some(device.ip.clone()),
-                    port: Some(port.to_string()),
-                    error: e.error,
-                })?;
+                rst_sender.send(&rst_packet)?;
 
                 notifier
                     .send(ScanMessage::SYNScanResult(SYNScanResult {
@@ -231,11 +215,7 @@ impl SYNScanner<'_> {
                             service: String::from(""),
                         },
                     }))
-                    .map_err(|e| ScanError {
-                        ip: Some(device.ip.clone()),
-                        port: Some(port.to_string()),
-                        error: Box::from(e),
-                    })?;
+                    .map_err(RLanLibError::from_channel_send_error)?;
             }
 
             Ok(())
@@ -265,90 +245,57 @@ impl Scanner for SYNScanner<'_> {
 
         // prevent blocking thread so messages can be freely sent to consumer
         thread::spawn(move || -> Result<()> {
-            let mut scan_error: Option<ScanError> = None;
+            let mut scan_error: Option<RLanLibError> = None;
 
             let process_port = |port: u16| -> Result<()> {
-                let mut res: Result<()> = Ok(());
-
                 for device in targets.iter() {
                     // throttle packet sending to prevent packet loss
                     thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
 
                     debug!("scanning SYN target: {}:{}", device.ip, port);
 
-                    let dest_ipv4 = net::Ipv4Addr::from_str(&device.ip).map_err(|e| ScanError {
-                        ip: Some(device.ip.clone()),
-                        port: Some(port.to_string()),
-                        error: Box::from(e),
-                    });
+                    let dest_ipv4 =
+                        net::Ipv4Addr::from_str(&device.ip).map_err(|e| RLanLibError::Scan {
+                            ip: Some(device.ip.clone()),
+                            port: Some(port.to_string()),
+                            error: e.to_string(),
+                        })?;
 
-                    if let Err(scan_error) = dest_ipv4 {
-                        res = Err(scan_error);
-                        break;
-                    }
-
-                    let dest_mac = util::MacAddr::from_str(&device.mac).map_err(|e| ScanError {
-                        ip: Some(device.ip.clone()),
-                        port: Some(port.to_string()),
-                        error: Box::from(e),
-                    });
-
-                    if let Err(scan_error) = dest_mac {
-                        res = Err(scan_error);
-                        break;
-                    }
+                    let dest_mac =
+                        util::MacAddr::from_str(&device.mac).map_err(|e| RLanLibError::Scan {
+                            ip: Some(device.ip.clone()),
+                            port: Some(port.to_string()),
+                            error: e.to_string(),
+                        })?;
 
                     let pkt_buf = syn_packet::build(
                         source_mac,
                         source_ipv4,
                         source_port,
-                        dest_ipv4.unwrap(),
-                        dest_mac.unwrap(),
+                        dest_ipv4,
+                        dest_mac,
                         port,
                     );
 
                     // send info message to consumer
-                    let maybe_err = notifier
+                    notifier
                         .send(ScanMessage::Info(Scanning {
                             ip: device.ip.clone(),
                             port: Some(port.to_string()),
                         }))
-                        .map_err(|e| ScanError {
-                            ip: Some(device.ip.clone()),
-                            port: Some(port.to_string()),
-                            error: Box::from(e),
-                        });
+                        .map_err(RLanLibError::from_channel_send_error)?;
 
-                    if maybe_err.is_err() {
-                        res = maybe_err;
-                        break;
-                    }
-
-                    let sender = packet_sender.lock();
-
-                    if sender.is_err() {
-                        res = Err(ScanError {
-                            ip: None,
-                            port: None,
-                            error: Box::from("failed to unlock sender"),
-                        });
-                        break;
-                    }
+                    let mut sender = packet_sender.lock()?;
 
                     // scan device @ port
-                    let sent = sender.unwrap().send(&pkt_buf).map_err(|e| ScanError {
+                    sender.send(&pkt_buf).map_err(|e| RLanLibError::Scan {
                         ip: Some(device.ip.clone()),
                         port: Some(port.to_string()),
-                        error: e.error,
-                    });
-
-                    if sent.is_err() {
-                        res = sent;
-                        break;
-                    }
+                        error: e.to_string(),
+                    })?;
                 }
 
-                res
+                Ok(())
             };
 
             if let Err(err) = ports.lazy_loop(process_port) {
@@ -357,23 +304,15 @@ impl Scanner for SYNScanner<'_> {
 
             thread::sleep(idle_timeout);
 
-            notifier.send(ScanMessage::Done).map_err(|e| ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(e),
-            })?;
+            notifier
+                .send(ScanMessage::Done)
+                .map_err(RLanLibError::from_channel_send_error)?;
 
             // ignore errors here as the thread may already be dead due to error
             // we'll catch any errors from that thread below and report
             let _ = done_tx.send(());
 
-            let read_result = read_handle.join().map_err(|_| ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(IOError::other(
-                    "encountered error during syn packet reading",
-                )),
-            })?;
+            let read_result = read_handle.join()?;
 
             if let Some(err) = scan_error {
                 return Err(err);

@@ -8,9 +8,9 @@ use std::{
 };
 
 use crate::{
+    error::Result,
     network::NetworkInterface,
     packet::{Reader, Sender},
-    scanners::Result,
     targets::{ips::IPTargets, ports::PortTargets},
 };
 

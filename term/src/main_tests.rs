@@ -12,14 +12,14 @@ use super::*;
 mock! {
         pub PacketReader {}
         impl Reader for PacketReader {
-            fn next_packet(&mut self) -> Result<&'static [u8]>;
+            fn next_packet(&mut self) -> r_lanlib::error::Result<&'static [u8]>;
         }
 }
 
 mock! {
     pub PacketSender {}
     impl Sender for PacketSender {
-        fn send(&mut self, packet: &[u8]) -> Result<()>;
+        fn send(&mut self, packet: &[u8]) -> r_lanlib::error::Result<()>;
     }
 }
 

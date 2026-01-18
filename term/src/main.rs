@@ -21,7 +21,7 @@
 //! ```
 
 use clap::Parser;
-use color_eyre::eyre::{Result as EyreResult, eyre};
+use color_eyre::eyre::{Result, eyre};
 use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
@@ -41,7 +41,7 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet::{self, Reader as WireReader, Sender as WireSender},
     scanners::{
-        DeviceWithPorts, IDLE_TIMEOUT, Result, ScanError, ScanMessage, Scanner,
+        DeviceWithPorts, IDLE_TIMEOUT, ScanMessage, Scanner,
         arp_scanner::{ARPScanner, ARPScannerArgs},
         syn_scanner::{SYNScanner, SYNScannerArgs},
     },
@@ -117,11 +117,7 @@ fn process_arp(
     let handle = scanner.scan();
 
     loop {
-        let msg = rx.recv().map_err(|e| ScanError {
-            ip: None,
-            port: None,
-            error: Box::new(e),
-        })?;
+        let msg = rx.recv()?;
 
         match msg {
             ScanMessage::Done => {
@@ -184,11 +180,7 @@ fn process_syn(
     let handle = scanner.scan();
 
     loop {
-        let msg = rx.recv().map_err(|e| ScanError {
-            ip: None,
-            port: None,
-            error: Box::new(e),
-        })?;
+        let msg = rx.recv()?;
 
         match msg {
             ScanMessage::Done => {
@@ -237,11 +229,7 @@ fn monitor_network(
             return Ok(());
         }
 
-        let source_port = network::get_available_port().map_err(|e| ScanError {
-            ip: None,
-            port: None,
-            error: Box::from(e),
-        })?;
+        let source_port = network::get_available_port()?;
 
         let (tx, rx) = mpsc::channel::<ScanMessage>();
 
@@ -324,7 +312,7 @@ fn is_root() -> bool {
 }
 
 #[doc(hidden)]
-fn main() -> EyreResult<()> {
+fn main() -> Result<()> {
     color_eyre::install()?;
 
     let args = Args::parse();

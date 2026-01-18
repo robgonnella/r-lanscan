@@ -3,7 +3,6 @@
 use log::*;
 use pnet::packet::{Packet, arp, ethernet};
 use std::{
-    io::Error as IOError,
     net,
     sync::{self, Arc, Mutex},
     thread::{self, JoinHandle},
@@ -11,9 +10,10 @@ use std::{
 };
 
 use crate::{
+    error::{RLanLibError, Result},
     network::NetworkInterface,
     packet::{self, Reader, Sender, arp_packet},
-    scanners::{Device, Result, ScanError, Scanning},
+    scanners::{Device, Scanning},
     targets::ips::IPTargets,
 };
 
@@ -111,11 +111,7 @@ impl ARPScanner<'_> {
         });
 
         thread::spawn(move || -> Result<()> {
-            let mut reader = packet_reader.lock().map_err(|e| ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(e.to_string()),
-            })?;
+            let mut reader = packet_reader.lock()?;
 
             loop {
                 if done.try_recv().is_ok() {
@@ -223,29 +219,17 @@ impl Scanner for ARPScanner<'_> {
                         ip: target_ipv4.to_string(),
                         port: None,
                     }))
-                    .map_err(|e| ScanError {
-                        ip: Some(target_ipv4.to_string()),
-                        port: None,
-                        error: Box::from(e),
-                    })?;
+                    .map_err(RLanLibError::from_channel_send_error)?;
 
-                let mut pkt_sender = packet_sender.lock().map_err(|e| ScanError {
-                    ip: Some(target_ipv4.to_string()),
-                    port: None,
-                    error: Box::from(IOError::other(e.to_string())),
-                })?;
+                let mut pkt_sender = packet_sender.lock()?;
 
                 // Send to the broadcast address
-                pkt_sender.send(&pkt_buf).map_err(|e| ScanError {
-                    ip: Some(target_ipv4.to_string()),
-                    port: e.port,
-                    error: e.error,
-                })?;
+                pkt_sender.send(&pkt_buf)?;
 
                 Ok(())
             };
 
-            let mut scan_error: Option<ScanError> = None;
+            let mut scan_error: Option<RLanLibError> = None;
 
             if let Err(err) = targets.lazy_loop(process_target) {
                 scan_error = Some(err);
@@ -253,21 +237,15 @@ impl Scanner for ARPScanner<'_> {
 
             thread::sleep(idle_timeout);
 
-            notifier.send(ScanMessage::Done).map_err(|e| ScanError {
-                ip: None,
-                port: None,
-                error: Box::from(e),
-            })?;
+            notifier
+                .send(ScanMessage::Done)
+                .map_err(RLanLibError::from_channel_send_error)?;
 
             // ignore errors here as the thread may already be dead due to error
             // we'll catch any errors from that thread below and report
             let _ = done_tx.send(());
 
-            let read_result = read_handle.join().map_err(|_| ScanError {
-                ip: None,
-                port: None,
-                error: Box::from("error encountered in arp packet reading thread"),
-            })?;
+            let read_result = read_handle.join()?;
 
             if let Some(err) = scan_error {
                 return Err(err);

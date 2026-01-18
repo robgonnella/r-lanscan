@@ -1,6 +1,6 @@
 use mockall::mock;
 
-use crate::scanners::Result;
+use crate::error::Result;
 
 use super::{Reader, Sender};
 
