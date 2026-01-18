@@ -348,17 +348,7 @@ sudo -E cargo run --example full-scanner -p r-lanlib
 
 ## Error Handling
 
-The library uses `ScanError` for comprehensive error reporting:
-
-```rust
-pub struct ScanError {
-    pub ip: Option<String>,
-    pub port: Option<String>,
-    pub error: Box<dyn Error>,
-}
-```
-
-All scanner operations return `Result<(), ScanError>` for proper error handling.
+The library uses `RLanLibError` for comprehensive error reporting:
 
 ## License
 

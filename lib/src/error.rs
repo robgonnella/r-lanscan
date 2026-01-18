@@ -109,5 +109,5 @@ unsafe impl Send for RLanLibError {}
 unsafe impl Sync for RLanLibError {}
 
 /// Custom Result type for this library. All Errors exposed by this library
-/// will be returned as [`ScanError`]
+/// will be returned as [`RLanLibError`]
 pub type Result<T> = std::result::Result<T, RLanLibError>;
