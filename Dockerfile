@@ -1,6 +1,6 @@
-FROM rust:1.89.0-alpine3.21
+FROM rust:1.92.0-alpine3.23
 
-RUN apk add alpine-sdk openssl-dev openssl-libs-static openssh lynx ncurses
+RUN apk add build-base perl openssh lynx ncurses
 
 WORKDIR /workspace
 

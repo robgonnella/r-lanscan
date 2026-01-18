@@ -3,9 +3,6 @@
 [changelog]
 skip_ci = true
 skip_chore = true
-reword = [
-  { sha = "d16f5ab4", message = "ci: bump ci versions" }
-]
 
 [[package]]
 name = "r-lanscan"

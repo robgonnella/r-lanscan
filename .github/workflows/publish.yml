@@ -46,7 +46,7 @@ jobs:
         uses: houseabsolute/actions-rust-cross@v1
         with:
           command: build
-          toolchain: 1.90.0
+          toolchain: 1.92.0
           target: ${{ matrix.platform.target }}
           args: "-p ${{ matrix.package }} --locked --release"
 
