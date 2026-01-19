@@ -21,7 +21,7 @@
 //! ```
 
 use clap::Parser;
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::{ContextCompat, Result, eyre};
 use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
@@ -29,7 +29,7 @@ use log::*;
 use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
     collections::HashSet,
-    env, fs,
+    fs,
     sync::{
         Arc, Mutex,
         mpsc::{self, Receiver, channel},
@@ -278,9 +278,17 @@ fn monitor_network(
 }
 
 #[doc(hidden)]
-fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Store>) {
+fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>)> {
+    let user = whoami::username()?;
+    let home = dirs::home_dir().wrap_err(eyre!("failed to get user's home directory"))?;
+    let identity = format!("{}/.ssh/id_rsa", home.to_string_lossy());
+
     let config_path = get_project_config_path();
-    let config_manager = Arc::new(Mutex::new(ConfigManager::new(&config_path)));
+    let config_manager = Arc::new(Mutex::new(ConfigManager::new(
+        user.clone(),
+        identity.clone(),
+        &config_path,
+    )));
     let store = Arc::new(Store::new(Arc::clone(&config_manager)));
 
     let manager = config_manager.lock().unwrap();
@@ -297,20 +305,17 @@ fn init(args: &Args, interface: &NetworkInterface) -> (Config, Arc<Store>) {
             id: fakeit::animal::animal().to_lowercase(),
             cidr: interface.cidr.clone(),
             ports: args.ports.clone(),
-            ..Config::default()
+            ..Config::new(user, identity)
         };
         store.dispatch(Action::CreateAndSetConfig(config.clone()))
     }
 
-    (config, store)
+    Ok((config, store))
 }
 
 #[doc(hidden)]
 fn is_root() -> bool {
-    match env::var("USER") {
-        Ok(val) => val == "root",
-        Err(_e) => false,
-    }
+    nix::unistd::geteuid().is_root()
 }
 
 #[doc(hidden)]
@@ -325,8 +330,9 @@ fn main() -> Result<()> {
         return Err(eyre!("permission denied: must run with root privileges"));
     }
 
-    let interface = network::get_default_interface().expect("could not get default interface");
-    let (config, store) = init(&args, &interface);
+    let interface = network::get_default_interface()
+        .ok_or_else(|| eyre!("Could not detect default network interface"))?;
+    let (config, store) = init(&args, &interface)?;
     let (_, exit_rx) = mpsc::channel();
 
     let wire = packet::wire::default(&interface)?;

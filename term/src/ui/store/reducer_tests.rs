@@ -28,7 +28,13 @@ use super::Reducer;
 fn setup() -> (State, Reducer, String) {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
+        user,
+        identity,
+        tmp_path.as_str(),
+    )));
 
     let starting_state = State::default();
     let reducer = Reducer::new(conf_manager);
@@ -205,7 +211,9 @@ fn test_set_config() {
 #[test]
 fn test_create_and_set_config() {
     let (starting_state, reducer, conf_path) = setup();
-    let mut config = Config::default();
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let mut config = Config::new(user, identity);
     config.id = "config_id".to_string();
     let state = reducer.reduce(
         starting_state.clone(),

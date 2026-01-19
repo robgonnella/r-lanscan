@@ -1,5 +1,6 @@
-use std::{collections::HashMap, env};
+use std::collections::HashMap;
 
+use color_eyre::eyre::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::ui::colors::Theme;
@@ -36,11 +37,7 @@ pub fn get_default_ports() -> Vec<String> {
 }
 
 impl Config {
-    pub fn default() -> Self {
-        let user = env::var("USER").unwrap();
-        let home = env::var("HOME").unwrap();
-        let identity = format!("{home}/.ssh/id_rsa");
-
+    pub fn new(user: String, identity: String) -> Self {
         Self {
             id: DEFAULT_CONFIG_ID.to_string(),
             theme: Theme::Blue.to_string(),
@@ -60,19 +57,28 @@ pub struct ConfigManager {
 }
 
 impl ConfigManager {
-    pub fn new(path: &str) -> Self {
+    pub fn new(user: String, identity: String, path: &str) -> Self {
         let f: Result<std::fs::File, std::io::Error> = std::fs::File::open(path);
 
         match f {
             Ok(file) => {
-                let configs: HashMap<String, Config> = serde_yaml::from_reader(file).unwrap();
+                let configs: HashMap<String, Config> = match serde_yaml::from_reader(file) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        log::warn!("Failed to parse config file, using defaults: {}", e);
+                        let default_conf = Config::new(user, identity);
+                        let mut configs: HashMap<String, Config> = HashMap::new();
+                        configs.insert(default_conf.id.clone(), default_conf);
+                        configs
+                    }
+                };
                 Self {
                     path: String::from(path),
                     configs,
                 }
             }
             Err(_) => {
-                let default_conf = Config::default();
+                let default_conf = Config::new(user, identity);
                 let mut configs: HashMap<String, Config> = HashMap::new();
                 configs.insert(default_conf.id.clone(), default_conf.clone());
                 let mut man = Self {
