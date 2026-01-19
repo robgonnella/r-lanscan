@@ -14,7 +14,7 @@ use crate::ui::colors::Theme;
 
 pub type MissedCount = i8;
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub enum ViewID {
     Main,
     Device,

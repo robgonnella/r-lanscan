@@ -5,19 +5,19 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind};
 
 use crate::ui::{
     components::table::{self, Table},
-    store::{Store, action::Action, state::ViewID},
+    store::{Dispatcher, action::Action, state::ViewID},
 };
 
 use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 pub struct ViewSelect {
-    store: Arc<Store>,
+    dispatcher: Arc<dyn Dispatcher>,
     view_ids: Vec<ViewID>,
     table: RefCell<Table>,
 }
 
 impl ViewSelect {
-    pub fn new(view_ids: Vec<ViewID>, padding: usize, store: Arc<Store>) -> Self {
+    pub fn new(view_ids: Vec<ViewID>, padding: usize, dispatcher: Arc<dyn Dispatcher>) -> Self {
         let mut spacer = String::from("");
 
         if padding > 0 {
@@ -42,7 +42,7 @@ impl ViewSelect {
         table_select.next();
 
         Self {
-            store,
+            dispatcher,
             view_ids,
             table: RefCell::new(table_select),
         }
@@ -59,9 +59,9 @@ impl ViewSelect {
     fn handle_selected(&self) {
         let i = self.table.borrow().selected();
         if let Some(selected) = i {
-            let id = self.view_ids[selected].clone();
-            self.store.dispatch(Action::UpdateView(id));
-            self.store.dispatch(Action::ToggleViewSelect);
+            let id = self.view_ids[selected];
+            self.dispatcher.dispatch(Action::UpdateView(id));
+            self.dispatcher.dispatch(Action::ToggleViewSelect);
         }
     }
 }
@@ -94,7 +94,7 @@ impl EventHandler for ViewSelect {
                 }
                 KeyCode::Esc => {
                     if ctx.state.render_view_select {
-                        self.store.dispatch(Action::ToggleViewSelect);
+                        self.dispatcher.dispatch(Action::ToggleViewSelect);
                         handled = true;
                     }
                 }

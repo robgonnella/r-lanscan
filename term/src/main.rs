@@ -53,6 +53,11 @@ use ui::{
     store::{Store, action::Action, derived::get_detected_devices},
 };
 
+use crate::{
+    config::DEFAULT_CONFIG_ID,
+    ui::{colors::Theme, store::Dispatcher},
+};
+
 #[doc(hidden)]
 mod config;
 #[doc(hidden)]
@@ -106,11 +111,11 @@ fn get_project_config_path() -> String {
 fn process_arp(
     args: ARPScannerArgs,
     rx: Receiver<ScanMessage>,
-    store: Arc<Store>,
+    dispatcher: Arc<dyn Dispatcher>,
 ) -> Result<Receiver<ScanMessage>> {
     let scanner = ARPScanner::new(args);
 
-    store.dispatch(Action::UpdateMessage(Some(String::from(
+    dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing ARP Scan…",
     ))));
 
@@ -126,7 +131,7 @@ fn process_arp(
             }
             ScanMessage::ARPScanResult(m) => {
                 debug!("received scanning message: {:?}", m);
-                store.dispatch(Action::AddDevice(DeviceWithPorts {
+                dispatcher.dispatch(Action::AddDevice(DeviceWithPorts {
                     hostname: m.hostname.clone(),
                     ip: m.ip.clone(),
                     mac: m.mac.clone(),
@@ -143,7 +148,7 @@ fn process_arp(
 
     handle.join().unwrap()?;
 
-    store.dispatch(Action::UpdateMessage(None));
+    dispatcher.dispatch(Action::UpdateMessage(None));
 
     debug!("finished arp scan");
     Ok(rx)
@@ -155,7 +160,7 @@ fn process_syn(
     rx: Receiver<ScanMessage>,
     store: Arc<Store>,
 ) -> Result<Vec<DeviceWithPorts>> {
-    let state = store.get_state();
+    let state = store.get_state()?;
     let arp_devices = get_detected_devices(&state);
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
@@ -216,7 +221,7 @@ fn monitor_network(
     exit: Receiver<()>,
     packet_reader: Arc<Mutex<dyn WireReader>>,
     packet_sender: Arc<Mutex<dyn WireSender>>,
-    config: Arc<Config>,
+    config: Config,
     interface: Arc<NetworkInterface>,
     store: Arc<Store>,
 ) -> Result<()> {
@@ -247,10 +252,10 @@ fn monitor_network(
                 notifier: tx.clone(),
             },
             rx,
-            Arc::clone(&store),
+            Arc::clone(&store) as Arc<dyn Dispatcher>,
         )?;
 
-        let state = store.get_state();
+        let state = store.get_state()?;
         let arp_devices = get_detected_devices(&state);
 
         let results = process_syn(
@@ -284,33 +289,49 @@ fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>
     let identity = format!("{}/.ssh/id_rsa", home.to_string_lossy());
 
     let config_path = get_project_config_path();
+
     let config_manager = Arc::new(Mutex::new(ConfigManager::new(
         user.clone(),
         identity.clone(),
         &config_path,
     )));
-    let store = Arc::new(Store::new(Arc::clone(&config_manager)));
 
-    let manager = config_manager.lock().unwrap();
-    let config: Config;
-    let conf_opt = manager.get_by_cidr(&interface.cidr);
+    let manager = config_manager
+        .lock()
+        .map_err(|e| eyre!("failed to get lock on config_manager: {}", e))?;
+
+    let mut create_config = false;
+
+    let current_config = manager
+        .get_by_cidr(&interface.cidr)
+        .or_else(|| manager.get_by_id(DEFAULT_CONFIG_ID))
+        .unwrap_or_else(|| {
+            create_config = true;
+            Config {
+                id: fakeit::animal::animal().to_lowercase(),
+                cidr: interface.cidr.clone(),
+                ports: args.ports.clone(),
+                ..Config::new(user.clone(), identity.clone())
+            }
+        });
+
+    let current_config_id = current_config.id.clone();
+
     // free up manager lock so dispatches can acquire lock as needed
     drop(manager);
 
-    if let Some(target_config) = conf_opt {
-        config = target_config;
-        store.dispatch(Action::SetConfig(config.id.clone()));
+    let store = Arc::new(Store::new(
+        Arc::clone(&config_manager),
+        current_config.clone(),
+    ));
+
+    if create_config {
+        store.dispatch(Action::CreateAndSetConfig(current_config.clone()))
     } else {
-        config = Config {
-            id: fakeit::animal::animal().to_lowercase(),
-            cidr: interface.cidr.clone(),
-            ports: args.ports.clone(),
-            ..Config::new(user, identity)
-        };
-        store.dispatch(Action::CreateAndSetConfig(config.clone()))
+        store.dispatch(Action::SetConfig(current_config_id));
     }
 
-    Ok((config, store))
+    Ok((current_config, store))
 }
 
 #[doc(hidden)]
@@ -333,12 +354,12 @@ fn main() -> Result<()> {
     let interface = network::get_default_interface()
         .ok_or_else(|| eyre!("Could not detect default network interface"))?;
     let (config, store) = init(&args, &interface)?;
+    let theme = Theme::from_string(&config.theme);
     let (_, exit_rx) = mpsc::channel();
 
     let wire = packet::wire::default(&interface)?;
 
-    let store_clone = Arc::clone(&store);
-
+    let net_monitor_store = Arc::clone(&store);
     // ignore handle here - we will forcefully exit instead of waiting
     // for scan to finish
     thread::spawn(move || -> Result<()> {
@@ -346,9 +367,9 @@ fn main() -> Result<()> {
             exit_rx,
             wire.0,
             wire.1,
-            Arc::new(config),
+            config,
             Arc::new(interface),
-            store_clone,
+            net_monitor_store,
         )
     });
 
@@ -374,7 +395,7 @@ fn main() -> Result<()> {
         Arc::clone(&store),
     );
 
-    let application = app::create_app(event_manager_channel.0, app_channel.1, store)?;
+    let application = app::create_app(event_manager_channel.0, app_channel.1, theme, store)?;
 
     let event_handle = thread::spawn(move || event_manager.start_event_loop());
 

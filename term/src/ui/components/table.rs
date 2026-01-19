@@ -140,7 +140,7 @@ impl CustomWidgetRef for Table {
                 .add_modifier(Modifier::BOLD);
 
             hs.iter()
-                .map(|h| Cell::from(h.clone()))
+                .map(|h| Cell::from(h.as_str()))
                 .collect::<Row>()
                 .style(header_style)
                 .height(1)
@@ -151,7 +151,7 @@ impl CustomWidgetRef for Table {
             .fg(ctx.state.colors.selected_row_fg);
 
         let rows = self.items.iter().map(|data| {
-            let item = fit_to_width(data, self.column_sizes.clone());
+            let item = fit_to_width(data, &self.column_sizes);
 
             // line break - hacky way of centering the text
             let mut line_break_count = self.item_height / 2;
@@ -199,7 +199,7 @@ impl CustomWidgetRef for Table {
     }
 }
 
-fn fit_to_width(item: &[String], col_widths: Vec<usize>) -> Vec<String> {
+fn fit_to_width(item: &[String], col_widths: &[usize]) -> Vec<String> {
     item.iter()
         .enumerate()
         .map(|(i, v)| {

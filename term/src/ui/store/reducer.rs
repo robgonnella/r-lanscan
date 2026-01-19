@@ -15,49 +15,45 @@ impl Reducer {
         Self { config_manager }
     }
 
-    pub fn reduce(&self, prev_state: State, action: Action) -> State {
+    pub fn reduce(&self, state: &mut State, action: Action) {
         match action {
             // UI actions
-            Action::SetUIPaused(value) => reducers::ui::set_ui_paused(prev_state, value),
-            Action::SetError(err) => reducers::ui::set_error(prev_state, err),
-            Action::ToggleViewSelect => reducers::ui::toggle_view_select(prev_state),
-            Action::UpdateView(id) => reducers::ui::update_view(prev_state, id),
-            Action::UpdateMessage(message) => reducers::ui::update_message(prev_state, message),
-            Action::PreviewTheme(theme) => reducers::ui::preview_theme(prev_state, theme),
+            Action::SetUIPaused(value) => reducers::ui::set_ui_paused(state, value),
+            Action::SetError(err) => reducers::ui::set_error(state, err),
+            Action::ToggleViewSelect => reducers::ui::toggle_view_select(state),
+            Action::UpdateView(id) => reducers::ui::update_view(state, id),
+            Action::UpdateMessage(message) => reducers::ui::update_message(state, message),
+            Action::PreviewTheme(theme) => reducers::ui::preview_theme(state, theme),
 
             // Device actions
             Action::UpdateAllDevices(devices) => {
-                reducers::device::update_all_devices(prev_state, devices)
+                reducers::device::update_all_devices(state, devices)
             }
-            Action::AddDevice(device) => reducers::device::add_device(prev_state, device),
-            Action::UpdateSelectedDevice(ip) => {
-                reducers::device::update_selected_device(prev_state, ip)
-            }
+            Action::AddDevice(device) => reducers::device::add_device(state, device),
+            Action::UpdateSelectedDevice(ip) => reducers::device::update_selected_device(state, ip),
 
             // Config actions
             Action::UpdateConfig(config) => {
-                reducers::config::update_config(prev_state, config, &self.config_manager)
+                reducers::config::update_config(state, config, &self.config_manager)
             }
             Action::SetConfig(config_id) => {
-                reducers::config::set_config(prev_state, config_id, &self.config_manager)
+                reducers::config::set_config(state, config_id, &self.config_manager)
             }
             Action::CreateAndSetConfig(config) => {
-                reducers::config::create_and_set_config(prev_state, config, &self.config_manager)
+                reducers::config::create_and_set_config(state, config, &self.config_manager)
             }
-            Action::UpdateDeviceConfig(device_config) => reducers::config::update_device_config(
-                prev_state,
-                device_config,
-                &self.config_manager,
-            ),
+            Action::UpdateDeviceConfig(device_config) => {
+                reducers::config::update_device_config(state, device_config, &self.config_manager)
+            }
 
             // Command actions
             Action::SetCommandInProgress(value) => {
-                reducers::command::set_command_in_progress(prev_state, value)
+                reducers::command::set_command_in_progress(state, value)
             }
             Action::UpdateCommandOutput((cmd, output)) => {
-                reducers::command::update_command_output(prev_state, cmd, output)
+                reducers::command::update_command_output(state, cmd, output)
             }
-            Action::ClearCommandOutput => reducers::command::clear_command_output(prev_state),
+            Action::ClearCommandOutput => reducers::command::clear_command_output(state),
         }
     }
 }

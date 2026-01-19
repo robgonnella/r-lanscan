@@ -7,9 +7,10 @@ use std::{
 use crate::{
     events::types::Event,
     ui::{
+        colors::Theme,
         components::{footer::InfoFooter, header::Header, popover::get_popover_area},
         store::{
-            Store,
+            Dispatcher,
             action::Action,
             state::{State, ViewID},
         },
@@ -34,22 +35,21 @@ use super::{
 const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 
 pub struct MainView {
-    store: Arc<Store>,
+    dispatcher: Arc<dyn Dispatcher>,
     sub_views: HashMap<ViewID, Box<dyn View>>,
     _tx: Sender<Event>,
 }
 
 impl MainView {
-    pub fn new(store: Arc<Store>, tx: Sender<Event>) -> Self {
+    pub fn new(theme: Theme, dispatcher: Arc<dyn Dispatcher>, tx: Sender<Event>) -> Self {
         let mut sub_views: HashMap<ViewID, Box<dyn View>> = HashMap::new();
-
-        let config = Box::new(ConfigView::new(Arc::clone(&store)));
-        let device = Box::new(DeviceView::new(Arc::clone(&store)));
-        let devices = Box::new(DevicesView::new(Arc::clone(&store)));
+        let config = Box::new(ConfigView::new(Arc::clone(&dispatcher), theme));
+        let device = Box::new(DeviceView::new(Arc::clone(&dispatcher)));
+        let devices = Box::new(DevicesView::new(Arc::clone(&dispatcher)));
         let view_select = Box::new(ViewSelect::new(
             vec![ViewID::Devices, ViewID::Config],
             2,
-            Arc::clone(&store),
+            Arc::clone(&dispatcher),
         ));
 
         sub_views.insert(config.id(), config);
@@ -58,7 +58,7 @@ impl MainView {
         sub_views.insert(view_select.id(), view_select);
 
         Self {
-            store,
+            dispatcher,
             sub_views,
             _tx: tx,
         }
@@ -84,7 +84,7 @@ impl MainView {
         &self,
         sections: Rc<[Rect]>,
         buf: &mut ratatui::prelude::Buffer,
-        message: Option<String>,
+        message: Option<&String>,
         ctx: &CustomWidgetContext,
     ) {
         let logo =
@@ -149,7 +149,7 @@ impl MainView {
 
     fn render_error_popover(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
         if state.error.is_some() {
-            let msg = state.error.clone().unwrap();
+            let msg = state.error.as_ref().unwrap();
             let block = Block::bordered()
                 .border_type(BorderType::Double)
                 .border_style(
@@ -220,17 +220,17 @@ impl CustomWidgetRef for MainView {
         ])
         .split(area);
 
-        let view_id = ctx.state.view_id.clone();
+        let view_id = ctx.state.view_id;
         let view = self.sub_views.get(&view_id).unwrap();
-        let legend = view.legend(&ctx.state);
-        let override_legend = view.override_main_legend(&ctx.state);
+        let legend = view.legend(ctx.state);
+        let override_legend = view.override_main_legend(ctx.state);
 
         // render background for entire display
-        self.render_buffer_bg(area, buf, &ctx.state);
+        self.render_buffer_bg(area, buf, ctx.state);
         // logo & view select
         let top_section_areas = self.get_top_section_areas(page_areas[0]);
         let top_section_areas_clone = Rc::clone(&top_section_areas);
-        self.render_top(top_section_areas, buf, ctx.state.message.clone(), ctx);
+        self.render_top(top_section_areas, buf, ctx.state.message.as_ref(), ctx);
         // view
         self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx);
         // legend for current view
@@ -250,13 +250,13 @@ impl CustomWidgetRef for MainView {
             select_block.render(select_area, buf);
 
             ClearWidget.render(select_inner_area, buf);
-            self.render_buffer_bg(select_inner_area, buf, &ctx.state);
+            self.render_buffer_bg(select_inner_area, buf, ctx.state);
             self.render_view_select_popover(select_inner_area, buf, ctx);
         }
 
         // popover when there are errors in the store
         // important to render this last so it properly layers on top
-        self.render_error_popover(get_popover_area(area, 50, 40), buf, &ctx.state);
+        self.render_error_popover(get_popover_area(area, 50, 40), buf, ctx.state);
     }
 }
 
@@ -271,11 +271,11 @@ impl EventHandler for MainView {
             if let CrossTermEvent::Key(key) = evt
                 && key.code == KeyCode::Enter
             {
-                self.store.dispatch(Action::SetError(None));
+                self.dispatcher.dispatch(Action::SetError(None));
             }
             true
         } else {
-            let view_id = ctx.state.view_id.clone();
+            let view_id = ctx.state.view_id;
             let view = self.sub_views.get(&view_id).unwrap();
             let mut handled = view.process_event(evt, ctx);
 
@@ -284,13 +284,13 @@ impl EventHandler for MainView {
                     KeyCode::Char('v') => {
                         if !ctx.state.render_view_select {
                             handled = true;
-                            self.store.dispatch(Action::ToggleViewSelect);
+                            self.dispatcher.dispatch(Action::ToggleViewSelect);
                         }
                     }
                     KeyCode::Esc => {
                         if ctx.state.render_view_select {
                             handled = true;
-                            self.store.dispatch(Action::ToggleViewSelect);
+                            self.dispatcher.dispatch(Action::ToggleViewSelect);
                         }
                     }
                     _ => {}

@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    config::{ConfigManager, DeviceConfig},
+    config::{Config, ConfigManager, DeviceConfig},
     events::types::BrowseArgs,
 };
 
@@ -36,7 +36,10 @@ struct SetUpReturn {
 }
 
 fn setup(conf_manager: ConfigManager, commander: Commander) -> SetUpReturn {
-    let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager))));
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let config = Config::new(user, identity);
+    let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager)), config));
     let (tx, rx) = std::sync::mpsc::channel::<Event>();
     let arc_rx = Arc::new(Mutex::new(rx));
     let evt_manager = new_with_commander(
@@ -97,7 +100,7 @@ fn handles_ssh_command_err() {
         .handle_cmd(rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -143,7 +146,7 @@ fn handles_ssh_command_ok() {
         .handle_cmd(rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_none());
 
     tear_down(tmp_path.as_str());
@@ -197,7 +200,7 @@ fn handles_ssh_command_ok_err() {
         .handle_cmd(rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
 
     let err = state.error.unwrap();
@@ -247,7 +250,7 @@ fn handles_ssh_command_ok_err_empty() {
         .handle_cmd(rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -281,7 +284,7 @@ fn handles_traceroute_command_err() {
     let res = test.manager.handle_cmd(rx, AppCommand::TraceRoute(device));
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -328,7 +331,7 @@ fn handles_traceroute_command_ok() {
         .handle_cmd(rx, AppCommand::TraceRoute(device.clone()));
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_none());
 
     assert!(state.cmd_output.is_some());
@@ -378,7 +381,7 @@ fn handles_browse_command_err() {
     );
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -422,7 +425,7 @@ fn handles_browse_command_ok() {
     );
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_none());
 
     tear_down(tmp_path.as_str());
@@ -474,7 +477,7 @@ fn handles_browse_command_ok_err() {
     );
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
 
     let err = state.error.unwrap();
@@ -522,7 +525,7 @@ fn handles_browse_command_ok_err_empty() {
     );
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
 
     tear_down(tmp_path.as_str());
@@ -562,7 +565,7 @@ fn listens_for_events() {
 
     assert!(res.is_ok());
 
-    let state = test.store.get_state();
+    let state = test.store.get_state().unwrap();
 
     assert!(state.error.is_some());
 

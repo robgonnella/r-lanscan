@@ -7,8 +7,7 @@ use crate::{config::DeviceConfig, ui::store::state::State};
 
 const MAX_ARP_MISS: i8 = 3;
 
-pub fn update_all_devices(prev_state: State, devices: Vec<DeviceWithPorts>) -> State {
-    let mut state = prev_state.clone();
+pub fn update_all_devices(state: &mut State, devices: Vec<DeviceWithPorts>) {
     let mut new_map: HashMap<String, DeviceWithPorts> = HashMap::new();
     let mut arp_history: HashMap<String, (Device, i8)> = HashMap::new();
 
@@ -37,11 +36,9 @@ pub fn update_all_devices(prev_state: State, devices: Vec<DeviceWithPorts>) -> S
     }
 
     state.arp_history = arp_history;
-    state
 }
 
-pub fn add_device(prev_state: State, device: DeviceWithPorts) -> State {
-    let mut state = prev_state.clone();
+pub fn add_device(state: &mut State, device: DeviceWithPorts) {
     let arp_device: Device = device.clone().into();
 
     state.arp_history.insert(device.ip.clone(), (arp_device, 0));
@@ -72,11 +69,9 @@ pub fn add_device(prev_state: State, device: DeviceWithPorts) -> State {
     state
         .devices
         .sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
-    state
 }
 
-pub fn update_selected_device(prev_state: State, ip: String) -> State {
-    let mut state = prev_state.clone();
+pub fn update_selected_device(state: &mut State, ip: String) {
     if let Some(device) = state.device_map.get(ip.as_str()) {
         state.selected_device = Some(device.clone());
         let device_config: DeviceConfig;
@@ -105,6 +100,4 @@ pub fn update_selected_device(prev_state: State, ip: String) -> State {
 
         state.selected_device_config = Some(device_config);
     }
-
-    state
 }

@@ -14,7 +14,7 @@ fn renders_header_component() {
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
-                state,
+                state: &state,
                 app_area: frame.area(),
                 events: channel.0,
             };
