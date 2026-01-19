@@ -26,7 +26,7 @@ fn new() {
     let receiver = Arc::new(Mutex::new(MockPacketReader::new()));
     let idle_timeout = Duration::from_secs(2);
     let devices: Vec<Device> = Vec::new();
-    let ports = PortTargets::new(vec!["2000-8000".to_string()]);
+    let ports = PortTargets::new(vec!["2000-8000".to_string()]).unwrap();
     let (tx, _) = channel();
 
     let scanner = SYNScanner::new(SYNScannerArgs {
@@ -91,7 +91,7 @@ fn sends_and_reads_packets() {
 
     let idle_timeout = Duration::from_secs(2);
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     let scanner = SYNScanner::new(SYNScannerArgs {
@@ -173,7 +173,7 @@ fn ignores_unrelated_packets() {
     };
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     // incorrect destination port
     create_syn_reply(
@@ -297,7 +297,7 @@ fn reports_error_on_packet_reader_lock() {
     };
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     let receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
@@ -368,7 +368,7 @@ fn reports_error_on_rst_packet_sender_lock() {
     );
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
@@ -444,7 +444,7 @@ fn reports_error_on_rst_packet_send_errors() {
     );
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
@@ -507,7 +507,7 @@ fn reports_error_on_packet_read_error() {
     };
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
@@ -558,7 +558,7 @@ fn reports_error_on_notifier_send_errors() {
     };
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
@@ -607,7 +607,7 @@ fn reports_error_on_packet_sender_lock_errors() {
     };
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     let receiver = MockPacketReader::new();
     let sender = MockPacketSender::new();
@@ -665,7 +665,7 @@ fn reports_error_on_packet_send_errors() {
     };
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
@@ -719,7 +719,7 @@ fn reports_errors_from_read_handle() {
     };
 
     let devices: Vec<Device> = vec![device.clone()];
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
 
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();

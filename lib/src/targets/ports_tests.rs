@@ -3,14 +3,14 @@ use super::*;
 #[test]
 fn returns_new_port_targets() {
     let list = vec![String::from("1"), String::from("2"), String::from("3")];
-    let targets = PortTargets::new(list);
+    let targets = PortTargets::new(list).unwrap();
     assert!(!targets.0.is_empty());
 }
 
 #[test]
 fn returns_port_target_len() {
     let list = vec![String::from("1"), String::from("2"), String::from("3-5")];
-    let targets = PortTargets::new(list);
+    let targets = PortTargets::new(list).unwrap();
     assert_eq!(targets.len(), 5);
 }
 
@@ -20,7 +20,7 @@ fn lazy_loops_ports() {
 
     let expected = [1, 2, 3, 4];
 
-    let targets = PortTargets::new(list);
+    let targets = PortTargets::new(list).unwrap();
 
     let mut idx = 0;
 
@@ -34,22 +34,22 @@ fn lazy_loops_ports() {
 }
 
 #[test]
-#[should_panic]
 fn returns_error_for_malformed_port() {
     let list = vec![String::from("nope")];
-    let _targets = PortTargets::new(list);
+    let result = PortTargets::new(list);
+    assert!(result.is_err());
 }
 
 #[test]
-#[should_panic]
 fn returns_error_for_malformed_range_start() {
     let list = vec![String::from("nope-3")];
-    let _targets = PortTargets::new(list);
+    let result = PortTargets::new(list);
+    assert!(result.is_err());
 }
 
 #[test]
-#[should_panic]
 fn returns_error_for_malformed_range_end() {
     let list = vec![String::from("4-nope")];
-    let _targets = PortTargets::new(list);
+    let result = PortTargets::new(list);
+    assert!(result.is_err());
 }

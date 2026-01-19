@@ -30,8 +30,8 @@ fn new() {
     let sender = Arc::new(Mutex::new(MockPacketSender::new()));
     let receiver = Arc::new(Mutex::new(MockPacketReader::new()));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]);
-    let ports = PortTargets::new(vec!["2000-8000".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]).unwrap();
+    let ports = PortTargets::new(vec!["2000-8000".to_string()]).unwrap();
     let (tx, _) = channel();
 
     let scanner = FullScanner::new(FullScannerArgs {
@@ -116,8 +116,8 @@ fn sends_and_reads_packets() {
     let arc_sender = Arc::new(Mutex::new(sender));
 
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
-    let ports = PortTargets::new(vec!["2222".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
+    let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     let scanner = FullScanner::new(FullScannerArgs {

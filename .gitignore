@@ -4,3 +4,4 @@
 generated/
 .env
 CLAUDE.md
+.claude

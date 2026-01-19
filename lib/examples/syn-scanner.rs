@@ -50,7 +50,8 @@ fn main() {
         "80".to_string(),
         "443".to_string(),
         "2000-9000".to_string(),
-    ]);
+    ])
+    .expect("failed to parse port targets");
     let idle_timeout = Duration::from_millis(10000);
     let source_port: u16 = 54321;
     let (tx, rx) = mpsc::channel::<ScanMessage>();

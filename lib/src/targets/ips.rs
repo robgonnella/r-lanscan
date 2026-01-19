@@ -12,9 +12,9 @@ use crate::error::{RLanLibError, Result};
 /// a range of IPS, this wrapper allows the storage of just CIDR or range in
 /// string form and then dynamically loops the IPs in that block when needed.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if an item in the list is not a valid IP
+/// Returns an error if an item in the list is not a valid IP, CIDR block, or range
 ///
 /// # Examples
 ///
@@ -32,7 +32,7 @@ use crate::error::{RLanLibError, Result};
 ///       "172.17.0.1-172.17.0.24".to_string(),
 ///       "192.168.68.1/24".to_string(),
 ///     ]
-/// );
+/// ).unwrap();
 /// ips.lazy_loop(print_ip).unwrap();
 /// ```
 pub struct IPTargets(Vec<String>, usize);
@@ -77,16 +77,15 @@ fn loop_ips<F: FnMut(net::Ipv4Addr) -> Result<()>>(list: &[String], mut cb: F) -
 
 impl IPTargets {
     /// Returns a new instance of IPTargets using the provided list
-    pub fn new(list: Vec<String>) -> Arc<Self> {
+    pub fn new(list: Vec<String>) -> Result<Arc<Self>> {
         let mut len = 0;
 
         loop_ips(&list, |_| {
             len += 1;
             Ok(())
-        })
-        .unwrap();
+        })?;
 
-        Arc::new(Self(list, len))
+        Ok(Arc::new(Self(list, len)))
     }
 
     /// Returns the true length of the target list. If the underlying
