@@ -5,7 +5,10 @@ use std::{
     sync::{Mutex, mpsc},
 };
 
-use crate::config::ConfigManager;
+use crate::{
+    config::{Config, ConfigManager},
+    ui::store::Store,
+};
 
 use super::*;
 
@@ -15,16 +18,24 @@ fn setup() -> (String, Arc<Store>, App) {
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
     let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user,
-        identity,
+        user.clone(),
+        identity.clone(),
         tmp_path.as_str(),
     )));
-    let store = Arc::new(Store::new(conf_manager));
+    let config = Config::new(user, identity);
+    let store = Arc::new(Store::new(conf_manager, config));
     let (tx, rx) = mpsc::channel();
     let stdout = io::stdout();
     let real_terminal = Terminal::new(CrosstermBackend::new(stdout)).unwrap();
     let test_terminal = Terminal::new(TestBackend::new(80, 40)).unwrap();
-    let app = App::new_test(tx, rx, real_terminal, test_terminal, Arc::clone(&store));
+    let app = App::new_test(
+        tx,
+        rx,
+        real_terminal,
+        test_terminal,
+        Theme::Blue,
+        Arc::clone(&store),
+    );
     (tmp_path, store, app)
 }
 

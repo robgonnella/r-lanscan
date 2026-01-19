@@ -9,7 +9,10 @@ use std::{
     sync::Mutex,
 };
 
-use crate::config::{Config, ConfigManager};
+use crate::{
+    config::{Config, ConfigManager},
+    ui::store::Store,
+};
 
 use super::*;
 
@@ -23,7 +26,6 @@ fn setup() -> (DevicesView, Arc<Store>, String) {
         identity,
         tmp_path.as_str(),
     )));
-    let store = Arc::new(Store::new(conf_manager));
     let config = Config {
         id: "default".to_string(),
         cidr: "192.168.1.1/24".to_string(),
@@ -34,6 +36,7 @@ fn setup() -> (DevicesView, Arc<Store>, String) {
         ports: vec![],
         theme: "Blue".to_string(),
     };
+    let store = Arc::new(Store::new(conf_manager, config.clone()));
     store.dispatch(Action::CreateAndSetConfig(config));
 
     let mut open_ports: HashSet<Port> = HashSet::new();
@@ -62,7 +65,11 @@ fn setup() -> (DevicesView, Arc<Store>, String) {
 
     store.dispatch(Action::AddDevice(device_1.clone()));
     store.dispatch(Action::AddDevice(device_2.clone()));
-    (DevicesView::new(Arc::clone(&store)), store, tmp_path)
+    (
+        DevicesView::new(Arc::clone(&store) as Arc<dyn Dispatcher>),
+        store,
+        tmp_path,
+    )
 }
 
 fn tear_down(conf_path: String) {
@@ -73,13 +80,13 @@ fn tear_down(conf_path: String) {
 fn test_devices_view() {
     let (devs_view, store, conf_path) = setup();
     let mut terminal = Terminal::new(TestBackend::new(80, 15)).unwrap();
-    let state = store.get_state();
+    let state = store.get_state().unwrap();
     let channel = std::sync::mpsc::channel();
 
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
-                state,
+                state: &state,
                 app_area: frame.area(),
                 events: channel.0,
             };

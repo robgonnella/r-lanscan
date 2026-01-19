@@ -24,10 +24,16 @@ use std::{
     },
 };
 
-use crate::events::types::Event;
+use crate::{
+    events::types::Event,
+    ui::{
+        colors::Theme,
+        store::{Dispatcher, Store},
+    },
+};
 
 use super::{
-    store::{Store, action::Action},
+    store::action::Action,
     views::{
         main::MainView,
         traits::{CustomWidgetContext, View},
@@ -46,7 +52,12 @@ pub struct App {
     event_loop_receiver: Receiver<Event>,
 }
 
-pub fn create_app(tx: Sender<Event>, rx: Receiver<Event>, store: Arc<Store>) -> Result<App> {
+pub fn create_app(
+    tx: Sender<Event>,
+    rx: Receiver<Event>,
+    theme: Theme,
+    store: Arc<Store>,
+) -> Result<App> {
     // setup terminal
     enable_raw_mode().wrap_err("failed to enter raw mode")?;
     let mut stdout = io::stdout();
@@ -54,7 +65,7 @@ pub fn create_app(tx: Sender<Event>, rx: Receiver<Event>, store: Arc<Store>) -> 
         .wrap_err("failed to enter alternate screen")?;
     let backend = CrosstermBackend::new(stdout);
     let terminal = Terminal::new(backend).wrap_err("failed to create terminal")?;
-    Ok(App::new(tx, rx, terminal, store))
+    Ok(App::new(tx, rx, terminal, theme, store))
 }
 
 impl App {
@@ -62,13 +73,18 @@ impl App {
         tx: Sender<Event>,
         rx: Receiver<Event>,
         terminal: Terminal<Backend>,
+        theme: Theme,
         store: Arc<Store>,
     ) -> Self {
         Self {
             terminal: RefCell::new(terminal),
             test_terminal: None,
             store: Arc::clone(&store),
-            main_view: Box::new(MainView::new(store, tx.clone())),
+            main_view: Box::new(MainView::new(
+                theme,
+                store as Arc<dyn Dispatcher>,
+                tx.clone(),
+            )),
             event_loop_sender: tx,
             event_loop_receiver: rx,
         }
@@ -82,13 +98,14 @@ impl App {
         rx: Receiver<Event>,
         terminal: Terminal<Backend>,
         test_terminal: Terminal<TestBackend>,
+        theme: Theme,
         store: Arc<Store>,
     ) -> Self {
         Self {
             terminal: RefCell::new(terminal),
             test_terminal: Some(test_terminal),
             store: Arc::clone(&store),
-            main_view: Box::new(MainView::new(store, tx.clone())),
+            main_view: Box::new(MainView::new(theme, store, tx.clone())),
             event_loop_sender: tx,
             event_loop_receiver: rx,
         }
@@ -102,7 +119,7 @@ impl App {
 
     fn start_app_loop(&self) -> Result<()> {
         loop {
-            let state = self.store.get_state();
+            let state = self.store.get_state()?;
 
             if state.ui_paused {
                 if let Ok(evt) = self.event_loop_receiver.recv()
@@ -123,7 +140,7 @@ impl App {
             }
 
             let mut ctx = CustomWidgetContext {
-                state: state.clone(),
+                state: &state,
                 app_area: Rect::default(),
                 events: self.event_loop_sender.clone(),
             };
@@ -134,7 +151,7 @@ impl App {
                 let mut terminal = self.test_terminal.clone().unwrap();
                 let _ = terminal.draw(|f| {
                     ctx = CustomWidgetContext {
-                        state,
+                        state: &state,
                         app_area: f.area(),
                         events: self.event_loop_sender.clone(),
                     };
@@ -145,7 +162,7 @@ impl App {
 
             self.terminal.borrow_mut().draw(|f| {
                 ctx = CustomWidgetContext {
-                    state,
+                    state: &state,
                     app_area: f.area(),
                     events: self.event_loop_sender.clone(),
                 };

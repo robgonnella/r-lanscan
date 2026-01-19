@@ -52,7 +52,7 @@ impl Colors {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Theme {
     Blue,
     Emerald,
@@ -138,7 +138,7 @@ impl Theme {
         }
     }
 
-    pub fn to_palette(&self, true_color_enabled: bool) -> &'static tailwind::Palette {
+    pub fn to_palette(self, true_color_enabled: bool) -> &'static tailwind::Palette {
         if true_color_enabled {
             match self {
                 Theme::Blue => &tailwind::BLUE,

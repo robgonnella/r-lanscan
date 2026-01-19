@@ -49,11 +49,12 @@ fn setup() -> (String, NetworkInterface, Arc<Store>) {
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
     let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user,
-        identity,
+        user.clone(),
+        identity.clone(),
         tmp_path.as_str(),
     )));
-    let store = Arc::new(Store::new(conf_manager));
+    let config = Config::new(user, identity);
+    let store = Arc::new(Store::new(conf_manager, config));
     let interface = mock_interface();
     (tmp_path, interface, store)
 }
@@ -111,12 +112,12 @@ fn test_process_arp() {
             notifier: tx,
         },
         rx,
-        Arc::clone(&store),
+        Arc::clone(&store) as Arc<dyn Dispatcher>,
     );
 
     assert!(res.is_ok());
 
-    let state = store.get_state();
+    let state = store.get_state().unwrap();
 
     let expected_devices = vec![DeviceWithPorts {
         hostname: device.hostname,
@@ -231,7 +232,7 @@ fn test_monitor_network() {
             exit_rx,
             Arc::new(Mutex::new(mock_packet_reader)),
             Arc::new(Mutex::new(mock_packet_sender)),
-            Arc::new(config),
+            config,
             Arc::new(interface),
             store,
         )

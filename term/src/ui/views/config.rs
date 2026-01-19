@@ -6,7 +6,7 @@ use crate::ui::{
         input::{Input, InputState},
     },
     store::{
-        Store,
+        Dispatcher,
         action::Action,
         state::{State, ViewID},
     },
@@ -35,7 +35,7 @@ enum Focus {
 }
 
 pub struct ConfigView {
-    store: Arc<Store>,
+    dispatcher: Arc<dyn Dispatcher>,
     theme_index: RefCell<usize>,
     editing: RefCell<bool>,
     focus: RefCell<Focus>,
@@ -47,11 +47,7 @@ pub struct ConfigView {
 }
 
 impl ConfigView {
-    pub fn new(store: Arc<Store>) -> Self {
-        let state = store.get_state();
-
-        let theme = Theme::from_string(&state.config.theme);
-
+    pub fn new(dispatcher: Arc<dyn Dispatcher>, theme: Theme) -> Self {
         let (idx, _) = THEMES
             .iter()
             .enumerate()
@@ -59,7 +55,7 @@ impl ConfigView {
             .unwrap();
 
         Self {
-            store,
+            dispatcher,
             theme_index: RefCell::new(idx),
             editing: RefCell::new(false),
             focus: RefCell::new(Focus::SSHUser),
@@ -89,23 +85,23 @@ impl ConfigView {
     fn next_color(&self) {
         let new_idx = *self.theme_index.borrow() + 1;
         *self.theme_index.borrow_mut() = new_idx % THEMES.len();
-        let theme = THEMES[*self.theme_index.borrow()].clone();
+        let theme = THEMES[*self.theme_index.borrow()];
         self.theme_state.borrow_mut().value = theme.to_string();
-        self.store.dispatch(Action::PreviewTheme(theme));
+        self.dispatcher.dispatch(Action::PreviewTheme(theme));
     }
 
     fn previous_color(&self) {
         let count = THEMES.len();
         let new_idx = *self.theme_index.borrow() + count - 1;
         *self.theme_index.borrow_mut() = new_idx % count;
-        let theme = THEMES[*self.theme_index.borrow()].clone();
+        let theme = THEMES[*self.theme_index.borrow()];
         self.theme_state.borrow_mut().value = theme.to_string();
-        self.store.dispatch(Action::PreviewTheme(theme));
+        self.dispatcher.dispatch(Action::PreviewTheme(theme));
     }
 
     fn set_config(&self, state: &State) {
         let mut config = state.config.clone();
-        config.theme = THEMES[*self.theme_index.borrow()].clone().to_string();
+        config.theme = THEMES[*self.theme_index.borrow()].to_string();
         config.default_ssh_user = self.ssh_user_state.borrow().value.clone();
         let mut port = self.ssh_port_state.borrow().value.clone().parse::<u16>();
         if port.is_err() {
@@ -121,7 +117,7 @@ impl ConfigView {
             .split(",")
             .map_into()
             .collect();
-        self.store.dispatch(Action::UpdateConfig(config));
+        self.dispatcher.dispatch(Action::UpdateConfig(config));
     }
 
     fn render_label(
@@ -393,7 +389,7 @@ impl CustomWidgetRef for ConfigView {
 
         self.render_label(label_rects[0], buf, ctx);
         self.render_network(view_rects[2], buf, ctx);
-        self.render_ssh(view_rects[4], buf, &ctx.state, ctx);
+        self.render_ssh(view_rects[4], buf, ctx.state, ctx);
         self.render_theme(view_rects[6], buf, ctx);
         self.render_ports(view_rects[8], buf, ctx);
     }
@@ -449,7 +445,7 @@ impl EventHandler for ConfigView {
                         }
                         KeyCode::Enter => {
                             if *self.editing.borrow() {
-                                self.set_config(&ctx.state);
+                                self.set_config(ctx.state);
                                 self.reset_input_state();
                                 *self.focus.borrow_mut() = Focus::SSHUser;
                                 *self.editing.borrow_mut() = false;

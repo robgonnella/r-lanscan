@@ -3,9 +3,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use color_eyre::eyre::{Result, eyre};
+
 use crate::{
-    config::{ConfigManager, DEFAULT_CONFIG_ID},
-    ui::colors::Theme,
+    config::{Config, ConfigManager},
+    ui::{colors::Theme, store::action::Action},
 };
 
 pub mod action;
@@ -22,19 +24,14 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn new(config_manager: Arc<Mutex<ConfigManager>>) -> Self {
-        let config = config_manager
-            .lock()
-            .unwrap()
-            .get_by_id(DEFAULT_CONFIG_ID)
-            .unwrap();
-
+    pub fn new(config_manager: Arc<Mutex<ConfigManager>>, current_config: Config) -> Self {
         let true_color_enabled = match supports_color::on(supports_color::Stream::Stdout) {
             Some(support) => support.has_16m,
             _ => false,
         };
 
-        let theme = Theme::from_string(&config.theme);
+        let theme = Theme::from_string(&current_config.theme);
+
         let colors = crate::ui::colors::Colors::new(
             theme.to_palette(true_color_enabled),
             true_color_enabled,
@@ -48,7 +45,7 @@ impl Store {
                 error: None,
                 render_view_select: false,
                 view_id: state::ViewID::Devices,
-                config,
+                config: current_config,
                 arp_history: HashMap::new(),
                 devices: Vec::new(),
                 device_map: HashMap::new(),
@@ -62,14 +59,23 @@ impl Store {
         }
     }
 
-    pub fn dispatch(&self, action: action::Action) {
-        let mut prev_state = self.state.lock().unwrap();
-        let new_state = self.reducer.reduce(prev_state.clone(), action);
-        *prev_state = new_state;
+    pub fn get_state(&self) -> Result<state::State> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|e| eyre!("failed to get lock on state: {}", e))?;
+        Ok(state.clone())
     }
+}
 
-    pub fn get_state(&self) -> state::State {
-        self.state.lock().unwrap().clone()
+pub trait Dispatcher {
+    fn dispatch(&self, action: Action);
+}
+
+impl Dispatcher for Store {
+    fn dispatch(&self, action: action::Action) {
+        let mut state = self.state.lock().unwrap();
+        self.reducer.reduce(&mut state, action);
     }
 }
 

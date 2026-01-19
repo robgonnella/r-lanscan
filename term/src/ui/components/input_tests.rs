@@ -20,7 +20,7 @@ fn renders_input_component_non_edit_mode() {
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
-                state,
+                state: &state,
                 app_area: frame.area(),
                 events: channel.0,
             };
@@ -47,7 +47,7 @@ fn renders_input_component_edit_mode() {
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
-                state,
+                state: &state,
                 app_area: frame.area(),
                 events: channel.0,
             };

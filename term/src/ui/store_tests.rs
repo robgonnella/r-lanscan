@@ -9,11 +9,12 @@ fn setup() -> (Store, String) {
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
     let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user,
-        identity,
+        user.clone(),
+        identity.clone(),
         tmp_path.as_str(),
     )));
-    let store = Store::new(conf_manager);
+    let current_config = Config::new(user, identity);
+    let store = Store::new(conf_manager, current_config);
     (store, tmp_path)
 }
 

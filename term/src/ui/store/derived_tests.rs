@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::store::{Store, action::Action},
+    ui::store::{Dispatcher, Store, action::Action},
 };
 
 use super::*;
@@ -49,7 +49,7 @@ fn test_get_device_config_from_state() {
     )));
 
     let config = Config::new(user, identity);
-    let store = Store::new(conf_manager);
+    let store = Store::new(conf_manager, config.clone());
     let devices = vec![device_1.clone(), device_2.clone()];
 
     store.dispatch(Action::CreateAndSetConfig(config.clone()));
@@ -62,7 +62,7 @@ fn test_get_device_config_from_state() {
     }));
     store.dispatch(Action::UpdateSelectedDevice(device_1.ip.clone()));
 
-    let state = store.get_state();
+    let state = store.get_state().unwrap();
 
     let dev1_config = get_selected_device_config_from_state(&state);
 
@@ -107,7 +107,7 @@ fn test_get_device_config_from_state_default() {
     )));
 
     let config = Config::new(user, identity);
-    let store = Store::new(conf_manager);
+    let store = Store::new(conf_manager, config.clone());
     let devices = vec![device_1.clone(), device_2.clone()];
 
     store.dispatch(Action::CreateAndSetConfig(config.clone()));
@@ -119,7 +119,7 @@ fn test_get_device_config_from_state_default() {
         ssh_user: "dev1_user".to_string(),
     }));
 
-    let state = store.get_state();
+    let state = store.get_state().unwrap();
 
     let dev1_config = get_selected_device_config_from_state(&state);
 
@@ -173,7 +173,7 @@ fn test_get_detected_devices() {
     )));
 
     let config = Config::new(user, identity);
-    let store = Store::new(conf_manager);
+    let store = Store::new(conf_manager, config.clone());
 
     store.dispatch(Action::CreateAndSetConfig(config.clone()));
 
@@ -210,7 +210,7 @@ fn test_get_detected_devices() {
     ]));
 
     // get just devices with miss count = 0 -> device_1
-    let arp_devices = get_detected_devices(&store.get_state());
+    let arp_devices = get_detected_devices(&store.get_state().unwrap());
     assert_eq!(arp_devices.len(), 1);
     assert_eq!(arp_devices[0], device_1.into());
     tear_down(tmp_path.as_str());

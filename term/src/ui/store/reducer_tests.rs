@@ -36,10 +36,10 @@ fn setup() -> (State, Reducer, String) {
         tmp_path.as_str(),
     )));
 
-    let starting_state = State::default();
+    let state = State::default();
     let reducer = Reducer::new(conf_manager);
 
-    (starting_state, reducer, tmp_path)
+    (state, reducer, tmp_path)
 }
 
 fn tear_down(conf_path: String) {
@@ -48,27 +48,24 @@ fn tear_down(conf_path: String) {
 
 #[test]
 fn test_ui_paused() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
 
-    let mut state = reducer.reduce(starting_state.clone(), Action::SetUIPaused(true));
+    reducer.reduce(&mut state, Action::SetUIPaused(true));
     assert!(state.ui_paused);
 
-    state = reducer.reduce(starting_state.clone(), Action::SetUIPaused(false));
+    reducer.reduce(&mut state, Action::SetUIPaused(false));
     assert!(!state.ui_paused);
     tear_down(conf_path);
 }
 
 #[test]
 fn test_set_error() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
 
-    let mut state = reducer.reduce(
-        starting_state.clone(),
-        Action::SetError(Some("error".to_string())),
-    );
+    reducer.reduce(&mut state, Action::SetError(Some("error".to_string())));
     assert!(state.error.is_some());
 
-    state = reducer.reduce(starting_state.clone(), Action::SetError(None));
+    reducer.reduce(&mut state, Action::SetError(None));
     assert!(state.error.is_none());
 
     tear_down(conf_path);
@@ -76,25 +73,25 @@ fn test_set_error() {
 
 #[test]
 fn test_toggle_view_select() {
-    let (starting_state, reducer, conf_path) = setup();
-    let state = reducer.reduce(starting_state.clone(), Action::ToggleViewSelect);
+    let (mut state, reducer, conf_path) = setup();
+    reducer.reduce(&mut state, Action::ToggleViewSelect);
     assert!(state.render_view_select);
     tear_down(conf_path);
 }
 
 #[test]
 fn test_update_view() {
-    let (starting_state, reducer, conf_path) = setup();
-    let state = reducer.reduce(starting_state.clone(), Action::UpdateView(ViewID::Config));
+    let (mut state, reducer, conf_path) = setup();
+    reducer.reduce(&mut state, Action::UpdateView(ViewID::Config));
     assert_eq!(state.view_id, ViewID::Config);
     tear_down(conf_path);
 }
 
 #[test]
 fn test_update_message() {
-    let (starting_state, reducer, conf_path) = setup();
-    let state = reducer.reduce(
-        starting_state.clone(),
+    let (mut state, reducer, conf_path) = setup();
+    reducer.reduce(
+        &mut state,
         Action::UpdateMessage(Some("message".to_string())),
     );
     assert_eq!(state.message.unwrap(), "message".to_string());
@@ -103,9 +100,9 @@ fn test_update_message() {
 
 #[test]
 fn test_preview_theme() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
     let expected_colors = Colors::new(Theme::Emerald.to_palette(true), true);
-    let state = reducer.reduce(starting_state.clone(), Action::PreviewTheme(Theme::Emerald));
+    reducer.reduce(&mut state, Action::PreviewTheme(Theme::Emerald));
     assert_eq!(state.colors.border_color, expected_colors.border_color);
     assert_eq!(state.colors.buffer_bg, expected_colors.buffer_bg);
     assert_eq!(state.colors.header_bg, expected_colors.header_bg);
@@ -124,7 +121,7 @@ fn test_preview_theme() {
 
 #[test]
 fn test_update_config() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
 
     let expected_config = Config {
         cidr: "cidr".to_string(),
@@ -137,10 +134,7 @@ fn test_update_config() {
         theme: "Emerald".to_string(),
     };
 
-    let state = reducer.reduce(
-        starting_state.clone(),
-        Action::UpdateConfig(expected_config.clone()),
-    );
+    reducer.reduce(&mut state, Action::UpdateConfig(expected_config.clone()));
     assert_eq!(state.config, expected_config);
 
     tear_down(conf_path);
@@ -148,7 +142,7 @@ fn test_update_config() {
 
 #[test]
 fn test_update_all_devices() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
 
     let dev1 = DeviceWithPorts {
         hostname: "dev1".to_string(),
@@ -170,8 +164,8 @@ fn test_update_all_devices() {
 
     let expected_devices = vec![dev1.clone(), dev2.clone()];
 
-    let state = reducer.reduce(
-        starting_state.clone(),
+    reducer.reduce(
+        &mut state,
         Action::UpdateAllDevices(expected_devices.clone()),
     );
     assert_eq!(state.devices, expected_devices);
@@ -181,7 +175,7 @@ fn test_update_all_devices() {
 
 #[test]
 fn test_add_device() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
 
     let dev3 = DeviceWithPorts {
         hostname: "dev3".to_string(),
@@ -192,40 +186,34 @@ fn test_add_device() {
         vendor: "dev3_vendor".to_string(),
     };
 
-    let state = reducer.reduce(starting_state.clone(), Action::AddDevice(dev3.clone()));
+    reducer.reduce(&mut state, Action::AddDevice(dev3.clone()));
     assert_eq!(state.devices, vec![dev3.clone()]);
     tear_down(conf_path);
 }
 
 #[test]
 fn test_set_config() {
-    let (starting_state, reducer, conf_path) = setup();
-    let state = reducer.reduce(
-        starting_state.clone(),
-        Action::SetConfig("default".to_string()),
-    );
+    let (mut state, reducer, conf_path) = setup();
+    reducer.reduce(&mut state, Action::SetConfig("default".to_string()));
     assert_eq!(state.config.id, "default");
     tear_down(conf_path);
 }
 
 #[test]
 fn test_create_and_set_config() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
     let mut config = Config::new(user, identity);
     config.id = "config_id".to_string();
-    let state = reducer.reduce(
-        starting_state.clone(),
-        Action::CreateAndSetConfig(config.clone()),
-    );
+    reducer.reduce(&mut state, Action::CreateAndSetConfig(config.clone()));
     assert_eq!(state.config.id, config.id);
     tear_down(conf_path);
 }
 
 #[test]
 fn test_update_selected_device() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
 
     let dev1 = DeviceWithPorts {
         hostname: "dev1".to_string(),
@@ -245,13 +233,13 @@ fn test_update_selected_device() {
         vendor: "dev2_vendor".to_string(),
     };
 
-    let mut state = reducer.reduce(starting_state, Action::AddDevice(dev1.clone()));
-    state = reducer.reduce(state, Action::AddDevice(dev2.clone()));
-    state = reducer.reduce(
-        state,
+    reducer.reduce(&mut state, Action::AddDevice(dev1.clone()));
+    reducer.reduce(&mut state, Action::AddDevice(dev2.clone()));
+    reducer.reduce(
+        &mut state,
         Action::UpdateAllDevices(vec![dev1.clone(), dev2.clone()]),
     );
-    state = reducer.reduce(state, Action::UpdateSelectedDevice(dev2.ip.clone()));
+    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev2.ip.clone()));
     assert!(state.selected_device.is_some());
     let selected = state.selected_device.unwrap();
     assert_eq!(selected.mac, dev2.mac);
@@ -260,7 +248,7 @@ fn test_update_selected_device() {
 
 #[test]
 fn test_update_device_config() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
 
     let dev = DeviceWithPorts {
         hostname: "dev".to_string(),
@@ -278,10 +266,10 @@ fn test_update_device_config() {
         ssh_user: "dev_user".to_string(),
     };
 
-    let mut state = reducer.reduce(starting_state, Action::AddDevice(dev.clone()));
-    state = reducer.reduce(state, Action::UpdateAllDevices(vec![dev.clone()]));
-    state = reducer.reduce(state, Action::UpdateDeviceConfig(dev_config.clone()));
-    state = reducer.reduce(state, Action::UpdateSelectedDevice(dev.ip.clone()));
+    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
+    reducer.reduce(&mut state, Action::UpdateAllDevices(vec![dev.clone()]));
+    reducer.reduce(&mut state, Action::UpdateDeviceConfig(dev_config.clone()));
+    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev.ip.clone()));
 
     assert!(state.selected_device_config.is_some());
     let selected = state.selected_device_config.unwrap();
@@ -293,7 +281,7 @@ fn test_update_device_config() {
 
 #[test]
 fn test_set_command_in_progress() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
     let dev = Device {
         hostname: "dev".to_string(),
         ip: "10.10.10.2".to_string(),
@@ -302,8 +290,8 @@ fn test_set_command_in_progress() {
         vendor: "dev_vendor".to_string(),
     };
     let port: u16 = 80;
-    let state = reducer.reduce(
-        starting_state,
+    reducer.reduce(
+        &mut state,
         Action::SetCommandInProgress(Some(Command::Browse(BrowseArgs {
             device: dev.clone(),
             port,
@@ -325,7 +313,7 @@ fn test_set_command_in_progress() {
 
 #[test]
 fn test_update_command_output() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
     let dev = Device {
         hostname: "dev".to_string(),
         ip: "10.10.10.2".to_string(),
@@ -346,8 +334,8 @@ fn test_update_command_output() {
         stderr: vec![],
     };
 
-    let mut state = reducer.reduce(
-        starting_state,
+    reducer.reduce(
+        &mut state,
         Action::UpdateCommandOutput((cmd.clone(), output.clone())),
     );
     assert!(state.cmd_output.is_some());
@@ -355,14 +343,14 @@ fn test_update_command_output() {
     assert_eq!(info.0, cmd);
     assert_eq!(info.1, output);
 
-    state = reducer.reduce(state, Action::ClearCommandOutput);
+    reducer.reduce(&mut state, Action::ClearCommandOutput);
     assert!(state.cmd_output.is_none());
     tear_down(conf_path);
 }
 
 #[test]
 fn test_updates_device_with_new_info() {
-    let (starting_state, reducer, conf_path) = setup();
+    let (mut state, reducer, conf_path) = setup();
 
     let mut dev = DeviceWithPorts {
         hostname: "dev".to_string(),
@@ -378,13 +366,13 @@ fn test_updates_device_with_new_info() {
         service: "http".to_string(),
     };
 
-    let mut state = reducer.reduce(starting_state, Action::AddDevice(dev.clone()));
+    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
 
     assert_eq!(state.devices.len(), 1);
 
     dev.open_ports.insert(port.clone());
 
-    state = reducer.reduce(state, Action::AddDevice(dev.clone()));
+    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
 
     assert_eq!(state.devices.len(), 1);
     assert_eq!(state.devices[0], dev);

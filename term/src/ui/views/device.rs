@@ -7,7 +7,7 @@ use crate::{
             popover::get_popover_area,
         },
         store::{
-            Store,
+            Dispatcher,
             action::Action,
             derived::get_selected_device_config_from_state,
             state::{State, ViewID},
@@ -39,7 +39,7 @@ enum Focus {
 }
 
 pub struct DeviceView {
-    store: Arc<Store>,
+    dispatcher: Arc<dyn Dispatcher>,
     editing: RefCell<bool>,
     focus: RefCell<Focus>,
     ssh_user_state: RefCell<InputState>,
@@ -50,9 +50,9 @@ pub struct DeviceView {
 }
 
 impl DeviceView {
-    pub fn new(store: Arc<Store>) -> Self {
+    pub fn new(dispatcher: Arc<dyn Dispatcher>) -> Self {
         Self {
-            store,
+            dispatcher,
             editing: RefCell::new(false),
             focus: RefCell::new(Focus::SSHUser),
             ssh_user_state: RefCell::new(InputState {
@@ -88,7 +88,7 @@ impl DeviceView {
             || self.browser_select_state.borrow().editing
             || self.browser_port_state.borrow().editing
         {
-            let device_config = get_selected_device_config_from_state(&ctx.state);
+            let device_config = get_selected_device_config_from_state(ctx.state);
             self.ssh_user_state.borrow_mut().value = device_config.ssh_user.clone();
             self.ssh_port_state.borrow_mut().value = device_config.ssh_port.to_string();
             self.ssh_identity_state.borrow_mut().value = device_config.ssh_identity_file.clone();
@@ -198,7 +198,7 @@ impl DeviceView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        if self.is_tracing(&ctx.state) {
+        if self.is_tracing(ctx.state) {
             let [label_area] = Layout::vertical([
                 Constraint::Min(1), // label
             ])
@@ -207,19 +207,19 @@ impl DeviceView {
             let header = Header::new("tracing...".to_string());
             header.render(label_area, buf, ctx);
         } else if ctx.state.cmd_output.is_some() {
-            let (cmd, output) = ctx.state.cmd_output.clone().unwrap();
+            let (cmd, output) = ctx.state.cmd_output.as_ref().unwrap();
             let header = Header::new(cmd.to_string());
 
             let status_value = Span::from(output.status.to_string());
             let status = Line::from(vec![status_value]);
 
             let stderr_label = Span::from("stderr: ");
-            let stderr_value = Span::from(String::from_utf8(output.stderr).unwrap());
+            let stderr_value = Span::from(String::from_utf8(output.stderr.clone()).unwrap());
             let stderr = Paragraph::new(Line::from(vec![stderr_label, stderr_value]))
                 .wrap(Wrap { trim: true });
 
             let stdout_label = Span::from("stdout: ");
-            let stdout_value = Span::from(String::from_utf8(output.stdout).unwrap());
+            let stdout_value = Span::from(String::from_utf8(output.stdout.clone()).unwrap());
 
             let stdout = Paragraph::new(Line::from(vec![stdout_label, stdout_value]))
                 .wrap(Wrap { trim: true });
@@ -436,7 +436,7 @@ impl DeviceView {
 
     fn is_tracing(&self, state: &State) -> bool {
         if state.cmd_in_progress.is_some() {
-            let cmd = state.cmd_in_progress.clone().unwrap();
+            let cmd = state.cmd_in_progress.as_ref().unwrap();
             matches!(cmd, Command::TraceRoute(_))
         } else {
             false
@@ -484,9 +484,9 @@ impl CustomWidgetRef for DeviceView {
 
         let popover_area = get_popover_area(ctx.app_area, 40, 30);
 
-        if let Some(device) = ctx.state.selected_device.clone() {
+        if let Some(device) = ctx.state.selected_device.as_ref() {
             self.render_device_ssh_config(ssh_area, buf, ctx);
-            self.render_device_info(info_area, buf, &device, ctx);
+            self.render_device_info(info_area, buf, device, ctx);
             self.render_cmd_output(right_area, buf, ctx);
             // important that this is last so it properly layers on top
             self.render_browser_config_popover(popover_area, buf, ctx);
@@ -513,9 +513,10 @@ impl EventHandler for DeviceView {
                     if *self.editing.borrow() {
                         self.reset_input_state();
                         handled = true;
-                    } else if !self.is_tracing(&ctx.state) {
-                        self.store.dispatch(Action::ClearCommandOutput);
-                        self.store.dispatch(Action::UpdateView(ViewID::Devices));
+                    } else if !self.is_tracing(ctx.state) {
+                        self.dispatcher.dispatch(Action::ClearCommandOutput);
+                        self.dispatcher
+                            .dispatch(Action::UpdateView(ViewID::Devices));
                         handled = true;
                     }
                 }
@@ -552,7 +553,13 @@ impl EventHandler for DeviceView {
                             if let Ok(port) = port_str.parse::<u16>() {
                                 let _ = ctx.events.send(Event::ExecCommand(Command::Browse(
                                     BrowseArgs {
-                                        device: ctx.state.selected_device.clone().unwrap().into(),
+                                        device: ctx
+                                            .state
+                                            .selected_device
+                                            .as_ref()
+                                            .unwrap()
+                                            .clone()
+                                            .into(),
                                         port,
                                         use_lynx: self.browser_select_state.borrow().value
                                             == "lynx",
@@ -561,18 +568,19 @@ impl EventHandler for DeviceView {
                                 self.reset_input_state();
                                 handled = true;
                             }
-                        } else if let Some(device) = ctx.state.selected_device.clone() {
+                        } else if let Some(device) = ctx.state.selected_device.as_ref() {
                             // save config
                             let mut device_config =
-                                get_selected_device_config_from_state(&ctx.state);
+                                get_selected_device_config_from_state(ctx.state);
                             device_config.ssh_user = self.ssh_user_state.borrow().value.clone();
                             let port = self.ssh_port_state.borrow().value.clone().parse::<u16>();
                             device_config.ssh_port = port.unwrap_or(22);
                             device_config.ssh_identity_file =
                                 self.ssh_identity_state.borrow().value.clone();
-                            self.store
+                            self.dispatcher
                                 .dispatch(Action::UpdateDeviceConfig(device_config));
-                            self.store.dispatch(Action::UpdateSelectedDevice(device.ip));
+                            self.dispatcher
+                                .dispatch(Action::UpdateSelectedDevice(device.ip.clone()));
                             self.reset_input_state();
                             handled = true;
                         }
@@ -589,7 +597,7 @@ impl EventHandler for DeviceView {
                         // handle value update for focused element
                         self.push_input_char(c);
                         handled = true;
-                    } else if self.is_tracing(&ctx.state) {
+                    } else if self.is_tracing(ctx.state) {
                         handled = true
                     } else if c == 'c' {
                         // enter edit mode
@@ -601,14 +609,14 @@ impl EventHandler for DeviceView {
                         if ctx.state.cmd_in_progress.is_none() {
                             handled = true;
                             let _ = ctx.events.send(Event::ExecCommand(Command::Ssh(
-                                ctx.state.selected_device.clone().unwrap().into(),
-                                ctx.state.selected_device_config.clone().unwrap(),
+                                ctx.state.selected_device.as_ref().unwrap().clone().into(),
+                                ctx.state.selected_device_config.as_ref().unwrap().clone(),
                             )));
                         }
                     } else if c == 't' {
-                        if !self.is_tracing(&ctx.state) {
+                        if !self.is_tracing(ctx.state) {
                             let _ = ctx.events.send(Event::ExecCommand(Command::TraceRoute(
-                                ctx.state.selected_device.clone().unwrap().into(),
+                                ctx.state.selected_device.as_ref().unwrap().clone().into(),
                             )));
                             handled = true;
                         }

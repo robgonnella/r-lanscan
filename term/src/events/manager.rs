@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use crate::ui::store::{Store, action::Action};
+use crate::ui::store::{Dispatcher, Store, action::Action};
 
 use super::types::{Command as AppCommand, Event};
 
@@ -54,7 +54,7 @@ impl EventManager {
     }
 
     fn handle_cmd(&self, rx: MutexGuard<'_, Receiver<Event>>, cmd: AppCommand) -> Result<()> {
-        let state = self.store.get_state();
+        let state = self.store.get_state()?;
 
         if state.cmd_in_progress.is_some() {
             return Ok(());

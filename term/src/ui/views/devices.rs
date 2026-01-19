@@ -6,9 +6,9 @@ use ratatui::{
 use std::{cell::RefCell, sync::Arc};
 
 use crate::ui::{
-    components::table::{self, Table},
+    components::table::{DEFAULT_ITEM_HEIGHT, Table},
     store::{
-        Store,
+        Dispatcher,
         action::Action,
         state::{State, ViewID},
     },
@@ -17,42 +17,16 @@ use crate::ui::{
 use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 pub struct DevicesView {
-    store: Arc<Store>,
+    dispatcher: Arc<dyn Dispatcher>,
     table: RefCell<Table>,
 }
 
 impl DevicesView {
-    pub fn new(store: Arc<Store>) -> Self {
-        let state = store.get_state();
-
-        let items = state
-            .devices
-            .iter()
-            .map(|d| {
-                vec![
-                    d.ip.clone(),
-                    d.hostname.clone(),
-                    d.vendor.clone(),
-                    d.mac.clone(),
-                    d.open_ports
-                        .iter()
-                        .sorted_by_key(|p| p.id)
-                        .map(|p| p.id.to_string())
-                        .join(", "),
-                ]
-            })
-            .collect_vec();
-
-        let mut height = table::DEFAULT_ITEM_HEIGHT;
-
-        if !state.devices.is_empty() {
-            height = (state.devices.len() - 1) * table::DEFAULT_ITEM_HEIGHT;
-        }
-
+    pub fn new(dispatcher: Arc<dyn Dispatcher>) -> Self {
         Self {
-            store,
+            dispatcher,
             table: RefCell::new(Table::new(
-                items,
+                Vec::new(),
                 Some(vec![
                     "IP".to_string(),
                     "HOSTNAME".to_string(),
@@ -61,7 +35,7 @@ impl DevicesView {
                     "OPEN PORTS".to_string(),
                 ]),
                 vec![20, 20, 20, 17, 30],
-                height,
+                DEFAULT_ITEM_HEIGHT,
             )),
         }
     }
@@ -77,13 +51,13 @@ impl DevicesView {
     fn set_store_selected(&self, i: usize, state: &State) {
         if !state.devices.is_empty() && i < state.devices.len() {
             let ip = state.devices[i].ip.clone();
-            self.store.dispatch(Action::UpdateSelectedDevice(ip));
+            self.dispatcher.dispatch(Action::UpdateSelectedDevice(ip));
         }
     }
 
     fn handle_device_selection(&self, state: &State) {
         if state.selected_device.is_some() {
-            self.store.dispatch(Action::UpdateView(ViewID::Device));
+            self.dispatcher.dispatch(Action::UpdateView(ViewID::Device));
         }
     }
 
@@ -100,7 +74,7 @@ impl DevicesView {
             .map(|d| {
                 vec![
                     if d.is_current_host {
-                        format!("{} [YOU]", d.ip.clone())
+                        format!("{} [YOU]", d.ip)
                     } else {
                         d.ip.clone()
                     },
@@ -117,7 +91,7 @@ impl DevicesView {
             .collect_vec();
         let selected = self.table.borrow_mut().update_items(items);
         if let Some(selected) = selected {
-            self.set_store_selected(selected, &ctx.state);
+            self.set_store_selected(selected, ctx.state);
         }
         self.table.borrow().render_ref(area, buf, ctx);
     }
@@ -141,7 +115,7 @@ impl CustomWidgetRef for DevicesView {
         ctx: &CustomWidgetContext,
     ) {
         if let Some(selected_idx) = self.table.borrow().selected() {
-            self.set_store_selected(selected_idx, &ctx.state);
+            self.set_store_selected(selected_idx, ctx.state);
         }
 
         let view_rects = Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).split(area);
@@ -176,7 +150,7 @@ impl EventHandler for DevicesView {
                             handled = true;
                         }
                         KeyCode::Enter => {
-                            self.handle_device_selection(&ctx.state);
+                            self.handle_device_selection(ctx.state);
                             handled = true;
                         }
                         _ => {}

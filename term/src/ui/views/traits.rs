@@ -11,9 +11,9 @@ pub trait EventHandler {
     fn process_event(&self, evt: &CrossTermEvent, ctx: &CustomWidgetContext) -> bool;
 }
 
-pub struct CustomWidgetContext {
+pub struct CustomWidgetContext<'a> {
     // app state
-    pub state: State,
+    pub state: &'a State,
     // total area for the entire application - useful for calculating
     // popover areas
     pub app_area: Rect,
