@@ -1,15 +1,29 @@
-use nanoid::nanoid;
-use pnet::util::MacAddr;
-use r_lanlib::scanners::Port;
-use std::{collections::HashSet, fs, os::unix::process::ExitStatusExt, process::Output};
-
-use crate::{
-    config::Config,
-    events::types::{BrowseArgs, Command},
-    ui::store::state::ViewID,
+use std::{
+    collections::HashMap,
+    collections::HashSet,
+    fs,
+    os::unix::process::ExitStatusExt,
+    process::Output,
+    sync::{Arc, Mutex},
 };
 
-use super::*;
+use nanoid::nanoid;
+use pnet::util::MacAddr;
+use r_lanlib::scanners::{Device, DeviceWithPorts, Port};
+
+use crate::{
+    config::{Config, ConfigManager, DeviceConfig},
+    events::types::{BrowseArgs, Command},
+    ui::{
+        colors::{Colors, Theme},
+        store::{
+            action::Action,
+            state::{State, ViewID},
+        },
+    },
+};
+
+use super::Reducer;
 
 fn setup() -> (State, Reducer, String) {
     fs::create_dir_all("generated").unwrap();

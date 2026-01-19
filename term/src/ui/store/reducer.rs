@@ -1,21 +1,10 @@
-use std::{
-    collections::HashMap,
-    net::Ipv4Addr,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
-use itertools::Itertools;
-use r_lanlib::scanners::{Device, DeviceWithPorts};
-
-use crate::{
-    config::{ConfigManager, DeviceConfig},
-    ui::colors::{Colors, Theme},
-};
+use crate::config::ConfigManager;
 
 use super::{action::Action, state::State};
 
-const MAX_ARP_MISS: i8 = 3;
+mod reducers;
 
 pub struct Reducer {
     config_manager: Arc<Mutex<ConfigManager>>,
@@ -28,202 +17,47 @@ impl Reducer {
 
     pub fn reduce(&self, prev_state: State, action: Action) -> State {
         match action {
-            Action::SetUIPaused(value) => {
-                let mut state = prev_state.clone();
-                state.ui_paused = value;
-                state
-            }
-            Action::SetError(err) => {
-                let mut state = prev_state.clone();
-                state.error = err;
-                state
-            }
-            Action::ToggleViewSelect => {
-                let mut state = prev_state.clone();
-                state.render_view_select = !state.render_view_select;
-                state
-            }
-            Action::UpdateView(id) => {
-                let mut state = prev_state.clone();
-                state.view_id = id;
-                state
-            }
-            Action::UpdateMessage(message) => {
-                let mut state = prev_state.clone();
-                state.message = message;
-                state
-            }
-            Action::PreviewTheme(theme) => {
-                let mut state = prev_state.clone();
-                state.colors = Colors::new(
-                    theme.to_palette(state.true_color_enabled),
-                    state.true_color_enabled,
-                );
-                state
-            }
-            Action::UpdateConfig(config) => {
-                let mut state = prev_state.clone();
-                let mut manager = self.config_manager.lock().unwrap();
-                manager.update_config(config.clone());
-                state.config = config;
-                state
-            }
+            // UI actions
+            Action::SetUIPaused(value) => reducers::ui::set_ui_paused(prev_state, value),
+            Action::SetError(err) => reducers::ui::set_error(prev_state, err),
+            Action::ToggleViewSelect => reducers::ui::toggle_view_select(prev_state),
+            Action::UpdateView(id) => reducers::ui::update_view(prev_state, id),
+            Action::UpdateMessage(message) => reducers::ui::update_message(prev_state, message),
+            Action::PreviewTheme(theme) => reducers::ui::preview_theme(prev_state, theme),
+
+            // Device actions
             Action::UpdateAllDevices(devices) => {
-                let mut state = prev_state.clone();
-                let mut new_map: HashMap<String, DeviceWithPorts> = HashMap::new();
-                let mut arp_history: HashMap<String, (Device, i8)> = HashMap::new();
-
-                for d in devices.iter() {
-                    new_map.insert(d.ip.clone(), d.clone());
-                }
-
-                state.devices = devices.clone();
-                state
-                    .devices
-                    .sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
-
-                state.device_map = new_map;
-
-                // keep devices that may have been missed in last scan but
-                // up to a max limit of misses
-                for d in state.arp_history.iter() {
-                    let mut count = d.1.1;
-                    if !state.device_map.contains_key(d.0) {
-                        count += 1;
-                    }
-
-                    if count < MAX_ARP_MISS {
-                        arp_history.insert(d.0.clone(), (d.1.0.clone(), count));
-                    }
-                }
-
-                state.arp_history = arp_history;
-                state
+                reducers::device::update_all_devices(prev_state, devices)
             }
-            Action::AddDevice(device) => {
-                let mut state = prev_state.clone();
-                let arp_device: Device = device.clone().into();
+            Action::AddDevice(device) => reducers::device::add_device(prev_state, device),
+            Action::UpdateSelectedDevice(ip) => {
+                reducers::device::update_selected_device(prev_state, ip)
+            }
 
-                state.arp_history.insert(device.ip.clone(), (arp_device, 0));
-
-                if let std::collections::hash_map::Entry::Vacant(e) =
-                    state.device_map.entry(device.ip.clone())
-                {
-                    state.devices.push(device.clone());
-                    e.insert(device.clone());
-                } else {
-                    let found_device = state
-                        .devices
-                        .iter_mut()
-                        .find(|d| d.ip == device.ip)
-                        .unwrap();
-                    found_device.hostname = device.hostname.clone();
-                    found_device.ip = device.ip.clone();
-                    found_device.mac = device.mac.clone();
-
-                    for p in &device.open_ports {
-                        found_device.open_ports.insert(p.clone());
-                    }
-
-                    found_device.open_ports.iter().sorted_by_key(|p| p.id);
-                    let mapped_device = state.device_map.get_mut(&device.ip.clone()).unwrap();
-                    *mapped_device = found_device.clone();
-                }
-
-                state
-                    .devices
-                    .sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
-                state
+            // Config actions
+            Action::UpdateConfig(config) => {
+                reducers::config::update_config(prev_state, config, &self.config_manager)
             }
             Action::SetConfig(config_id) => {
-                let mut state = prev_state.clone();
-                if let Some(conf) = self
-                    .config_manager
-                    .lock()
-                    .unwrap()
-                    .get_by_id(config_id.as_str())
-                {
-                    let theme = Theme::from_string(&conf.theme);
-                    state.config = conf;
-                    state.colors = Colors::new(
-                        theme.to_palette(state.true_color_enabled),
-                        state.true_color_enabled,
-                    );
-                }
-                state
+                reducers::config::set_config(prev_state, config_id, &self.config_manager)
             }
             Action::CreateAndSetConfig(config) => {
-                let mut state = prev_state.clone();
-                let mut manager = self.config_manager.lock().unwrap();
-                manager.create(&config);
-                let theme = Theme::from_string(&config.theme);
-                state.config = config.clone();
-                state.colors = Colors::new(
-                    theme.to_palette(state.true_color_enabled),
-                    state.true_color_enabled,
-                );
-                state
+                reducers::config::create_and_set_config(prev_state, config, &self.config_manager)
             }
-            Action::UpdateSelectedDevice(i) => {
-                let mut state = prev_state.clone();
-                if let Some(device) = state.device_map.get(i.as_str()) {
-                    state.selected_device = Some(device.clone());
-                    let device_config: DeviceConfig;
-                    if state.config.device_configs.contains_key(&device.ip) {
-                        device_config =
-                            state.config.device_configs.get(&device.ip).unwrap().clone();
-                    } else if state.config.device_configs.contains_key(&device.mac) {
-                        device_config = state
-                            .config
-                            .device_configs
-                            .get(&device.mac)
-                            .unwrap()
-                            .clone();
-                    } else {
-                        device_config = DeviceConfig {
-                            id: device.mac.clone(),
-                            ssh_identity_file: state.config.default_ssh_identity.clone(),
-                            ssh_port: state
-                                .config
-                                .default_ssh_port
-                                .clone()
-                                .parse::<u16>()
-                                .unwrap(),
-                            ssh_user: state.config.default_ssh_user.clone(),
-                        }
-                    }
+            Action::UpdateDeviceConfig(device_config) => reducers::config::update_device_config(
+                prev_state,
+                device_config,
+                &self.config_manager,
+            ),
 
-                    state.selected_device_config = Some(device_config);
-                }
-
-                state
-            }
-            Action::UpdateDeviceConfig(device_config) => {
-                let mut state = prev_state.clone();
-                let mut config = state.config.clone();
-                config
-                    .device_configs
-                    .insert(device_config.id.clone(), device_config);
-                let mut manager = self.config_manager.lock().unwrap();
-                manager.update_config(config.clone());
-                state.config = config;
-                state
-            }
+            // Command actions
             Action::SetCommandInProgress(value) => {
-                let mut state = prev_state.clone();
-                state.cmd_in_progress = value;
-                state
+                reducers::command::set_command_in_progress(prev_state, value)
             }
             Action::UpdateCommandOutput((cmd, output)) => {
-                let mut state = prev_state.clone();
-                state.cmd_output = Some((cmd, output));
-                state
+                reducers::command::update_command_output(prev_state, cmd, output)
             }
-            Action::ClearCommandOutput => {
-                let mut state = prev_state.clone();
-                state.cmd_output = None;
-                state
-            }
+            Action::ClearCommandOutput => reducers::command::clear_command_output(prev_state),
         }
     }
 }
