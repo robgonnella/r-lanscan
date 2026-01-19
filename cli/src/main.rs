@@ -28,7 +28,6 @@ use r_lanlib::{
 };
 use std::{
     collections::HashSet,
-    env,
     net::Ipv4Addr,
     str::FromStr,
     sync::{
@@ -74,8 +73,8 @@ struct Args {
     idle_timeout_ms: u16,
 
     /// Choose a specific network interface for the scan
-    #[arg(short, long, default_value_t = network::get_default_interface().expect("cannot find default interface").name.to_string())]
-    interface: String,
+    #[arg(short, long)]
+    interface: Option<String>,
 
     /// Sets the port for outgoing / incoming packets
     #[arg(long, default_value_t = network::get_available_port().expect("cannot find open port"))]
@@ -116,7 +115,10 @@ fn print_args(args: &Args, interface: &NetworkInterface) {
     info!("host_names:      {}", args.host_names);
     info!("quiet:           {}", args.quiet);
     info!("idle_timeout_ms: {}", args.idle_timeout_ms);
-    info!("interface:       {}", interface.name);
+    info!(
+        "interface:       {}",
+        args.interface.as_deref().unwrap_or(&interface.name)
+    );
     info!("cidr:            {}", interface.cidr);
     info!("user_ip:         {}", interface.ipv4);
     info!("source_port:     {}", args.source_port);
@@ -283,11 +285,22 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
 }
 
 #[doc(hidden)]
+#[cfg(unix)]
 fn is_root() -> bool {
-    match env::var("USER") {
-        Ok(val) => val == "root",
-        Err(_e) => false,
-    }
+    nix::unistd::geteuid().is_root()
+}
+
+#[doc(hidden)]
+#[cfg(windows)]
+fn is_root() -> bool {
+    // On Windows, check if running as Administrator
+    // This is a simplified check - raw socket operations require admin privileges
+    use std::process::Command;
+    Command::new("net")
+        .args(["session"])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
 }
 
 #[doc(hidden)]
@@ -302,9 +315,14 @@ fn main() -> Result<()> {
         return Err(eyre!("permission denied: must run with root privileges"));
     }
 
-    let interface = network::get_interface(&args.interface).expect("cannot find interface");
+    let interface = match &args.interface {
+        Some(name) => network::get_interface(name)
+            .ok_or_else(|| eyre!("Could not find network interface: {}", name))?,
+        None => network::get_default_interface()
+            .ok_or_else(|| eyre!("Could not detect default network interface"))?,
+    };
 
-    args.interface = interface.name.clone();
+    args.interface = Some(interface.name.clone());
 
     if args.targets.is_empty() {
         args.targets = vec![interface.cidr.clone()]

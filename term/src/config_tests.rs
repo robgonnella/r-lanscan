@@ -6,7 +6,9 @@ use super::*;
 fn setup() -> (ConfigManager, Config, String) {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let mut manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let mut manager = ConfigManager::new(user, identity, tmp_path.as_str());
     let config = Config {
         id: "octopus".to_string(),
         cidr: "192.168.1.1/24".to_string(),

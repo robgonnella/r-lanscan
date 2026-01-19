@@ -12,7 +12,13 @@ use super::*;
 fn setup() -> (String, Arc<Store>, App) {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
+        user,
+        identity,
+        tmp_path.as_str(),
+    )));
     let store = Arc::new(Store::new(conf_manager));
     let (tx, rx) = mpsc::channel();
     let stdout = io::stdout();

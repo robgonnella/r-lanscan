@@ -40,9 +40,15 @@ fn test_get_device_config_from_state() {
 
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
+        user.clone(),
+        identity.clone(),
+        tmp_path.as_str(),
+    )));
 
-    let config = Config::default();
+    let config = Config::new(user, identity);
     let store = Store::new(conf_manager);
     let devices = vec![device_1.clone(), device_2.clone()];
 
@@ -89,10 +95,18 @@ fn test_get_device_config_from_state_default() {
     };
 
     fs::create_dir_all("generated").unwrap();
-    let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
 
-    let config = Config::default();
+    let tmp_path = format!("generated/{}.yml", nanoid!());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+
+    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
+        user.clone(),
+        identity.clone(),
+        tmp_path.as_str(),
+    )));
+
+    let config = Config::new(user, identity);
     let store = Store::new(conf_manager);
     let devices = vec![device_1.clone(), device_2.clone()];
 
@@ -148,9 +162,17 @@ fn test_get_detected_devices() {
 
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(tmp_path.as_str())));
 
-    let config = Config::default();
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+
+    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
+        user.clone(),
+        identity.clone(),
+        tmp_path.as_str(),
+    )));
+
+    let config = Config::new(user, identity);
     let store = Store::new(conf_manager);
 
     store.dispatch(Action::CreateAndSetConfig(config.clone()));

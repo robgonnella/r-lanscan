@@ -51,7 +51,9 @@ pub struct State {
 #[cfg(test)]
 impl State {
     pub fn default() -> Self {
-        let config = Config::default();
+        let user = "user".to_string();
+        let identity = "/home/user/.ssh/id_rsa".to_string();
+        let config = Config::new(user, identity);
         let theme = Theme::from_string(&config.theme);
         let true_color_enabled = true;
         let colors = crate::ui::colors::Colors::new(

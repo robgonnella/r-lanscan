@@ -61,7 +61,9 @@ fn tear_down(path: &str) {
 fn handles_ssh_command_err() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -105,7 +107,9 @@ fn handles_ssh_command_err() {
 fn handles_ssh_command_ok() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -149,7 +153,9 @@ fn handles_ssh_command_ok() {
 fn handles_ssh_command_ok_err() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -204,7 +210,9 @@ fn handles_ssh_command_ok_err() {
 fn handles_ssh_command_ok_err_empty() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -249,7 +257,9 @@ fn handles_ssh_command_ok_err_empty() {
 fn handles_traceroute_command_err() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -281,7 +291,9 @@ fn handles_traceroute_command_err() {
 fn handles_traceroute_command_ok() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -332,7 +344,9 @@ fn handles_traceroute_command_ok() {
 fn handles_browse_command_err() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -374,7 +388,9 @@ fn handles_browse_command_err() {
 fn handles_browse_command_ok() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -416,7 +432,9 @@ fn handles_browse_command_ok() {
 fn handles_browse_command_ok_err() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -469,7 +487,9 @@ fn handles_browse_command_ok_err() {
 fn handles_browse_command_ok_err_empty() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
@@ -512,7 +532,9 @@ fn handles_browse_command_ok_err_empty() {
 fn listens_for_events() {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
-    let conf_manager = ConfigManager::new(tmp_path.as_str());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
 
     let mut mock_commander = Commander::default();
 
