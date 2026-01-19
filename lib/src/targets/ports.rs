@@ -12,9 +12,9 @@ use crate::error::{RLanLibError, Result};
 /// wrapper allows the storage of just the range in string form and then
 /// dynamically loops the ports in that range when needed.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if an item in the list does not parse to u16
+/// Returns an error if an item in the list does not parse to a valid port (u16)
 ///
 /// # Examples
 ///
@@ -25,7 +25,7 @@ use crate::error::{RLanLibError, Result};
 ///   println!("port: {}", port);
 ///   Ok(())
 /// };
-/// let ports = PortTargets::new(vec!["1-65535".to_string()]);
+/// let ports = PortTargets::new(vec!["1-65535".to_string()]).unwrap();
 /// ports.lazy_loop(print_port).unwrap();
 /// ```
 pub struct PortTargets(Vec<String>, usize);
@@ -58,14 +58,13 @@ fn loop_ports<F: FnMut(u16) -> Result<()>>(list: &[String], mut cb: F) -> Result
 
 impl PortTargets {
     /// Returns a new instance of PortTargets using the provided list
-    pub fn new(list: Vec<String>) -> Arc<Self> {
+    pub fn new(list: Vec<String>) -> Result<Arc<Self>> {
         let mut len = 0;
         loop_ports(&list, |_| {
             len += 1;
             Ok(())
-        })
-        .unwrap();
-        Arc::new(Self(list, len))
+        })?;
+        Ok(Arc::new(Self(list, len)))
     }
 
     /// Returns true if the list is empty

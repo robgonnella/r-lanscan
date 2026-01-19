@@ -238,7 +238,8 @@ fn monitor_network(
                 interface: &interface,
                 packet_reader: Arc::clone(&packet_reader),
                 packet_sender: Arc::clone(&packet_sender),
-                targets: IPTargets::new(vec![interface.cidr.clone()]),
+                targets: IPTargets::new(vec![interface.cidr.clone()])
+                    .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
                 include_host_names: true,
                 include_vendor: true,
                 idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
@@ -258,7 +259,8 @@ fn monitor_network(
                 packet_reader: Arc::clone(&packet_reader),
                 packet_sender: Arc::clone(&packet_sender),
                 targets: arp_devices,
-                ports: PortTargets::new(config.ports.clone()),
+                ports: PortTargets::new(config.ports.clone())
+                    .map_err(|e| eyre!("Invalid port targets: {}", e))?,
                 source_port,
                 idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
                 notifier: tx.clone(),

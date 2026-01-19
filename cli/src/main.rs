@@ -320,7 +320,8 @@ fn main() -> Result<()> {
         interface: &interface,
         packet_reader: Arc::clone(&wire.0),
         packet_sender: Arc::clone(&wire.1),
-        targets: IPTargets::new(args.targets.clone()),
+        targets: IPTargets::new(args.targets.clone())
+            .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
         source_port: args.source_port,
         include_vendor: args.vendor,
         include_host_names: args.host_names,
@@ -341,7 +342,8 @@ fn main() -> Result<()> {
         packet_reader: wire.0,
         packet_sender: wire.1,
         targets: arp_results.clone(),
-        ports: PortTargets::new(args.ports.clone()),
+        ports: PortTargets::new(args.ports.clone())
+            .map_err(|e| eyre!("Invalid port targets: {}", e))?,
         source_port: args.source_port,
         idle_timeout: time::Duration::from_millis(args.idle_timeout_ms.into()),
         notifier: tx,

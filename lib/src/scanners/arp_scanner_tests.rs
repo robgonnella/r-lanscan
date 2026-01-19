@@ -27,7 +27,7 @@ fn new() {
     let sender = Arc::new(Mutex::new(MockPacketSender::new()));
     let receiver = Arc::new(Mutex::new(MockPacketReader::new()));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]).unwrap();
     let (tx, _) = channel();
 
     let scanner = ARPScanner::new(ARPScannerArgs {
@@ -80,7 +80,7 @@ fn sends_and_reads_packets() {
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec![device_ip.to_string()]);
+    let targets = IPTargets::new(vec![device_ip.to_string()]).unwrap();
     let (tx, rx) = channel();
 
     let scanner = ARPScanner::new(ARPScannerArgs {
@@ -161,7 +161,7 @@ fn ignores_unrelated_packets() {
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
 
     let (tx, rx) = channel();
 
@@ -222,7 +222,7 @@ fn reports_error_on_packet_reader_lock() {
     let arc_receiver_clone = Arc::clone(&arc_receiver);
     let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, _rx) = channel();
 
     // Spawn a thread that will panic while holding the lock
@@ -269,7 +269,7 @@ fn reports_error_on_packet_read_error() {
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, _rx) = channel();
 
     let scanner = ARPScanner::new(ARPScannerArgs {
@@ -305,7 +305,7 @@ fn reports_error_on_notifier_send_errors() {
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     // this will cause an error when scanner tries to notify
@@ -342,7 +342,7 @@ fn reports_error_on_packet_sender_lock_errors() {
     let arc_sender = Arc::new(Mutex::new(sender));
     let arc_sender_clone = Arc::clone(&arc_sender);
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     // Spawn a thread that will panic while holding the lock
@@ -392,7 +392,7 @@ fn reports_error_on_packet_send_errors() {
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     let scanner = ARPScanner::new(ARPScannerArgs {
@@ -435,7 +435,7 @@ fn reports_errors_from_read_handle() {
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
-    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]);
+    let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     let scanner = ARPScanner::new(ARPScannerArgs {

@@ -23,8 +23,9 @@ fn main() {
     let interface = network::get_default_interface().expect("cannot find interface");
     let cidr = interface.cidr.clone();
     let wire = packet::wire::default(&interface).expect("failed to create wire");
-    let ip_targets = IPTargets::new(vec![cidr]);
-    let port_targets = PortTargets::new(vec!["1-65535".to_string()]);
+    let ip_targets = IPTargets::new(vec![cidr]).expect("failed to parse IP targets");
+    let port_targets =
+        PortTargets::new(vec!["1-65535".to_string()]).expect("failed to parse port targets");
     let vendor = true;
     let host_names = true;
     let idle_timeout = Duration::from_millis(10000);
