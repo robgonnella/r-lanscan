@@ -12,12 +12,7 @@ pub fn get_selected_device_config_from_state(state: &State) -> DeviceConfig {
         .unwrap_or(DeviceConfig {
             id: MacAddr::default().to_string(),
             ssh_identity_file: state.config.default_ssh_identity.clone(),
-            ssh_port: state
-                .config
-                .default_ssh_port
-                .clone()
-                .parse::<u16>()
-                .unwrap(),
+            ssh_port: state.config.default_ssh_port,
             ssh_user: state.config.default_ssh_user.clone(),
         })
 }

@@ -1,14 +1,10 @@
 //! Provides Scanner implementation for SYN scanning
 
 use log::*;
-use pnet::{
-    packet::{Packet, ethernet, ip, ipv4, tcp},
-    util,
-};
+use pnet::packet::{Packet, ethernet, ip, ipv4, tcp};
 use std::{
     collections::HashMap,
-    net,
-    str::FromStr,
+    net::Ipv4Addr,
     sync::{self, Arc, Mutex, mpsc},
     thread::{self, JoinHandle},
     time::Duration,
@@ -85,11 +81,8 @@ impl SYNScanner<'_> {
         let heartbeat_packet_sender = Arc::clone(&self.packet_sender);
         let rst_packet_sender = Arc::clone(&self.packet_sender);
         // Build a HashMap for O(1) device lookups instead of O(n) linear search
-        let device_map: HashMap<String, Device> = self
-            .targets
-            .iter()
-            .map(|d| (d.ip.clone(), d.clone()))
-            .collect();
+        let device_map: HashMap<Ipv4Addr, Device> =
+            self.targets.iter().map(|d| (d.ip, d.clone())).collect();
         let notifier = self.notifier.clone();
         let source_ipv4 = self.interface.ipv4;
         let source_mac = self.interface.mac;
@@ -166,7 +159,7 @@ impl SYNScanner<'_> {
                     continue;
                 }
 
-                let Some(device) = device_map.get(&device_ip.to_string()) else {
+                let Some(device) = device_map.get(&device_ip) else {
                     continue;
                 };
 
@@ -175,19 +168,8 @@ impl SYNScanner<'_> {
                 // send rst packet to prevent SYN Flooding
                 // https://en.wikipedia.org/wiki/SYN_flood
                 // https://security.stackexchange.com/questions/128196/whats-the-advantage-of-sending-an-rst-packet-after-getting-a-response-in-a-syn
-                let dest_ipv4 =
-                    net::Ipv4Addr::from_str(&device.ip).map_err(|e| RLanLibError::Scan {
-                        ip: Some(device.ip.clone()),
-                        port: Some(port.to_string()),
-                        error: e.to_string(),
-                    })?;
-
-                let dest_mac =
-                    util::MacAddr::from_str(&device.mac).map_err(|e| RLanLibError::Scan {
-                        ip: Some(device.ip.clone()),
-                        port: Some(port.to_string()),
-                        error: e.to_string(),
-                    })?;
+                let dest_ipv4 = device.ip;
+                let dest_mac = device.mac;
 
                 let rst_packet = rst_packet::build(
                     source_mac,
@@ -252,19 +234,8 @@ impl Scanner for SYNScanner<'_> {
 
                     debug!("scanning SYN target: {}:{}", device.ip, port);
 
-                    let dest_ipv4 =
-                        net::Ipv4Addr::from_str(&device.ip).map_err(|e| RLanLibError::Scan {
-                            ip: Some(device.ip.clone()),
-                            port: Some(port.to_string()),
-                            error: e.to_string(),
-                        })?;
-
-                    let dest_mac =
-                        util::MacAddr::from_str(&device.mac).map_err(|e| RLanLibError::Scan {
-                            ip: Some(device.ip.clone()),
-                            port: Some(port.to_string()),
-                            error: e.to_string(),
-                        })?;
+                    let dest_ipv4 = device.ip;
+                    let dest_mac = device.mac;
 
                     let pkt_buf = syn_packet::build(
                         source_mac,
@@ -278,8 +249,8 @@ impl Scanner for SYNScanner<'_> {
                     // send info message to consumer
                     notifier
                         .send(ScanMessage::Info(Scanning {
-                            ip: device.ip.clone(),
-                            port: Some(port.to_string()),
+                            ip: device.ip,
+                            port: Some(port),
                         }))
                         .map_err(RLanLibError::from_channel_send_error)?;
 
@@ -287,7 +258,7 @@ impl Scanner for SYNScanner<'_> {
 
                     // scan device @ port
                     sender.send(&pkt_buf).map_err(|e| RLanLibError::Scan {
-                        ip: Some(device.ip.clone()),
+                        ip: Some(device.ip.to_string()),
                         port: Some(port.to_string()),
                         error: e.to_string(),
                     })?;

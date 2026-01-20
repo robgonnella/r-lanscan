@@ -53,7 +53,7 @@ impl Commander {
             .arg("2")
             .arg("-I")
             .arg("-v")
-            .arg(device.ip)
+            .arg(device.ip.to_string())
             .output()
             .map_err(|e| Box::from(e.to_string()))
     }

@@ -1,6 +1,9 @@
 use super::*;
+use core::net;
 use pnet::packet::{arp, ethernet, ipv4, tcp};
+use pnet::util::{self, MacAddr};
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
 use std::time::Duration;
@@ -70,8 +73,8 @@ fn sends_and_reads_packets() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -109,9 +112,9 @@ fn sends_and_reads_packets() {
 
     let mut detected_device = DeviceWithPorts {
         hostname: "".to_string(),
-        ip: "".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 10),
         is_current_host: false,
-        mac: "".to_string(),
+        mac: MacAddr::default(),
         vendor: "".to_string(),
         open_ports: HashSet::new(),
     };
@@ -166,8 +169,8 @@ fn ignores_unrelated_packets() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -290,8 +293,8 @@ fn reports_error_on_packet_reader_lock() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -348,8 +351,8 @@ fn reports_error_on_rst_packet_sender_lock() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -424,8 +427,8 @@ fn reports_error_on_rst_packet_send_errors() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -500,8 +503,8 @@ fn reports_error_on_packet_read_error() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -551,8 +554,8 @@ fn reports_error_on_notifier_send_errors() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -600,8 +603,8 @@ fn reports_error_on_packet_sender_lock_errors() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -658,8 +661,8 @@ fn reports_error_on_packet_send_errors() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };
@@ -712,8 +715,8 @@ fn reports_errors_from_read_handle() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
     };

@@ -148,8 +148,7 @@ impl MainView {
     }
 
     fn render_error_popover(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
-        if state.error.is_some() {
-            let msg = state.error.as_ref().unwrap();
+        if let Some(msg) = state.error.as_ref() {
             let block = Block::bordered()
                 .border_type(BorderType::Double)
                 .border_style(
@@ -221,49 +220,55 @@ impl CustomWidgetRef for MainView {
         .split(area);
 
         let view_id = ctx.state.view_id;
-        let view = self.sub_views.get(&view_id).unwrap();
-        let legend = view.legend(ctx.state);
-        let override_legend = view.override_main_legend(ctx.state);
+        // TODO: there shouldn't be a case where we don't find a view but
+        // this will require a larger refactor
+        if let Some(view) = self.sub_views.get(&view_id) {
+            let legend = view.legend(ctx.state);
+            let override_legend = view.override_main_legend(ctx.state);
 
-        // render background for entire display
-        self.render_buffer_bg(area, buf, ctx.state);
-        // logo & view select
-        let top_section_areas = self.get_top_section_areas(page_areas[0]);
-        let top_section_areas_clone = Rc::clone(&top_section_areas);
-        self.render_top(top_section_areas, buf, ctx.state.message.as_ref(), ctx);
-        // view
-        self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx);
-        // legend for current view
-        self.render_footer(legend, override_legend, page_areas[2], buf, ctx);
+            // render background for entire display
+            self.render_buffer_bg(area, buf, ctx.state);
+            // logo & view select
+            let top_section_areas = self.get_top_section_areas(page_areas[0]);
+            let top_section_areas_clone = Rc::clone(&top_section_areas);
+            self.render_top(top_section_areas, buf, ctx.state.message.as_ref(), ctx);
+            // view
+            self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx);
+            // legend for current view
+            self.render_footer(legend, override_legend, page_areas[2], buf, ctx);
 
-        // view selection
-        if ctx.state.render_view_select {
-            let mut select_area = top_section_areas_clone[2];
-            select_area.height = (self.sub_views.len() * 3).try_into().unwrap();
+            // view selection
+            if ctx.state.render_view_select {
+                let mut select_area = top_section_areas_clone[2];
+                select_area.height = (self.sub_views.len() * 3).try_into().unwrap_or_default();
 
-            let select_block = Block::bordered()
-                .border_style(Style::new().fg(ctx.state.colors.border_color))
-                .border_type(BorderType::Double);
+                let select_block = Block::bordered()
+                    .border_style(Style::new().fg(ctx.state.colors.border_color))
+                    .border_type(BorderType::Double);
 
-            let select_inner_area = select_block.inner(select_area);
+                let select_inner_area = select_block.inner(select_area);
 
-            select_block.render(select_area, buf);
+                select_block.render(select_area, buf);
 
-            ClearWidget.render(select_inner_area, buf);
-            self.render_buffer_bg(select_inner_area, buf, ctx.state);
-            self.render_view_select_popover(select_inner_area, buf, ctx);
+                ClearWidget.render(select_inner_area, buf);
+                self.render_buffer_bg(select_inner_area, buf, ctx.state);
+                self.render_view_select_popover(select_inner_area, buf, ctx);
+            }
+
+            // popover when there are errors in the store
+            // important to render this last so it properly layers on top
+            self.render_error_popover(get_popover_area(area, 50, 40), buf, ctx.state);
         }
-
-        // popover when there are errors in the store
-        // important to render this last so it properly layers on top
-        self.render_error_popover(get_popover_area(area, 50, 40), buf, ctx.state);
     }
 }
 
 impl EventHandler for MainView {
     fn process_event(&self, evt: &CrossTermEvent, ctx: &CustomWidgetContext) -> bool {
-        if ctx.state.render_view_select {
-            let select_view = self.sub_views.get(&ViewID::ViewSelect).unwrap();
+        let view_id = ctx.state.view_id;
+
+        if ctx.state.render_view_select
+            && let Some(select_view) = self.sub_views.get(&ViewID::ViewSelect)
+        {
             return select_view.process_event(evt, ctx);
         }
 
@@ -274,9 +279,7 @@ impl EventHandler for MainView {
                 self.dispatcher.dispatch(Action::SetError(None));
             }
             true
-        } else {
-            let view_id = ctx.state.view_id;
-            let view = self.sub_views.get(&view_id).unwrap();
+        } else if let Some(view) = self.sub_views.get(&view_id) {
             let mut handled = view.process_event(evt, ctx);
 
             if !handled && let CrossTermEvent::Key(key) = evt {
@@ -298,6 +301,8 @@ impl EventHandler for MainView {
             }
 
             handled
+        } else {
+            false
         }
     }
 }

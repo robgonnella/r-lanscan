@@ -1,5 +1,4 @@
-use std::{env, sync::mpsc, time::Duration};
-
+use pnet::util::MacAddr;
 use r_lanlib::{
     network, packet,
     scanners::{
@@ -8,6 +7,7 @@ use r_lanlib::{
     },
     targets::ports::PortTargets,
 };
+use std::{env, net::Ipv4Addr, sync::mpsc, time::Duration};
 
 fn is_root() -> bool {
     match env::var("USER") {
@@ -25,22 +25,22 @@ fn main() {
     let devices = vec![
         Device {
             hostname: "".to_string(),
-            ip: "192.168.0.1".to_string(),
-            mac: "00:00:00:00:00:01".to_string(),
+            ip: Ipv4Addr::new(192, 168, 0, 1),
+            mac: MacAddr::new(0x00, 0x00, 0x00, 0x00, 0x00, 0x01),
             vendor: "".to_string(),
             is_current_host: false,
         },
         Device {
             hostname: "".to_string(),
-            ip: "192.168.0.2".to_string(),
-            mac: "00:00:00:00:00:02".to_string(),
+            ip: Ipv4Addr::new(192, 168, 0, 2),
+            mac: MacAddr::new(0x00, 0x00, 0x00, 0x00, 0x00, 0x02),
             vendor: "".to_string(),
             is_current_host: false,
         },
         Device {
             hostname: "".to_string(),
-            ip: "192.168.0.3".to_string(),
-            mac: "00:00:00:00:00:03".to_string(),
+            ip: Ipv4Addr::new(192, 168, 0, 3),
+            mac: MacAddr::new(0x00, 0x00, 0x00, 0x00, 0x00, 0x03),
             vendor: "".to_string(),
             is_current_host: false,
         },

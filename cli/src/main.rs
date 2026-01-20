@@ -29,8 +29,6 @@ use r_lanlib::{
 };
 use std::{
     collections::HashSet,
-    net::Ipv4Addr,
-    str::FromStr,
     sync::{
         Arc,
         mpsc::{self, Receiver},
@@ -156,22 +154,22 @@ fn process_arp(
     handle.join()??;
 
     let mut items: Vec<Device> = arp_results.into_iter().collect();
-    items.sort_by_key(|i| Ipv4Addr::from_str(&i.ip).unwrap());
+    items.sort_by_key(|i| i.ip);
 
     Ok((items, rx))
 }
 
 #[doc(hidden)]
-fn print_arp(args: &Args, devices: &Vec<Device>) {
+fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
     info!("arp results:");
 
     if args.quiet && !args.arp_only {
         // only print results of SYN scanner
-        return;
+        return Ok(());
     }
 
     if args.json {
-        let j: String = serde_json::to_string(&devices).unwrap();
+        let j: String = serde_json::to_string(&devices)?;
         println!("{}", j);
     } else {
         let mut arp_table = prettytable::Table::new();
@@ -189,6 +187,8 @@ fn print_arp(args: &Args, devices: &Vec<Device>) {
 
         arp_table.printstd();
     }
+
+    Ok(())
 }
 
 #[doc(hidden)]
@@ -244,11 +244,11 @@ fn process_syn(
 }
 
 #[doc(hidden)]
-fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
+fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) -> Result<()> {
     info!("syn results:");
 
     if args.json {
-        let j: String = serde_json::to_string(devices).unwrap();
+        let j: String = serde_json::to_string(devices)?;
         println!("{}", j);
     } else {
         let mut syn_table: prettytable::Table = prettytable::Table::new();
@@ -284,6 +284,8 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) {
         }
         syn_table.printstd();
     }
+
+    Ok(())
 }
 
 #[doc(hidden)]
@@ -351,7 +353,7 @@ fn main() -> Result<()> {
 
     let (arp_results, rx) = process_arp(&arp, rx)?;
 
-    print_arp(&args, &arp_results);
+    print_arp(&args, &arp_results)?;
 
     if args.arp_only {
         return Ok(());
@@ -370,7 +372,7 @@ fn main() -> Result<()> {
     });
 
     let final_results = process_syn(&syn, arp_results, rx)?;
-    print_syn(&args, &final_results);
+    print_syn(&args, &final_results)?;
 
     Ok(())
 }

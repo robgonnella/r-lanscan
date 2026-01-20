@@ -24,7 +24,7 @@ pub struct Config {
     pub theme: String,
     pub ports: Vec<String>,
     pub default_ssh_user: String,
-    pub default_ssh_port: String,
+    pub default_ssh_port: u16,
     pub default_ssh_identity: String,
     pub device_configs: HashMap<String, DeviceConfig>,
 }
@@ -44,7 +44,7 @@ impl Config {
             cidr: "unknown".to_string(),
             ports: get_default_ports(),
             default_ssh_identity: identity,
-            default_ssh_port: String::from("22"),
+            default_ssh_port: 22,
             default_ssh_user: user,
             device_configs: HashMap::new(),
         }
@@ -57,7 +57,7 @@ pub struct ConfigManager {
 }
 
 impl ConfigManager {
-    pub fn new(user: String, identity: String, path: &str) -> Self {
+    pub fn new(user: String, identity: String, path: &str) -> Result<Self> {
         let f: Result<std::fs::File, std::io::Error> = std::fs::File::open(path);
 
         match f {
@@ -72,10 +72,10 @@ impl ConfigManager {
                         configs
                     }
                 };
-                Self {
+                Ok(Self {
                     path: String::from(path),
                     configs,
-                }
+                })
             }
             Err(_) => {
                 let default_conf = Config::new(user, identity);
@@ -85,8 +85,8 @@ impl ConfigManager {
                     path: String::from(path),
                     configs,
                 };
-                man.write();
-                man
+                man.write()?;
+                Ok(man)
             }
         }
     }
@@ -108,19 +108,20 @@ impl ConfigManager {
         config
     }
 
-    pub fn create(&mut self, config: &Config) {
+    pub fn create(&mut self, config: &Config) -> Result<()> {
         self.configs.insert(config.id.clone(), config.clone());
-        self.write();
+        self.write()
     }
 
-    pub fn update_config(&mut self, new_config: Config) {
+    pub fn update_config(&mut self, new_config: Config) -> Result<()> {
         self.configs.insert(new_config.id.clone(), new_config);
-        self.write();
+        self.write()
     }
 
-    fn write(&mut self) {
-        let serialized = serde_yaml::to_string(&self.configs).unwrap();
-        std::fs::write(&self.path, serialized).unwrap();
+    fn write(&mut self) -> Result<()> {
+        let serialized = serde_yaml::to_string(&self.configs)?;
+        std::fs::write(&self.path, serialized)?;
+        Ok(())
     }
 }
 

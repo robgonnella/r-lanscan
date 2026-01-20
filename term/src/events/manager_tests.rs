@@ -1,8 +1,10 @@
 use nanoid::nanoid;
+use pnet::util::MacAddr;
 use r_lanlib::scanners::Device;
 use std::{
     fs::{self, File},
     io::{Seek, SeekFrom, Write},
+    net::Ipv4Addr,
     os::{fd::OwnedFd, unix::process::ExitStatusExt},
     process::{ChildStderr, ExitStatus, Output},
 };
@@ -66,7 +68,7 @@ fn handles_ssh_command_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -78,8 +80,8 @@ fn handles_ssh_command_err() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -97,7 +99,7 @@ fn handles_ssh_command_err() {
     let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(rx, AppCommand::Ssh(device, device_config));
+        .handle_cmd(&rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -112,7 +114,7 @@ fn handles_ssh_command_ok() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -124,8 +126,8 @@ fn handles_ssh_command_ok() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -143,7 +145,7 @@ fn handles_ssh_command_ok() {
     let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(rx, AppCommand::Ssh(device, device_config));
+        .handle_cmd(&rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -158,7 +160,7 @@ fn handles_ssh_command_ok_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -178,8 +180,8 @@ fn handles_ssh_command_ok_err() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -197,7 +199,7 @@ fn handles_ssh_command_ok_err() {
     let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(rx, AppCommand::Ssh(device, device_config));
+        .handle_cmd(&rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -215,7 +217,7 @@ fn handles_ssh_command_ok_err_empty() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -228,8 +230,8 @@ fn handles_ssh_command_ok_err_empty() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -247,7 +249,7 @@ fn handles_ssh_command_ok_err_empty() {
     let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(rx, AppCommand::Ssh(device, device_config));
+        .handle_cmd(&rx, AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -262,7 +264,7 @@ fn handles_traceroute_command_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -274,14 +276,14 @@ fn handles_traceroute_command_err() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
 
     let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(rx, AppCommand::TraceRoute(device));
+    let res = test.manager.handle_cmd(&rx, AppCommand::TraceRoute(device));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -296,7 +298,7 @@ fn handles_traceroute_command_ok() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -319,8 +321,8 @@ fn handles_traceroute_command_ok() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -328,7 +330,7 @@ fn handles_traceroute_command_ok() {
     let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(rx, AppCommand::TraceRoute(device.clone()));
+        .handle_cmd(&rx, AppCommand::TraceRoute(device.clone()));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -349,7 +351,7 @@ fn handles_browse_command_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -361,8 +363,8 @@ fn handles_browse_command_err() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -372,7 +374,7 @@ fn handles_browse_command_err() {
 
     let rx = test.receiver.lock().unwrap();
     let res = test.manager.handle_cmd(
-        rx,
+        &rx,
         AppCommand::Browse(BrowseArgs {
             device,
             port: 80,
@@ -393,7 +395,7 @@ fn handles_browse_command_ok() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -405,8 +407,8 @@ fn handles_browse_command_ok() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -416,7 +418,7 @@ fn handles_browse_command_ok() {
 
     let rx = test.receiver.lock().unwrap();
     let res = test.manager.handle_cmd(
-        rx,
+        &rx,
         AppCommand::Browse(BrowseArgs {
             device,
             port: 80,
@@ -437,7 +439,7 @@ fn handles_browse_command_ok_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -457,8 +459,8 @@ fn handles_browse_command_ok_err() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -468,7 +470,7 @@ fn handles_browse_command_ok_err() {
 
     let rx = test.receiver.lock().unwrap();
     let res = test.manager.handle_cmd(
-        rx,
+        &rx,
         AppCommand::Browse(BrowseArgs {
             device,
             port: 80,
@@ -492,7 +494,7 @@ fn handles_browse_command_ok_err_empty() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -505,8 +507,8 @@ fn handles_browse_command_ok_err_empty() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };
@@ -516,7 +518,7 @@ fn handles_browse_command_ok_err_empty() {
 
     let rx = test.receiver.lock().unwrap();
     let res = test.manager.handle_cmd(
-        rx,
+        &rx,
         AppCommand::Browse(BrowseArgs {
             device,
             port: 80,
@@ -537,7 +539,7 @@ fn listens_for_events() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -549,8 +551,8 @@ fn listens_for_events() {
 
     let device = Device {
         hostname: "Hostname".to_string(),
-        ip: "IP".to_string(),
-        mac: "MAC".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
     };

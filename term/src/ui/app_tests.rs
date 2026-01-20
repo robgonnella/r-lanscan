@@ -17,11 +17,9 @@ fn setup() -> (String, Arc<Store>, App) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user.clone(),
-        identity.clone(),
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user.clone(), identity.clone(), tmp_path.as_str()).unwrap(),
+    ));
     let config = Config::new(user, identity);
     let store = Arc::new(Store::new(conf_manager, config));
     let (tx, rx) = mpsc::channel();

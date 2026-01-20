@@ -1,12 +1,15 @@
+use pnet::util::MacAddr;
+use std::net::Ipv4Addr;
+
 use super::*;
 
 #[test]
 fn displays_command() {
     let device = Device {
         hostname: "".to_string(),
-        ip: "".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         is_current_host: false,
-        mac: "".to_string(),
         vendor: "".to_string(),
     };
 

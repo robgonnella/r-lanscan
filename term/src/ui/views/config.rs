@@ -52,7 +52,7 @@ impl ConfigView {
             .iter()
             .enumerate()
             .find(|(_, t)| **t == theme)
-            .unwrap();
+            .unwrap_or((0, &THEMES[0]));
 
         Self {
             dispatcher,
@@ -103,11 +103,14 @@ impl ConfigView {
         let mut config = state.config.clone();
         config.theme = THEMES[*self.theme_index.borrow()].to_string();
         config.default_ssh_user = self.ssh_user_state.borrow().value.clone();
-        let mut port = self.ssh_port_state.borrow().value.clone().parse::<u16>();
-        if port.is_err() {
-            port = Ok(22)
-        }
-        config.default_ssh_port = port.unwrap().to_string();
+        let port = self
+            .ssh_port_state
+            .borrow()
+            .value
+            .clone()
+            .parse::<u16>()
+            .unwrap_or(22);
+        config.default_ssh_port = port;
         config.default_ssh_identity = self.ssh_identity_state.borrow().value.clone();
         config.ports = self
             .scan_ports_state
@@ -318,7 +321,7 @@ impl ConfigView {
 
         if !*self.editing.borrow() {
             self.ssh_user_state.borrow_mut().value = state.config.default_ssh_user.clone();
-            self.ssh_port_state.borrow_mut().value = state.config.default_ssh_port.clone();
+            self.ssh_port_state.borrow_mut().value = state.config.default_ssh_port.to_string();
             self.ssh_identity_state.borrow_mut().value = state.config.default_ssh_identity.clone();
             self.theme_state.borrow_mut().value = state.config.theme.clone();
             self.scan_ports_state.borrow_mut().value = state.config.ports.join(",");

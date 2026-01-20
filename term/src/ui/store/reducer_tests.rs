@@ -1,7 +1,7 @@
 use std::{
-    collections::HashMap,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs,
+    net::Ipv4Addr,
     os::unix::process::ExitStatusExt,
     process::Output,
     sync::{Arc, Mutex},
@@ -30,11 +30,9 @@ fn setup() -> (State, Reducer, String) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user,
-        identity,
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user, identity, tmp_path.as_str()).unwrap(),
+    ));
 
     let state = State::default();
     let reducer = Reducer::new(conf_manager);
@@ -126,7 +124,7 @@ fn test_update_config() {
     let expected_config = Config {
         cidr: "cidr".to_string(),
         default_ssh_identity: "id_rsa".to_string(),
-        default_ssh_port: "2222".to_string(),
+        default_ssh_port: 2222,
         default_ssh_user: "user".to_string(),
         device_configs: HashMap::new(),
         id: "config_id".to_string(),
@@ -146,18 +144,18 @@ fn test_update_all_devices() {
 
     let dev1 = DeviceWithPorts {
         hostname: "dev1".to_string(),
-        ip: "10.10.10.1".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
         open_ports: HashSet::new(),
         vendor: "dev1_vendor".to_string(),
     };
 
     let dev2 = DeviceWithPorts {
         hostname: "dev2".to_string(),
-        ip: "10.10.10.2".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
         open_ports: HashSet::new(),
         vendor: "dev2_vendor".to_string(),
     };
@@ -179,9 +177,9 @@ fn test_add_device() {
 
     let dev3 = DeviceWithPorts {
         hostname: "dev3".to_string(),
-        ip: "dev3_ip".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         is_current_host: false,
-        mac: "dev3_mac".to_string(),
         open_ports: HashSet::new(),
         vendor: "dev3_vendor".to_string(),
     };
@@ -217,18 +215,18 @@ fn test_update_selected_device() {
 
     let dev1 = DeviceWithPorts {
         hostname: "dev1".to_string(),
-        ip: "10.10.10.1".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
         open_ports: HashSet::new(),
         vendor: "dev1_vendor".to_string(),
     };
 
     let dev2 = DeviceWithPorts {
         hostname: "dev2".to_string(),
-        ip: "10.10.10.2".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
         open_ports: HashSet::new(),
         vendor: "dev2_vendor".to_string(),
     };
@@ -239,7 +237,7 @@ fn test_update_selected_device() {
         &mut state,
         Action::UpdateAllDevices(vec![dev1.clone(), dev2.clone()]),
     );
-    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev2.ip.clone()));
+    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev2.ip));
     assert!(state.selected_device.is_some());
     let selected = state.selected_device.unwrap();
     assert_eq!(selected.mac, dev2.mac);
@@ -252,15 +250,15 @@ fn test_update_device_config() {
 
     let dev = DeviceWithPorts {
         hostname: "dev".to_string(),
-        ip: "10.10.10.2".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
         open_ports: HashSet::new(),
         vendor: "dev_vendor".to_string(),
     };
 
     let dev_config = DeviceConfig {
-        id: dev.mac.clone(),
+        id: dev.mac.to_string(),
         ssh_identity_file: "id_rsa".to_string(),
         ssh_port: 2222,
         ssh_user: "dev_user".to_string(),
@@ -269,7 +267,7 @@ fn test_update_device_config() {
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
     reducer.reduce(&mut state, Action::UpdateAllDevices(vec![dev.clone()]));
     reducer.reduce(&mut state, Action::UpdateDeviceConfig(dev_config.clone()));
-    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev.ip.clone()));
+    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev.ip));
 
     assert!(state.selected_device_config.is_some());
     let selected = state.selected_device_config.unwrap();
@@ -284,9 +282,9 @@ fn test_set_command_in_progress() {
     let (mut state, reducer, conf_path) = setup();
     let dev = Device {
         hostname: "dev".to_string(),
-        ip: "10.10.10.2".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
         vendor: "dev_vendor".to_string(),
     };
     let port: u16 = 80;
@@ -316,9 +314,9 @@ fn test_update_command_output() {
     let (mut state, reducer, conf_path) = setup();
     let dev = Device {
         hostname: "dev".to_string(),
-        ip: "10.10.10.2".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
         vendor: "dev_vendor".to_string(),
     };
     let port: u16 = 80;
@@ -354,9 +352,9 @@ fn test_updates_device_with_new_info() {
 
     let mut dev = DeviceWithPorts {
         hostname: "dev".to_string(),
-        ip: "10.10.10.2".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
         vendor: "dev_vendor".to_string(),
         open_ports: HashSet::new(),
     };
