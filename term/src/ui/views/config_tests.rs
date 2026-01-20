@@ -15,16 +15,14 @@ fn setup() -> (ConfigView, Arc<Store>, String) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user,
-        identity,
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user, identity, tmp_path.as_str()).unwrap(),
+    ));
     let config = Config {
         id: "default".to_string(),
         cidr: "192.168.1.1/24".to_string(),
         default_ssh_identity: "id_rsa".to_string(),
-        default_ssh_port: "22".to_string(),
+        default_ssh_port: 22,
         default_ssh_user: "user".to_string(),
         device_configs: HashMap::new(),
         ports: vec![],

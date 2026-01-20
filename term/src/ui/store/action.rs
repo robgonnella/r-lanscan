@@ -1,4 +1,4 @@
-use std::process::Output;
+use std::{net::Ipv4Addr, process::Output};
 
 use r_lanlib::scanners::DeviceWithPorts;
 
@@ -23,7 +23,7 @@ pub enum Action {
     PreviewTheme(Theme),
     UpdateAllDevices(Vec<DeviceWithPorts>),
     AddDevice(DeviceWithPorts),
-    UpdateSelectedDevice(String),
+    UpdateSelectedDevice(Ipv4Addr),
     UpdateConfig(Config),
     UpdateDeviceConfig(DeviceConfig),
     SetConfig(String),

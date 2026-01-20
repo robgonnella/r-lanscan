@@ -1,4 +1,6 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, net::Ipv4Addr};
+
+use pnet::util::MacAddr;
 
 use crate::scanners::Device;
 
@@ -8,8 +10,8 @@ use super::DeviceWithPorts;
 fn test_device_from_device_with_ports() {
     let dev_with_ports = DeviceWithPorts {
         hostname: "hostname".to_string(),
-        ip: "ip".to_string(),
-        mac: "mac".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 10),
+        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         is_current_host: false,
         open_ports: HashSet::new(),

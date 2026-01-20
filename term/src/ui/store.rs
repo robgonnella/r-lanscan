@@ -74,8 +74,9 @@ pub trait Dispatcher {
 
 impl Dispatcher for Store {
     fn dispatch(&self, action: action::Action) {
-        let mut state = self.state.lock().unwrap();
-        self.reducer.reduce(&mut state, action);
+        if let Ok(mut state) = self.state.lock() {
+            self.reducer.reduce(&mut state, action);
+        }
     }
 }
 

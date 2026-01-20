@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashMap, process::Output};
+use std::{collections::HashMap, net::Ipv4Addr, process::Output};
 
 use r_lanlib::scanners::{Device, DeviceWithPorts};
 
@@ -37,9 +37,9 @@ pub struct State {
     pub render_view_select: bool,
     pub view_id: ViewID,
     pub config: Config,
-    pub arp_history: HashMap<String, (Device, MissedCount)>,
+    pub arp_history: HashMap<Ipv4Addr, (Device, MissedCount)>,
     pub devices: Vec<DeviceWithPorts>,
-    pub device_map: HashMap<String, DeviceWithPorts>,
+    pub device_map: HashMap<Ipv4Addr, DeviceWithPorts>,
     pub selected_device: Option<DeviceWithPorts>,
     pub selected_device_config: Option<DeviceConfig>,
     pub colors: Colors,

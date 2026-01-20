@@ -1,4 +1,4 @@
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, eyre};
 use mockall_double::double;
 use std::{
     io::{BufReader, Read},
@@ -34,15 +34,17 @@ impl EventManager {
     }
 
     pub fn start_event_loop(&self) -> Result<()> {
-        let rx = Arc::clone(&self.rx);
+        let rx = self
+            .rx
+            .lock()
+            .map_err(|e| eyre!("failed to lock receiver: {}", e))?;
 
         loop {
-            let locked_rx = rx.lock().unwrap();
-            if let Ok(evt) = locked_rx.recv() {
+            if let Ok(evt) = rx.recv() {
                 // event loop
                 match evt {
                     Event::ExecCommand(cmd) => {
-                        let _ = self.handle_cmd(locked_rx, cmd);
+                        let _ = self.handle_cmd(&rx, cmd);
                     }
                     Event::Quit => break,
                     _ => {}
@@ -53,7 +55,7 @@ impl EventManager {
         Ok(())
     }
 
-    fn handle_cmd(&self, rx: MutexGuard<'_, Receiver<Event>>, cmd: AppCommand) -> Result<()> {
+    fn handle_cmd(&self, rx: &MutexGuard<'_, Receiver<Event>>, cmd: AppCommand) -> Result<()> {
         let state = self.store.get_state()?;
 
         if state.cmd_in_progress.is_some() {
@@ -84,7 +86,7 @@ impl EventManager {
                             if let Some(stderr) = err {
                                 let mut stderr_output = String::new();
                                 let mut stderr_reader = BufReader::new(stderr);
-                                stderr_reader.read_to_string(&mut stderr_output).unwrap();
+                                stderr_reader.read_to_string(&mut stderr_output)?;
                                 self.store.dispatch(Action::SetError(Some(stderr_output)));
                             } else {
                                 let err = String::from("ssh command failed");
@@ -130,7 +132,7 @@ impl EventManager {
                             if let Some(stderr) = err {
                                 let mut stderr_output = String::new();
                                 let mut stderr_reader = BufReader::new(stderr);
-                                stderr_reader.read_to_string(&mut stderr_output).unwrap();
+                                stderr_reader.read_to_string(&mut stderr_output)?;
                                 self.store.dispatch(Action::SetError(Some(stderr_output)));
                             } else {
                                 let err = String::from("lynx command failed");

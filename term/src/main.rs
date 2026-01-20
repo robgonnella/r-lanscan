@@ -152,8 +152,8 @@ fn process_arp(
                 debug!("received scanning message: {:?}", m);
                 dispatcher.dispatch(Action::AddDevice(DeviceWithPorts {
                     hostname: m.hostname.clone(),
-                    ip: m.ip.clone(),
-                    mac: m.mac.clone(),
+                    ip: m.ip,
+                    mac: m.mac,
                     open_ports: HashSet::new(),
                     vendor: m.vendor.clone(),
                     is_current_host: m.is_current_host,
@@ -313,7 +313,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>
         user.clone(),
         identity.clone(),
         &config_path,
-    )));
+    )?));
 
     let manager = config_manager
         .lock()
@@ -345,7 +345,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>
     ));
 
     if create_config {
-        store.dispatch(Action::CreateAndSetConfig(current_config.clone()))
+        store.dispatch(Action::CreateAndSetConfig(current_config.clone()));
     } else {
         store.dispatch(Action::SetConfig(current_config_id));
     }

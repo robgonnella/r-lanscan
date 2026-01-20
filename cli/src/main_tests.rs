@@ -3,6 +3,7 @@ use mpsc::channel;
 use pnet::util::MacAddr;
 use r_lanlib::scanners::{Port, SYNScanResult, Scanner};
 use std::{
+    net::Ipv4Addr,
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -81,13 +82,13 @@ fn prints_arp_table_results() {
 
     let device = Device {
         hostname: "hostname".to_string(),
-        ip: "192.168.1.1".to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
+        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
     };
 
-    print_arp(&args, &vec![device]);
+    print_arp(&args, &vec![device]).unwrap();
 }
 
 #[test]
@@ -108,13 +109,13 @@ fn prints_arp_json_results() {
 
     let device = Device {
         hostname: "hostname".to_string(),
-        ip: "192.168.1.1".to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
+        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
     };
 
-    print_arp(&args, &vec![device]);
+    print_arp(&args, &vec![device]).unwrap();
 }
 
 #[test]
@@ -143,14 +144,14 @@ fn prints_syn_table_results() {
 
     let device = DeviceWithPorts {
         hostname: "hostname".to_string(),
-        ip: "192.168.1.1".to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
+        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports,
     };
 
-    print_syn(&args, &vec![device]);
+    print_syn(&args, &vec![device]).unwrap();
 }
 
 #[test]
@@ -179,14 +180,14 @@ fn prints_syn_json_results() {
 
     let device = DeviceWithPorts {
         hostname: "hostname".to_string(),
-        ip: "192.168.1.1".to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
+        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports,
     };
 
-    print_syn(&args, &vec![device]);
+    print_syn(&args, &vec![device]).unwrap();
 }
 
 #[test]
@@ -197,9 +198,9 @@ fn performs_arp_scan() {
 
     let device = Device {
         hostname: "hostname".to_string(),
-        ip: "192.168.1.1".to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
+        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
     };
 
@@ -233,9 +234,9 @@ fn performs_syn_scan() {
 
     let device = Device {
         hostname: "hostname".to_string(),
-        ip: "192.168.1.1".to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
+        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
     };
 

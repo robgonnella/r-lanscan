@@ -1,14 +1,14 @@
 use super::*;
 use pnet::{
     packet::{arp, ethernet, ipv4, tcp},
-    util,
+    util::{self, MacAddr},
 };
-use std::collections::HashSet;
 use std::net;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
 use std::time::Duration;
+use std::{collections::HashSet, net::Ipv4Addr};
 
 use crate::network;
 use crate::packet::arp_packet::create_arp_reply;
@@ -90,8 +90,8 @@ fn sends_and_reads_packets() {
 
     let device = Device {
         hostname: "".to_string(),
-        ip: device_ip.to_string(),
-        mac: device_mac.to_string(),
+        ip: device_ip,
+        mac: device_mac,
         vendor: "XEROX CORPORATION".to_string(),
         is_current_host: false,
     };
@@ -137,9 +137,9 @@ fn sends_and_reads_packets() {
 
     let mut detected_device = DeviceWithPorts {
         hostname: "".to_string(),
-        ip: "".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 10),
         is_current_host: false,
-        mac: "".to_string(),
+        mac: MacAddr::default(),
         vendor: "".to_string(),
         open_ports: HashSet::new(),
     };

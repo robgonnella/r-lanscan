@@ -50,7 +50,7 @@ impl DevicesView {
 
     fn set_store_selected(&self, i: usize, state: &State) {
         if !state.devices.is_empty() && i < state.devices.len() {
-            let ip = state.devices[i].ip.clone();
+            let ip = state.devices[i].ip;
             self.dispatcher.dispatch(Action::UpdateSelectedDevice(ip));
         }
     }
@@ -76,11 +76,11 @@ impl DevicesView {
                     if d.is_current_host {
                         format!("{} [YOU]", d.ip)
                     } else {
-                        d.ip.clone()
+                        d.ip.to_string()
                     },
                     d.hostname.clone(),
                     d.vendor.clone(),
-                    d.mac.clone(),
+                    d.mac.to_string(),
                     d.open_ports
                         .iter()
                         .sorted_by_key(|p| p.id)

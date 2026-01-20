@@ -4,6 +4,7 @@ use r_lanlib::scanners::DeviceWithPorts;
 use std::{
     collections::HashSet,
     fs,
+    net::Ipv4Addr,
     sync::{Arc, Mutex},
 };
 
@@ -21,8 +22,8 @@ fn tear_down(conf_path: &str) {
 #[test]
 fn test_get_device_config_from_state() {
     let device_1 = DeviceWithPorts {
-        ip: "10.10.10.1".to_string(),
-        mac: MacAddr::default().to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         hostname: "fancy_hostname".to_string(),
         vendor: "mac".to_string(),
         is_current_host: false,
@@ -30,8 +31,8 @@ fn test_get_device_config_from_state() {
     };
 
     let device_2 = DeviceWithPorts {
-        ip: "10.10.10.2".to_string(),
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         hostname: "super_fancy_hostname".to_string(),
         vendor: "linux".to_string(),
         is_current_host: false,
@@ -42,11 +43,9 @@ fn test_get_device_config_from_state() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user.clone(),
-        identity.clone(),
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user.clone(), identity.clone(), tmp_path.as_str()).unwrap(),
+    ));
 
     let config = Config::new(user, identity);
     let store = Store::new(conf_manager, config.clone());
@@ -55,18 +54,18 @@ fn test_get_device_config_from_state() {
     store.dispatch(Action::CreateAndSetConfig(config.clone()));
     store.dispatch(Action::UpdateAllDevices(devices));
     store.dispatch(Action::UpdateDeviceConfig(DeviceConfig {
-        id: device_1.mac.clone(),
+        id: device_1.mac.to_string(),
         ssh_port: 2222,
         ssh_identity_file: "dev_1_id_rsa".to_string(),
         ssh_user: "dev1_user".to_string(),
     }));
-    store.dispatch(Action::UpdateSelectedDevice(device_1.ip.clone()));
+    store.dispatch(Action::UpdateSelectedDevice(device_1.ip));
 
     let state = store.get_state().unwrap();
 
     let dev1_config = get_selected_device_config_from_state(&state);
 
-    assert_eq!(dev1_config.id, device_1.mac);
+    assert_eq!(dev1_config.id, device_1.mac.to_string());
     assert_eq!(dev1_config.ssh_port, 2222);
     assert_eq!(dev1_config.ssh_identity_file, "dev_1_id_rsa");
     assert_eq!(dev1_config.ssh_user, "dev1_user");
@@ -77,8 +76,8 @@ fn test_get_device_config_from_state() {
 #[test]
 fn test_get_device_config_from_state_default() {
     let device_1 = DeviceWithPorts {
-        ip: "10.10.10.1".to_string(),
-        mac: MacAddr::default().to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         hostname: "fancy_hostname".to_string(),
         vendor: "mac".to_string(),
         is_current_host: false,
@@ -86,8 +85,8 @@ fn test_get_device_config_from_state_default() {
     };
 
     let device_2 = DeviceWithPorts {
-        ip: "10.10.10.2".to_string(),
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         hostname: "super_fancy_hostname".to_string(),
         vendor: "linux".to_string(),
         is_current_host: false,
@@ -100,11 +99,9 @@ fn test_get_device_config_from_state_default() {
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
 
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user.clone(),
-        identity.clone(),
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user.clone(), identity.clone(), tmp_path.as_str()).unwrap(),
+    ));
 
     let config = Config::new(user, identity);
     let store = Store::new(conf_manager, config.clone());
@@ -113,7 +110,7 @@ fn test_get_device_config_from_state_default() {
     store.dispatch(Action::CreateAndSetConfig(config.clone()));
     store.dispatch(Action::UpdateAllDevices(devices));
     store.dispatch(Action::UpdateDeviceConfig(DeviceConfig {
-        id: device_1.mac.clone(),
+        id: device_1.mac.to_string(),
         ssh_port: 2222,
         ssh_identity_file: "dev_1_id_rsa".to_string(),
         ssh_user: "dev1_user".to_string(),
@@ -124,7 +121,7 @@ fn test_get_device_config_from_state_default() {
     let dev1_config = get_selected_device_config_from_state(&state);
 
     assert_eq!(dev1_config.id, MacAddr::default().to_string());
-    assert_eq!(dev1_config.ssh_port.to_string(), config.default_ssh_port);
+    assert_eq!(dev1_config.ssh_port, config.default_ssh_port);
     assert_eq!(dev1_config.ssh_identity_file, config.default_ssh_identity);
     assert_eq!(dev1_config.ssh_user, config.default_ssh_user);
 
@@ -134,8 +131,8 @@ fn test_get_device_config_from_state_default() {
 #[test]
 fn test_get_detected_devices() {
     let device_1 = DeviceWithPorts {
-        ip: "10.10.10.1".to_string(),
-        mac: MacAddr::default().to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         hostname: "fancy_hostname".to_string(),
         vendor: "mac".to_string(),
         is_current_host: false,
@@ -143,8 +140,8 @@ fn test_get_detected_devices() {
     };
 
     let device_2 = DeviceWithPorts {
-        ip: "10.10.10.2".to_string(),
-        mac: "ff:ff:ff:ff:ff:ff".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         hostname: "super_fancy_hostname".to_string(),
         vendor: "linux".to_string(),
         is_current_host: false,
@@ -152,8 +149,8 @@ fn test_get_detected_devices() {
     };
 
     let device_3 = DeviceWithPorts {
-        ip: "10.10.10.3".to_string(),
-        mac: "aa:aa:aa:aa:aa:aa".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 3),
+        mac: MacAddr::new(0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa),
         hostname: "just_ok_hostname".to_string(),
         vendor: "linux".to_string(),
         is_current_host: false,
@@ -166,11 +163,9 @@ fn test_get_detected_devices() {
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
 
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user.clone(),
-        identity.clone(),
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user.clone(), identity.clone(), tmp_path.as_str()).unwrap(),
+    ));
 
     let config = Config::new(user, identity);
     let store = Store::new(conf_manager, config.clone());

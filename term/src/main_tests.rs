@@ -48,11 +48,9 @@ fn setup() -> (String, NetworkInterface, Arc<Store>) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user.clone(),
-        identity.clone(),
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user.clone(), identity.clone(), tmp_path.as_str()).unwrap(),
+    ));
     let config = Config::new(user, identity);
     let store = Arc::new(Store::new(conf_manager, config));
     let interface = mock_interface();
@@ -90,8 +88,8 @@ fn test_process_arp() {
 
     let device = Device {
         hostname: "hostname".to_string(),
-        ip: "192.168.1.1".to_string(),
-        mac: MacAddr::default().to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
+        mac: MacAddr::default(),
         is_current_host: false,
         vendor: "vendor".to_string(),
     };
@@ -148,8 +146,8 @@ fn test_process_syn() {
 
     let device = Device {
         hostname: "hostname".to_string(),
-        ip: "192.168.1.1".to_string(),
-        mac: MacAddr::default().to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
+        mac: MacAddr::default(),
         is_current_host: false,
         vendor: "vendor".to_string(),
     };
@@ -165,8 +163,8 @@ fn test_process_syn() {
 
     let device_with_ports = DeviceWithPorts {
         hostname: device.hostname.clone(),
-        ip: device.ip.clone(),
-        mac: device.mac.clone(),
+        ip: device.ip,
+        mac: device.mac,
         is_current_host: device.is_current_host,
         vendor: device.vendor.clone(),
         open_ports: open_ports.clone(),

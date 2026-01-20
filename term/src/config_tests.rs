@@ -8,18 +8,18 @@ fn setup() -> (ConfigManager, Config, String) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let mut manager = ConfigManager::new(user, identity, tmp_path.as_str());
+    let mut manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
     let config = Config {
         id: "octopus".to_string(),
         cidr: "192.168.1.1/24".to_string(),
         default_ssh_identity: "id_rsa".to_string(),
-        default_ssh_port: "2222".to_string(),
+        default_ssh_port: 2222,
         default_ssh_user: "user".to_string(),
         device_configs: HashMap::new(),
         ports: vec![],
         theme: "Emerald".to_string(),
     };
-    manager.create(&config);
+    manager.create(&config).unwrap();
 
     (manager, config, tmp_path)
 }
@@ -61,7 +61,7 @@ fn get_by_cidr() {
 fn update_config() {
     let (mut manager, mut config, conf_path) = setup();
     config.cidr = "10.10.10.1/24".to_string();
-    manager.update_config(config);
+    manager.update_config(config).unwrap();
     let o = manager.get_by_id("octopus");
     assert!(o.is_some());
     let c = o.unwrap();

@@ -6,6 +6,7 @@ use ratatui::{Terminal, backend::TestBackend};
 use std::{
     collections::{HashMap, HashSet},
     fs,
+    net::Ipv4Addr,
     sync::Mutex,
 };
 
@@ -21,16 +22,14 @@ fn setup() -> (DeviceView, Arc<Store>, String) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user,
-        identity,
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user, identity, tmp_path.as_str()).unwrap(),
+    ));
     let config = Config {
         id: "default".to_string(),
         cidr: "192.168.1.1/24".to_string(),
         default_ssh_identity: "id_rsa".to_string(),
-        default_ssh_port: "22".to_string(),
+        default_ssh_port: 22,
         default_ssh_user: "user".to_string(),
         device_configs: HashMap::new(),
         ports: vec![],
@@ -48,15 +47,15 @@ fn setup() -> (DeviceView, Arc<Store>, String) {
 
     let device = DeviceWithPorts {
         hostname: "hostname".to_string(),
-        ip: "10.10.10.1".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
         is_current_host: false,
-        mac: MacAddr::default().to_string(),
         open_ports,
         vendor: "mac".to_string(),
     };
 
     store.dispatch(Action::AddDevice(device.clone()));
-    store.dispatch(Action::UpdateSelectedDevice(device.ip.clone()));
+    store.dispatch(Action::UpdateSelectedDevice(device.ip));
     (
         DeviceView::new(Arc::clone(&store) as Arc<dyn Dispatcher>),
         store,

@@ -8,11 +8,9 @@ fn setup() -> (Store, String) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user.clone(),
-        identity.clone(),
-        tmp_path.as_str(),
-    )));
+    let conf_manager = Arc::new(Mutex::new(
+        ConfigManager::new(user.clone(), identity.clone(), tmp_path.as_str()).unwrap(),
+    ));
     let current_config = Config::new(user, identity);
     let store = Store::new(conf_manager, current_config);
     (store, tmp_path)

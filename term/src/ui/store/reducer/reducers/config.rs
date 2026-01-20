@@ -4,7 +4,7 @@ use crate::{
     config::{Config, ConfigManager, DeviceConfig},
     ui::{
         colors::{Colors, Theme},
-        store::state::State,
+        store::{reducer::reducers::ui::set_error, state::State},
     },
 };
 
@@ -13,9 +13,16 @@ pub fn update_config(
     config: Config,
     config_manager: &Arc<Mutex<ConfigManager>>,
 ) {
-    let mut manager = config_manager.lock().unwrap();
-    manager.update_config(config.clone());
-    state.config = config;
+    match config_manager.lock() {
+        Ok(mut manager) => {
+            if let Err(err) = manager.update_config(config.clone()) {
+                set_error(state, Some(err.to_string()));
+            } else {
+                state.config = config;
+            }
+        }
+        Err(err) => set_error(state, Some(err.to_string())),
+    }
 }
 
 pub fn set_config(
@@ -23,13 +30,18 @@ pub fn set_config(
     config_id: String,
     config_manager: &Arc<Mutex<ConfigManager>>,
 ) {
-    if let Some(conf) = config_manager.lock().unwrap().get_by_id(config_id.as_str()) {
-        let theme = Theme::from_string(&conf.theme);
-        state.config = conf;
-        state.colors = Colors::new(
-            theme.to_palette(state.true_color_enabled),
-            state.true_color_enabled,
-        );
+    match config_manager.lock() {
+        Ok(manager) => {
+            if let Some(conf) = manager.get_by_id(&config_id) {
+                let theme = Theme::from_string(&conf.theme);
+                state.config = conf;
+                state.colors = Colors::new(
+                    theme.to_palette(state.true_color_enabled),
+                    state.true_color_enabled,
+                );
+            }
+        }
+        Err(err) => set_error(state, Some(err.to_string())),
     }
 }
 
@@ -38,14 +50,21 @@ pub fn create_and_set_config(
     config: Config,
     config_manager: &Arc<Mutex<ConfigManager>>,
 ) {
-    let mut manager = config_manager.lock().unwrap();
-    manager.create(&config);
-    let theme = Theme::from_string(&config.theme);
-    state.config = config.clone();
-    state.colors = Colors::new(
-        theme.to_palette(state.true_color_enabled),
-        state.true_color_enabled,
-    );
+    match config_manager.lock() {
+        Ok(mut manager) => {
+            if let Err(err) = manager.create(&config) {
+                set_error(state, Some(err.to_string()))
+            } else {
+                let theme = Theme::from_string(&config.theme);
+                state.config = config.clone();
+                state.colors = Colors::new(
+                    theme.to_palette(state.true_color_enabled),
+                    state.true_color_enabled,
+                );
+            }
+        }
+        Err(err) => set_error(state, Some(err.to_string())),
+    }
 }
 
 pub fn update_device_config(
@@ -53,10 +72,18 @@ pub fn update_device_config(
     device_config: DeviceConfig,
     config_manager: &Arc<Mutex<ConfigManager>>,
 ) {
-    state
-        .config
+    let mut config = state.config.clone();
+    config
         .device_configs
         .insert(device_config.id.clone(), device_config);
-    let mut manager = config_manager.lock().unwrap();
-    manager.update_config(state.config.clone());
+    match config_manager.lock() {
+        Ok(mut manager) => {
+            if let Err(err) = manager.update_config(config.clone()) {
+                set_error(state, Some(err.to_string()));
+            } else {
+                state.config = config;
+            }
+        }
+        Err(err) => set_error(state, Some(err.to_string())),
+    }
 }

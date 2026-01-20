@@ -206,20 +206,21 @@ impl DeviceView {
 
             let header = Header::new("tracing...".to_string());
             header.render(label_area, buf, ctx);
-        } else if ctx.state.cmd_output.is_some() {
-            let (cmd, output) = ctx.state.cmd_output.as_ref().unwrap();
+        } else if let Some((cmd, output)) = ctx.state.cmd_output.as_ref() {
             let header = Header::new(cmd.to_string());
 
             let status_value = Span::from(output.status.to_string());
             let status = Line::from(vec![status_value]);
 
             let stderr_label = Span::from("stderr: ");
-            let stderr_value = Span::from(String::from_utf8(output.stderr.clone()).unwrap());
+            let stderr_value =
+                Span::from(String::from_utf8(output.stderr.clone()).unwrap_or_default());
             let stderr = Paragraph::new(Line::from(vec![stderr_label, stderr_value]))
                 .wrap(Wrap { trim: true });
 
             let stdout_label = Span::from("stdout: ");
-            let stdout_value = Span::from(String::from_utf8(output.stdout.clone()).unwrap());
+            let stdout_value =
+                Span::from(String::from_utf8(output.stdout.clone()).unwrap_or_default());
 
             let stdout = Paragraph::new(Line::from(vec![stdout_label, stdout_value]))
                 .wrap(Wrap { trim: true });
@@ -435,8 +436,7 @@ impl DeviceView {
     }
 
     fn is_tracing(&self, state: &State) -> bool {
-        if state.cmd_in_progress.is_some() {
-            let cmd = state.cmd_in_progress.as_ref().unwrap();
+        if let Some(cmd) = state.cmd_in_progress.as_ref() {
             matches!(cmd, Command::TraceRoute(_))
         } else {
             false
@@ -550,16 +550,12 @@ impl EventHandler for DeviceView {
                             || self.browser_port_state.borrow().editing
                         {
                             let port_str = self.browser_port_state.borrow().value.clone();
-                            if let Ok(port) = port_str.parse::<u16>() {
+                            if let Ok(port) = port_str.parse::<u16>()
+                                && let Some(selected) = ctx.state.selected_device.as_ref()
+                            {
                                 let _ = ctx.events.send(Event::ExecCommand(Command::Browse(
                                     BrowseArgs {
-                                        device: ctx
-                                            .state
-                                            .selected_device
-                                            .as_ref()
-                                            .unwrap()
-                                            .clone()
-                                            .into(),
+                                        device: selected.clone().into(),
                                         port,
                                         use_lynx: self.browser_select_state.borrow().value
                                             == "lynx",
@@ -580,7 +576,7 @@ impl EventHandler for DeviceView {
                             self.dispatcher
                                 .dispatch(Action::UpdateDeviceConfig(device_config));
                             self.dispatcher
-                                .dispatch(Action::UpdateSelectedDevice(device.ip.clone()));
+                                .dispatch(Action::UpdateSelectedDevice(device.ip));
                             self.reset_input_state();
                             handled = true;
                         }
@@ -605,18 +601,23 @@ impl EventHandler for DeviceView {
                         self.ssh_user_state.borrow_mut().editing = true;
                         *self.editing.borrow_mut() = true;
                         handled = true;
-                    } else if c == 's' {
+                    } else if c == 's'
+                        && let Some(selected) = ctx.state.selected_device.as_ref()
+                        && let Some(selected_config) = ctx.state.selected_device_config.as_ref()
+                    {
                         if ctx.state.cmd_in_progress.is_none() {
                             handled = true;
                             let _ = ctx.events.send(Event::ExecCommand(Command::Ssh(
-                                ctx.state.selected_device.as_ref().unwrap().clone().into(),
-                                ctx.state.selected_device_config.as_ref().unwrap().clone(),
+                                selected.clone().into(),
+                                selected_config.clone(),
                             )));
                         }
                     } else if c == 't' {
-                        if !self.is_tracing(ctx.state) {
+                        if !self.is_tracing(ctx.state)
+                            && let Some(selected) = ctx.state.selected_device.as_ref()
+                        {
                             let _ = ctx.events.send(Event::ExecCommand(Command::TraceRoute(
-                                ctx.state.selected_device.as_ref().unwrap().clone().into(),
+                                selected.clone().into(),
                             )));
                             handled = true;
                         }

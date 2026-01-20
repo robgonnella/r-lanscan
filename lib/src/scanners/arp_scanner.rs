@@ -143,7 +143,7 @@ impl ARPScanner<'_> {
                 }
 
                 let ip4 = header.get_sender_proto_addr();
-                let mac = eth.get_source().to_string();
+                let mac = eth.get_source();
 
                 let notification_sender = notifier.clone();
 
@@ -158,7 +158,7 @@ impl ARPScanner<'_> {
                     };
 
                     let vendor = if include_vendor {
-                        oui_data::lookup(&mac)
+                        oui_data::lookup(&mac.to_string())
                             .map(|v| v.organization().to_owned())
                             .unwrap_or_default()
                     } else {
@@ -167,7 +167,7 @@ impl ARPScanner<'_> {
 
                     let _ = notification_sender.send(ScanMessage::ARPScanResult(Device {
                         hostname,
-                        ip: ip4.to_string(),
+                        ip: ip4,
                         mac,
                         vendor,
                         is_current_host: ip4 == source_ipv4,
@@ -210,7 +210,7 @@ impl Scanner for ARPScanner<'_> {
                 // inform consumer we are scanning this target (ignore error on failure to notify)
                 notifier
                     .send(ScanMessage::Info(Scanning {
-                        ip: target_ipv4.to_string(),
+                        ip: target_ipv4,
                         port: None,
                     }))
                     .map_err(RLanLibError::from_channel_send_error)?;
