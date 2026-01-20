@@ -66,12 +66,12 @@ fn tear_down(conf_path: String) {
 #[test]
 fn test_initialize_logger() {
     let args = default_args(false);
-    initialize_logger(&args);
+    initialize_logger(&args).unwrap();
 }
 
 #[test]
 fn test_get_project_config_path() {
-    let p = get_project_config_path();
+    let p = get_project_config_path().unwrap();
     assert_ne!(p, "");
 }
 

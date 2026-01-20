@@ -17,6 +17,7 @@ use core::time;
 use itertools::Itertools;
 use log::*;
 use r_lanlib::{
+    error::Result as LibResult,
     network::{self, NetworkInterface},
     packet,
     scanners::{
@@ -86,7 +87,7 @@ struct Args {
 }
 
 #[doc(hidden)]
-fn initialize_logger(args: &Args) {
+fn initialize_logger(args: &Args) -> Result<()> {
     let filter = if args.quiet {
         simplelog::LevelFilter::Error
     } else if args.debug {
@@ -100,8 +101,9 @@ fn initialize_logger(args: &Args) {
         simplelog::Config::default(),
         simplelog::TerminalMode::Mixed,
         simplelog::ColorChoice::Auto,
-    )
-    .unwrap();
+    )?;
+
+    Ok(())
 }
 
 #[doc(hidden)]
@@ -128,7 +130,7 @@ fn print_args(args: &Args, interface: &NetworkInterface) {
 fn process_arp(
     scanner: &dyn Scanner,
     rx: Receiver<ScanMessage>,
-) -> Result<(Vec<Device>, Receiver<ScanMessage>)> {
+) -> LibResult<(Vec<Device>, Receiver<ScanMessage>)> {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
     info!("starting arp scan...");
@@ -151,10 +153,10 @@ fn process_arp(
         }
     }
 
-    handle.join().unwrap()?;
+    handle.join()??;
 
     let mut items: Vec<Device> = arp_results.into_iter().collect();
-    items.sort_by_key(|i| Ipv4Addr::from_str(&i.ip.to_owned()).unwrap());
+    items.sort_by_key(|i| Ipv4Addr::from_str(&i.ip).unwrap());
 
     Ok((items, rx))
 }
@@ -194,7 +196,7 @@ fn process_syn(
     scanner: &dyn Scanner,
     devices: Vec<Device>,
     rx: Receiver<ScanMessage>,
-) -> Result<Vec<DeviceWithPorts>> {
+) -> LibResult<Vec<DeviceWithPorts>> {
     let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
 
     for d in devices.iter() {
@@ -236,7 +238,7 @@ fn process_syn(
         }
     }
 
-    handle.join().unwrap()?;
+    handle.join()??;
 
     Ok(syn_results)
 }
@@ -309,7 +311,7 @@ fn main() -> Result<()> {
 
     let mut args = Args::parse();
 
-    initialize_logger(&args);
+    initialize_logger(&args)?;
 
     if !is_root() {
         return Err(eyre!("permission denied: must run with root privileges"));

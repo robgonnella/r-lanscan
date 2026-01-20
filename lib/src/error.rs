@@ -3,7 +3,10 @@
 use std::{
     any::Any,
     num::ParseIntError,
-    sync::{MutexGuard, PoisonError, mpsc::SendError},
+    sync::{
+        MutexGuard, PoisonError,
+        mpsc::{RecvError, SendError},
+    },
 };
 use thiserror::Error;
 
@@ -34,6 +37,10 @@ pub enum RLanLibError {
     /// Generic thread error
     #[error("thread error: {_0}")]
     ThreadError(String),
+
+    /// Errors when consuming messages from channels
+    #[error("failed to receive message from channel: {:#?}", _0)]
+    ChannelReceive(#[from] RecvError),
 
     /// Wrapping errors related to scanning
     #[error("scanning error: {error} - ip: {:#?}, port: {:#?}", ip, port)]
