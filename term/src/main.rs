@@ -21,13 +21,14 @@
 //! ```
 
 use clap::Parser;
-use color_eyre::eyre::{ContextCompat, Result, eyre};
+use color_eyre::eyre::{ContextCompat, Report, Result, eyre};
 use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
 use log::*;
 use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
+    any::Any,
     collections::HashSet,
     fs,
     sync::{
@@ -83,7 +84,7 @@ struct Args {
 }
 
 #[doc(hidden)]
-fn initialize_logger(args: &Args) {
+fn initialize_logger(args: &Args) -> Result<()> {
     let filter = if args.debug {
         simplelog::LevelFilter::Debug
     } else {
@@ -95,16 +96,34 @@ fn initialize_logger(args: &Args) {
         simplelog::Config::default(),
         simplelog::TerminalMode::Mixed,
         simplelog::ColorChoice::Auto,
-    )
-    .unwrap();
+    )?;
+
+    Ok(())
 }
 
 #[doc(hidden)]
-fn get_project_config_path() -> String {
-    let project_dir = ProjectDirs::from("", "", "r-lanterm").unwrap();
+fn get_project_config_path() -> Result<String> {
+    let project_dir =
+        ProjectDirs::from("", "", "r-lanterm").ok_or(eyre!("failed to get project directory"))?;
     let config_dir = project_dir.config_dir();
-    fs::create_dir_all(config_dir).unwrap();
-    config_dir.join("config.yml").to_str().unwrap().to_string()
+    fs::create_dir_all(config_dir)?;
+    let config_file_path = config_dir
+        .join("config.yml")
+        .to_str()
+        .ok_or(eyre!("unable to construct config file path"))?
+        .to_string();
+    Ok(config_file_path)
+}
+
+#[doc(hidden)]
+fn report_from_thread_panic(e: Box<dyn Any + Send>) -> Report {
+    if let Some(value) = e.downcast_ref::<&str>() {
+        eyre!("thread panicked with {value}")
+    } else if let Some(value) = e.downcast_ref::<&String>() {
+        eyre!("thread panicked with {value}")
+    } else {
+        eyre!("thread panicked for unknown reason")
+    }
 }
 
 #[doc(hidden)]
@@ -146,7 +165,7 @@ fn process_arp(
 
     debug!("waiting for arp handle to finish");
 
-    handle.join().unwrap()?;
+    handle.join().map_err(report_from_thread_panic)??;
 
     dispatcher.dispatch(Action::UpdateMessage(None));
 
@@ -209,7 +228,7 @@ fn process_syn(
         }
     }
 
-    handle.join().unwrap()?;
+    handle.join().map_err(report_from_thread_panic)??;
 
     store.dispatch(Action::UpdateMessage(None));
 
@@ -288,7 +307,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>
     let home = dirs::home_dir().wrap_err(eyre!("failed to get user's home directory"))?;
     let identity = format!("{}/.ssh/id_rsa", home.to_string_lossy());
 
-    let config_path = get_project_config_path();
+    let config_path = get_project_config_path()?;
 
     let config_manager = Arc::new(Mutex::new(ConfigManager::new(
         user.clone(),
@@ -345,7 +364,7 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    initialize_logger(&args);
+    initialize_logger(&args)?;
 
     if !is_root() {
         return Err(eyre!("permission denied: must run with root privileges"));
@@ -374,7 +393,7 @@ fn main() -> Result<()> {
     });
 
     if args.debug {
-        let mut signals = Signals::new([SIGINT]).unwrap();
+        let mut signals = Signals::new([SIGINT])?;
         let _ = signals.wait();
         return Ok(());
     }
@@ -400,7 +419,7 @@ fn main() -> Result<()> {
     let event_handle = thread::spawn(move || event_manager.start_event_loop());
 
     application.launch()?;
-    event_handle.join().unwrap()?;
+    event_handle.join().map_err(report_from_thread_panic)??;
     Ok(())
 }
 

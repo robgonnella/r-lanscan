@@ -60,7 +60,7 @@ fn initializes_logger() {
         vendor: true,
     };
 
-    initialize_logger(&args);
+    initialize_logger(&args).unwrap();
 }
 
 #[test]
