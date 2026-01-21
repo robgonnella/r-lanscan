@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{collections::HashMap, net::Ipv4Addr, process::Output};
 
-use r_lanlib::scanners::{Device, DeviceWithPorts};
+use r_lanlib::scanners::Device;
 
 use crate::{
     config::{Config, DeviceConfig},
@@ -38,9 +38,8 @@ pub struct State {
     pub view_id: ViewID,
     pub config: Config,
     pub arp_history: HashMap<Ipv4Addr, (Device, MissedCount)>,
-    pub devices: Vec<DeviceWithPorts>,
-    pub device_map: HashMap<Ipv4Addr, DeviceWithPorts>,
-    pub selected_device: Option<DeviceWithPorts>,
+    pub device_map: HashMap<Ipv4Addr, Device>,
+    pub selected_device: Option<Device>,
     pub selected_device_config: Option<DeviceConfig>,
     pub colors: Colors,
     pub message: Option<String>,
@@ -69,7 +68,6 @@ impl State {
             view_id: ViewID::Devices,
             config,
             arp_history: HashMap::new(),
-            devices: Vec::new(),
             device_map: HashMap::new(),
             selected_device: None,
             selected_device_config: None,

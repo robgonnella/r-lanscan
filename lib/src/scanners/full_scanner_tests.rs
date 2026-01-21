@@ -1,20 +1,19 @@
 use super::*;
 use pnet::{
     packet::{arp, ethernet, ipv4, tcp},
-    util::{self, MacAddr},
+    util,
 };
 use std::net;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
 use std::time::Duration;
-use std::{collections::HashSet, net::Ipv4Addr};
 
-use crate::network;
 use crate::packet::arp_packet::create_arp_reply;
 use crate::packet::mocks::{MockPacketReader, MockPacketSender};
 use crate::packet::syn_packet::create_syn_reply;
-use crate::scanners::{DeviceWithPorts, Port};
+use crate::scanners::Port;
+use crate::{network, scanners::PortSet};
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
@@ -94,6 +93,7 @@ fn sends_and_reads_packets() {
         mac: device_mac,
         vendor: "XEROX CORPORATION".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let mut receiver = MockPacketReader::new();
@@ -135,14 +135,7 @@ fn sends_and_reads_packets() {
 
     let handle = scanner.scan();
 
-    let mut detected_device = DeviceWithPorts {
-        hostname: "".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 10),
-        is_current_host: false,
-        mac: MacAddr::default(),
-        vendor: "".to_string(),
-        open_ports: HashSet::new(),
-    };
+    let mut detected_device = None;
 
     let expected_open_port = Port {
         id: device_port,
@@ -153,13 +146,8 @@ fn sends_and_reads_packets() {
         if let Ok(msg) = rx.recv() {
             match msg {
                 ScanMessage::Done => break,
-                ScanMessage::SYNScanResult(d) => {
-                    detected_device.hostname = d.device.hostname;
-                    detected_device.ip = d.device.ip;
-                    detected_device.mac = d.device.mac;
-                    detected_device.vendor = d.device.vendor;
-                    detected_device.is_current_host = d.device.is_current_host;
-                    detected_device.open_ports.insert(d.open_port);
+                ScanMessage::SYNScanResult(m) => {
+                    detected_device = Some(m.device);
                 }
                 _ => {}
             }
@@ -167,6 +155,7 @@ fn sends_and_reads_packets() {
     }
 
     let result = handle.join().unwrap();
+    let detected_device = detected_device.unwrap();
 
     assert!(result.is_ok());
     assert_eq!(detected_device.hostname, device.hostname);
@@ -174,5 +163,5 @@ fn sends_and_reads_packets() {
     assert_eq!(detected_device.mac, device.mac);
     assert_eq!(detected_device.vendor, device.vendor);
     assert_eq!(detected_device.is_current_host, device.is_current_host);
-    assert!(detected_device.open_ports.contains(&expected_open_port));
+    assert!(detected_device.open_ports.0.contains(&expected_open_port));
 }

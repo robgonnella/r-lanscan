@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs,
     net::Ipv4Addr,
     os::unix::process::ExitStatusExt,
@@ -9,7 +9,7 @@ use std::{
 
 use nanoid::nanoid;
 use pnet::util::MacAddr;
-use r_lanlib::scanners::{Device, DeviceWithPorts, Port};
+use r_lanlib::scanners::{Device, Port, PortSet};
 
 use crate::{
     config::{Config, ConfigManager, DeviceConfig},
@@ -18,6 +18,7 @@ use crate::{
         colors::{Colors, Theme},
         store::{
             action::Action,
+            derived::get_sorted_devices,
             state::{State, ViewID},
         },
     },
@@ -142,31 +143,39 @@ fn test_update_config() {
 fn test_update_all_devices() {
     let (mut state, reducer, conf_path) = setup();
 
-    let dev1 = DeviceWithPorts {
+    let dev1 = Device {
         hostname: "dev1".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 1),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::default(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
         vendor: "dev1_vendor".to_string(),
     };
 
-    let dev2 = DeviceWithPorts {
+    let dev2 = Device {
         hostname: "dev2".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 2),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
         vendor: "dev2_vendor".to_string(),
     };
 
-    let expected_devices = vec![dev1.clone(), dev2.clone()];
+    let mut expected_devices = HashMap::new();
+    expected_devices.insert(dev1.ip, dev1.clone());
+    expected_devices.insert(dev2.ip, dev2.clone());
 
     reducer.reduce(
         &mut state,
         Action::UpdateAllDevices(expected_devices.clone()),
     );
-    assert_eq!(state.devices, expected_devices);
+
+    let devices = get_sorted_devices(&state);
+
+    assert_eq!(devices.len(), 2);
+    // sorted by IP so dev2 should be 1st
+    assert_eq!(devices[0], dev2);
+    assert_eq!(devices[1], dev1);
 
     tear_down(conf_path);
 }
@@ -175,17 +184,18 @@ fn test_update_all_devices() {
 fn test_add_device() {
     let (mut state, reducer, conf_path) = setup();
 
-    let dev3 = DeviceWithPorts {
+    let dev3 = Device {
         hostname: "dev3".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 1),
         mac: MacAddr::default(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
         vendor: "dev3_vendor".to_string(),
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev3.clone()));
-    assert_eq!(state.devices, vec![dev3.clone()]);
+    let devices = get_sorted_devices(&state);
+    assert_eq!(devices, vec![dev3]);
     tear_down(conf_path);
 }
 
@@ -213,30 +223,31 @@ fn test_create_and_set_config() {
 fn test_update_selected_device() {
     let (mut state, reducer, conf_path) = setup();
 
-    let dev1 = DeviceWithPorts {
+    let dev1 = Device {
         hostname: "dev1".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 1),
         mac: MacAddr::default(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
         vendor: "dev1_vendor".to_string(),
     };
 
-    let dev2 = DeviceWithPorts {
+    let dev2 = Device {
         hostname: "dev2".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
         vendor: "dev2_vendor".to_string(),
     };
 
+    let mut devices = HashMap::new();
+    devices.insert(dev1.ip, dev1.clone());
+    devices.insert(dev2.ip, dev2.clone());
+
     reducer.reduce(&mut state, Action::AddDevice(dev1.clone()));
     reducer.reduce(&mut state, Action::AddDevice(dev2.clone()));
-    reducer.reduce(
-        &mut state,
-        Action::UpdateAllDevices(vec![dev1.clone(), dev2.clone()]),
-    );
+    reducer.reduce(&mut state, Action::UpdateAllDevices(devices));
     reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev2.ip));
     assert!(state.selected_device.is_some());
     let selected = state.selected_device.unwrap();
@@ -248,12 +259,12 @@ fn test_update_selected_device() {
 fn test_update_device_config() {
     let (mut state, reducer, conf_path) = setup();
 
-    let dev = DeviceWithPorts {
+    let dev = Device {
         hostname: "dev".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
         vendor: "dev_vendor".to_string(),
     };
 
@@ -264,8 +275,11 @@ fn test_update_device_config() {
         ssh_user: "dev_user".to_string(),
     };
 
+    let mut devices = HashMap::new();
+    devices.insert(dev.ip, dev.clone());
+
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
-    reducer.reduce(&mut state, Action::UpdateAllDevices(vec![dev.clone()]));
+    reducer.reduce(&mut state, Action::UpdateAllDevices(devices));
     reducer.reduce(&mut state, Action::UpdateDeviceConfig(dev_config.clone()));
     reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev.ip));
 
@@ -286,6 +300,7 @@ fn test_set_command_in_progress() {
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
         vendor: "dev_vendor".to_string(),
+        open_ports: PortSet::new(),
     };
     let port: u16 = 80;
     reducer.reduce(
@@ -318,6 +333,7 @@ fn test_update_command_output() {
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
         vendor: "dev_vendor".to_string(),
+        open_ports: PortSet::new(),
     };
     let port: u16 = 80;
     let cmd = Command::Browse(BrowseArgs {
@@ -350,13 +366,13 @@ fn test_update_command_output() {
 fn test_updates_device_with_new_info() {
     let (mut state, reducer, conf_path) = setup();
 
-    let mut dev = DeviceWithPorts {
+    let mut dev = Device {
         hostname: "dev".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         is_current_host: false,
         vendor: "dev_vendor".to_string(),
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     };
 
     let port = Port {
@@ -365,16 +381,19 @@ fn test_updates_device_with_new_info() {
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
+    let devices = get_sorted_devices(&state);
 
-    assert_eq!(state.devices.len(), 1);
+    assert_eq!(devices.len(), 1);
 
-    dev.open_ports.insert(port.clone());
+    dev.open_ports.0.insert(port.clone());
 
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
+    let devices = get_sorted_devices(&state);
 
-    assert_eq!(state.devices.len(), 1);
-    assert_eq!(state.devices[0], dev);
-    assert_eq!(state.devices[0].open_ports.len(), 1);
-    assert!(state.devices[0].open_ports.contains(&port));
+    assert_eq!(devices.len(), 1);
+    assert_eq!(devices[0], dev);
+    assert_eq!(devices[0].open_ports.0.len(), 1);
+    assert!(devices[0].open_ports.0.contains(&port));
+
     tear_down(conf_path);
 }

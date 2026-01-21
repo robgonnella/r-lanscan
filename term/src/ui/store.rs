@@ -47,7 +47,6 @@ impl Store {
                 view_id: state::ViewID::Devices,
                 config: current_config,
                 arp_history: HashMap::new(),
-                devices: Vec::new(),
                 device_map: HashMap::new(),
                 selected_device: None,
                 selected_device_config: None,

@@ -5,6 +5,7 @@
 //! - SYN Scanning
 //! - Full Scanning (ARP + SYN)
 
+use itertools::Itertools;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
@@ -12,6 +13,7 @@ use pnet::util::MacAddr;
 use serde;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::net::Ipv4Addr;
 use std::thread::JoinHandle;
 
@@ -20,13 +22,60 @@ use crate::error::Result;
 /// The default idle timeout for a scanner
 pub const IDLE_TIMEOUT: u16 = 10000;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 /// Data structure representing a port
 pub struct Port {
     /// The ID of the port i.e. 22, 80, 443 etc.
     pub id: u16,
     /// The associated service name for the port if known
     pub service: String,
+}
+
+impl PartialEq for Port {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Hash for Port {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl Ord for Port {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for Port {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Wrapper around HashSet<Port> providing a convenience method for
+/// converting to a Vec of sorted ports
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PortSet(pub HashSet<Port>);
+
+impl PortSet {
+    /// Returns a new instance of PortSet
+    pub fn new() -> Self {
+        Self(HashSet::new())
+    }
+
+    /// Returns a sorted Vec of [`Port`]
+    pub fn to_sorted_vec(&self) -> Vec<Port> {
+        self.0.iter().cloned().sorted().collect()
+    }
+}
+
+impl From<HashSet<Port>> for PortSet {
+    fn from(value: HashSet<Port>) -> Self {
+        Self(value)
+    }
 }
 
 fn serialize_to_string<S, T>(val: &T, s: S) -> std::result::Result<S::Ok, S::Error>
@@ -48,7 +97,7 @@ where
 }
 
 // ARP Result from a single device
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 /// Data structure representing a device on the network
 pub struct Device {
     /// Hostname of the device
@@ -65,39 +114,32 @@ pub struct Device {
     pub vendor: String,
     /// Whether or not the device is the current host running the scan
     pub is_current_host: bool,
+    /// A HashSet of open ports for this device
+    pub open_ports: PortSet,
 }
 
-// Device with open ports
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-/// Data structure representing a device on the network with detected open ports
-pub struct DeviceWithPorts {
-    /// IPv4 of the device
-    pub ip: Ipv4Addr,
-    /// MAC address of the device
-    #[serde(
-        serialize_with = "serialize_to_string",
-        deserialize_with = "deserialize_from_str"
-    )]
-    pub mac: MacAddr,
-    /// Hostname of the device
-    pub hostname: String,
-    /// Device vendor if known
-    pub vendor: String,
-    /// Whether or not the device is the current host running the scan
-    pub is_current_host: bool,
-    /// A list of detected open ports on the device
-    pub open_ports: HashSet<Port>,
+impl PartialEq for Device {
+    fn eq(&self, other: &Self) -> bool {
+        self.ip == other.ip && self.mac == other.mac
+    }
 }
 
-impl From<DeviceWithPorts> for Device {
-    fn from(value: DeviceWithPorts) -> Self {
-        Self {
-            ip: value.ip,
-            mac: value.mac,
-            hostname: value.hostname.clone(),
-            vendor: value.vendor.clone(),
-            is_current_host: value.is_current_host,
-        }
+impl Hash for Device {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ip.hash(state);
+        self.mac.hash(state);
+    }
+}
+
+impl Ord for Device {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.ip.cmp(&other.ip)
+    }
+}
+
+impl PartialOrd for Device {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -115,8 +157,6 @@ pub struct Scanning {
 pub struct SYNScanResult {
     /// The device that was scanned
     pub device: Device,
-    /// The port that was scanned
-    pub open_port: Port,
 }
 
 #[derive(Debug)]
@@ -144,7 +184,3 @@ pub mod arp_scanner;
 pub mod full_scanner;
 mod heartbeat;
 pub mod syn_scanner;
-
-#[cfg(test)]
-#[path = "./scanners_tests.rs"]
-mod tests;

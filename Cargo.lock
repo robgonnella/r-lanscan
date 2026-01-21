@@ -1287,6 +1287,7 @@ version = "0.3.0"
 dependencies = [
  "dns-lookup",
  "ipnet",
+ "itertools 0.14.0",
  "log",
  "mockall",
  "openssl",

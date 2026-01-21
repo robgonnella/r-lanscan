@@ -1,15 +1,14 @@
 use super::*;
 use core::net;
 use pnet::packet::{arp, ethernet, ipv4, tcp};
-use pnet::util::{self, MacAddr};
-use std::collections::HashSet;
+use pnet::util;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use crate::network;
-use crate::scanners::DeviceWithPorts;
+use crate::scanners::PortSet;
 use packet::arp_packet::create_arp_reply;
 use packet::mocks::{MockPacketReader, MockPacketSender};
 use packet::syn_packet::create_syn_reply;
@@ -77,6 +76,7 @@ fn sends_and_reads_packets() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let mut receiver = MockPacketReader::new();
@@ -110,14 +110,7 @@ fn sends_and_reads_packets() {
 
     let handle = scanner.scan();
 
-    let mut detected_device = DeviceWithPorts {
-        hostname: "".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 10),
-        is_current_host: false,
-        mac: MacAddr::default(),
-        vendor: "".to_string(),
-        open_ports: HashSet::new(),
-    };
+    let mut detected_device = None;
 
     let expected_open_port = Port {
         id: device_port,
@@ -130,13 +123,8 @@ fn sends_and_reads_packets() {
                 ScanMessage::Done => {
                     break;
                 }
-                ScanMessage::SYNScanResult(d) => {
-                    detected_device.hostname = d.device.hostname;
-                    detected_device.ip = d.device.ip;
-                    detected_device.mac = d.device.mac;
-                    detected_device.vendor = d.device.vendor;
-                    detected_device.is_current_host = d.device.is_current_host;
-                    detected_device.open_ports.insert(d.open_port);
+                ScanMessage::SYNScanResult(m) => {
+                    detected_device = Some(m.device);
                 }
                 _ => {}
             }
@@ -144,6 +132,7 @@ fn sends_and_reads_packets() {
     }
 
     let result = handle.join().unwrap();
+    let detected_device = detected_device.unwrap();
 
     assert!(result.is_ok());
     assert_eq!(detected_device.hostname, device.hostname);
@@ -151,7 +140,7 @@ fn sends_and_reads_packets() {
     assert_eq!(detected_device.mac, device.mac);
     assert_eq!(detected_device.vendor, device.vendor);
     assert_eq!(detected_device.is_current_host, device.is_current_host);
-    assert!(detected_device.open_ports.contains(&expected_open_port));
+    assert!(detected_device.open_ports.0.contains(&expected_open_port));
 }
 
 #[test]
@@ -173,6 +162,7 @@ fn ignores_unrelated_packets() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -297,6 +287,7 @@ fn reports_error_on_packet_reader_lock() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -355,6 +346,7 @@ fn reports_error_on_rst_packet_sender_lock() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     create_syn_reply(
@@ -431,6 +423,7 @@ fn reports_error_on_rst_packet_send_errors() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     create_syn_reply(
@@ -507,6 +500,7 @@ fn reports_error_on_packet_read_error() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -558,6 +552,7 @@ fn reports_error_on_notifier_send_errors() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -607,6 +602,7 @@ fn reports_error_on_packet_sender_lock_errors() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -665,6 +661,7 @@ fn reports_error_on_packet_send_errors() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -719,6 +716,7 @@ fn reports_errors_from_read_handle() {
         mac: device_mac,
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let devices: Vec<Device> = vec![device.clone()];

@@ -14,7 +14,7 @@ use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
     packet::{self, Reader, Sender, arp_packet},
-    scanners::{Device, Scanning},
+    scanners::{Device, PortSet, Scanning},
     targets::ips::IPTargets,
 };
 
@@ -171,6 +171,7 @@ impl ARPScanner<'_> {
                         mac,
                         vendor,
                         is_current_host: ip4 == source_ipv4,
+                        open_ports: PortSet::new(),
                     }));
                 });
             }
