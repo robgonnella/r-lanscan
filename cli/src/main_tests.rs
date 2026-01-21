@@ -1,7 +1,7 @@
 use mockall::mock;
 use mpsc::channel;
 use pnet::util::MacAddr;
-use r_lanlib::scanners::{Port, Scanner};
+use r_lanlib::scanners::{Port, PortSet, Scanner};
 use std::{
     net::Ipv4Addr,
     thread::{self, JoinHandle},
@@ -153,7 +153,8 @@ fn prints_syn_table_results() {
         open_ports,
     };
 
-    print_syn(&args, &vec![device]).unwrap();
+    let devices = HashMap::from([(device.ip, device)]);
+    print_syn(&args, &devices).unwrap();
 }
 
 #[test]
@@ -189,7 +190,8 @@ fn prints_syn_json_results() {
         open_ports,
     };
 
-    print_syn(&args, &vec![device]).unwrap();
+    let devices = HashMap::from([(device.ip, device)]);
+    print_syn(&args, &devices).unwrap();
 }
 
 #[test]
@@ -269,5 +271,5 @@ fn performs_syn_scan() {
 
     let devices = result.unwrap();
 
-    assert_eq!(devices[0], device);
+    assert_eq!(devices.get(&device.ip), Some(&device));
 }
