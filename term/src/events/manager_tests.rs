@@ -40,7 +40,8 @@ struct SetUpReturn {
 fn setup(conf_manager: ConfigManager, commander: Commander) -> SetUpReturn {
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let config = Config::new(user, identity);
+    let cidr = "192.168.1.1/24".to_string();
+    let config = Config::new(user, identity, cidr);
     let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager)), config));
     let (tx, rx) = std::sync::mpsc::channel::<Event>();
     let arc_rx = Arc::new(Mutex::new(rx));
@@ -68,7 +69,15 @@ fn handles_ssh_command_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -115,7 +124,15 @@ fn handles_ssh_command_ok() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -162,7 +179,15 @@ fn handles_ssh_command_ok_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -220,7 +245,15 @@ fn handles_ssh_command_ok_err_empty() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -268,7 +301,15 @@ fn handles_traceroute_command_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -303,7 +344,15 @@ fn handles_traceroute_command_ok() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -357,7 +406,15 @@ fn handles_browse_command_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -402,7 +459,15 @@ fn handles_browse_command_ok() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -447,7 +512,15 @@ fn handles_browse_command_ok_err() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -503,7 +576,15 @@ fn handles_browse_command_ok_err_empty() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 
@@ -549,7 +630,15 @@ fn listens_for_events() {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
 
     let mut mock_commander = Commander::default();
 

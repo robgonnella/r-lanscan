@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use color_eyre::eyre::Result;
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 
 use crate::ui::colors::Theme;
@@ -41,11 +42,11 @@ pub fn get_default_ports() -> Vec<String> {
 }
 
 impl Config {
-    pub fn new(user: String, identity: String) -> Self {
+    pub fn new(user: String, identity: String, cidr: String) -> Self {
         Self {
             id: DEFAULT_CONFIG_ID.to_string(),
             theme: Theme::Blue.to_string(),
-            cidr: "unknown".to_string(),
+            cidr,
             ports: get_default_ports(),
             default_ssh_identity: identity,
             default_ssh_port: 22,
@@ -56,44 +57,66 @@ impl Config {
 }
 
 /// Persists and retrieves configurations from YAML file.
+#[derive(Builder)]
+#[builder(setter(into), build_fn(private, name = "_build"))]
 pub struct ConfigManager {
+    /// The default user to use when config is not found for target network
+    default_user: String,
+    /// The default ssh identity file to use when config is not found for
+    /// target network
+    default_identity: String,
+    /// The current network cidr to use when no saved config is found
+    default_cidr: String,
+    /// The path the config file
     path: String,
+    #[builder(setter(skip))]
     configs: HashMap<String, Config>,
 }
 
-impl ConfigManager {
-    pub fn new(user: String, identity: String, path: &str) -> Result<Self> {
-        let f: Result<std::fs::File, std::io::Error> = std::fs::File::open(path);
+impl ConfigManagerBuilder {
+    pub fn build(&self) -> Result<ConfigManager> {
+        let mut manager = self._build()?;
+
+        let f: Result<std::fs::File, std::io::Error> = std::fs::File::open(&manager.path);
 
         match f {
             Ok(file) => {
-                let configs: HashMap<String, Config> = match serde_yaml::from_reader(file) {
+                manager.configs = match serde_yaml::from_reader(file) {
                     Ok(c) => c,
                     Err(e) => {
                         log::warn!("Failed to parse config file, using defaults: {}", e);
-                        let default_conf = Config::new(user, identity);
+                        let default_conf = Config::new(
+                            manager.default_user.clone(),
+                            manager.default_identity.clone(),
+                            manager.default_cidr.clone(),
+                        );
                         let mut configs: HashMap<String, Config> = HashMap::new();
                         configs.insert(default_conf.id.clone(), default_conf);
                         configs
                     }
                 };
-                Ok(Self {
-                    path: String::from(path),
-                    configs,
-                })
+                Ok(manager)
             }
             Err(_) => {
-                let default_conf = Config::new(user, identity);
+                let default_conf = Config::new(
+                    manager.default_user.clone(),
+                    manager.default_identity.clone(),
+                    manager.default_cidr.clone(),
+                );
                 let mut configs: HashMap<String, Config> = HashMap::new();
                 configs.insert(default_conf.id.clone(), default_conf.clone());
-                let mut man = Self {
-                    path: String::from(path),
-                    configs,
-                };
-                man.write()?;
-                Ok(man)
+                manager.configs = configs;
+                manager.write()?;
+                Ok(manager)
             }
         }
+    }
+}
+
+impl ConfigManager {
+    /// Returns a new instance of ConfigManagerBuilder
+    pub fn builder() -> ConfigManagerBuilder {
+        ConfigManagerBuilder::default()
     }
 
     pub fn get_by_id(&self, id: &str) -> Option<Config> {

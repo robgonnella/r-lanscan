@@ -49,10 +49,16 @@ fn setup() -> (String, NetworkInterface, Arc<Store>) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(
-        ConfigManager::new(user.clone(), identity.clone(), tmp_path.as_str()).unwrap(),
-    ));
-    let config = Config::new(user, identity);
+    let cidr = "192.168.1.1/24".to_string();
+    let config_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
+    let conf_manager = Arc::new(Mutex::new(config_manager));
+    let config = Config::new(user, identity, cidr);
     let store = Arc::new(Store::new(conf_manager, config));
     let interface = mock_interface();
     (tmp_path, interface, store)
@@ -212,7 +218,8 @@ fn test_monitor_network() {
     let mut mock_packet_sender = MockPacketSender::new();
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let config = Config::new(user, identity);
+    let cidr = "192.168.1.1/24".to_string();
+    let config = Config::new(user, identity, cidr);
     let (exit_tx, exit_rx) = channel();
 
     mock_packet_sender.expect_send().returning(|_| Ok(()));

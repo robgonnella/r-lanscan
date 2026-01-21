@@ -306,11 +306,14 @@ fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>
 
     let config_path = get_project_config_path()?;
 
-    let config_manager = Arc::new(Mutex::new(ConfigManager::new(
-        user.clone(),
-        identity.clone(),
-        &config_path,
-    )?));
+    let config_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(interface.cidr.clone())
+        .path(config_path)
+        .build()?;
+
+    let config_manager = Arc::new(Mutex::new(config_manager));
 
     let manager = config_manager
         .lock()
@@ -327,7 +330,7 @@ fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>
                 id: fakeit::animal::animal().to_lowercase(),
                 cidr: interface.cidr.clone(),
                 ports: args.ports.clone(),
-                ..Config::new(user.clone(), identity.clone())
+                ..Config::new(user.clone(), identity.clone(), interface.cidr.clone())
             }
         });
 

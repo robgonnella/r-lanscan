@@ -30,10 +30,15 @@ fn setup() -> (State, Reducer, String) {
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let conf_manager = Arc::new(Mutex::new(
-        ConfigManager::new(user, identity, tmp_path.as_str()).unwrap(),
-    ));
-
+    let cidr = "192.168.1.1/24".to_string();
+    let config_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
+    let conf_manager = Arc::new(Mutex::new(config_manager));
     let state = State::default();
     let reducer = Reducer::new(conf_manager);
 
@@ -211,7 +216,8 @@ fn test_create_and_set_config() {
     let (mut state, reducer, conf_path) = setup();
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let mut config = Config::new(user, identity);
+    let cidr = "192.168.1.1/24".to_string();
+    let mut config = Config::new(user, identity, cidr);
     config.id = "config_id".to_string();
     reducer.reduce(&mut state, Action::CreateAndSetConfig(config.clone()));
     assert_eq!(state.config.id, config.id);

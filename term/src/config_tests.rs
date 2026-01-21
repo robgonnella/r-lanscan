@@ -5,13 +5,23 @@ use super::*;
 
 fn setup() -> (ConfigManager, Config, String) {
     fs::create_dir_all("generated").unwrap();
+
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
-    let mut manager = ConfigManager::new(user, identity, tmp_path.as_str()).unwrap();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let mut manager = ConfigManager::builder()
+        .default_cidr(cidr.clone())
+        .default_user(user)
+        .default_identity(identity)
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
+
     let config = Config {
         id: "octopus".to_string(),
-        cidr: "192.168.1.1/24".to_string(),
+        cidr: "192.168.2.1/24".to_string(),
         default_ssh_identity: "id_rsa".to_string(),
         default_ssh_port: 2222,
         default_ssh_user: "user".to_string(),
@@ -19,6 +29,7 @@ fn setup() -> (ConfigManager, Config, String) {
         ports: vec![],
         theme: "Emerald".to_string(),
     };
+
     manager.create(&config).unwrap();
 
     (manager, config, tmp_path)

@@ -1,6 +1,7 @@
 //! Provides helpers for selecting a network interface on the current host
 //! through which to preform network scanning
 
+use itertools::Itertools;
 use pnet::{
     datalink::NetworkInterface as PNetNetworkInterface, ipnetwork::IpNetwork, util::MacAddr,
 };
@@ -92,11 +93,16 @@ pub fn get_available_port() -> Result<u16, io::Error> {
 
 fn get_interface_ipv4_and_cidr(interface: &PNetNetworkInterface) -> Option<(String, String)> {
     let ipnet = interface.ips.iter().find(|i| i.is_ipv4())?;
-    let ip = ipnet.ip().to_string();
-    let base = ipnet.network().to_string();
+    let host_ip = ipnet.ip().to_string();
+    let first_ip = ipnet
+        .iter()
+        .find_or_first(|p| p.is_ipv4() && !p.to_string().ends_with(".0"));
+    let base = first_ip
+        .map(|i| i.to_string())
+        .unwrap_or_else(|| ipnet.network().to_string());
     let prefix = ipnet.prefix().to_string();
     let cidr = format!("{base}/{prefix}");
-    Some((ip, cidr))
+    Some((host_ip, cidr))
 }
 
 #[cfg(test)]
