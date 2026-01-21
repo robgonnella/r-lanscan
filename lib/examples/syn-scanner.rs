@@ -2,7 +2,7 @@ use pnet::util::MacAddr;
 use r_lanlib::{
     network, packet,
     scanners::{
-        Device, PortSet, SYNScanResult, ScanMessage, Scanner,
+        Device, PortSet, ScanMessage, Scanner,
         syn_scanner::{SYNScanner, SYNScannerArgs},
     },
     targets::ports::PortTargets,
@@ -70,7 +70,7 @@ fn main() {
         notifier: tx,
     });
 
-    let mut results: Vec<SYNScanResult> = Vec::new();
+    let mut results: Vec<Device> = Vec::new();
 
     let handle = scanner.scan();
 
@@ -82,7 +82,7 @@ fn main() {
                 println!("scanning complete");
                 break;
             }
-            ScanMessage::SYNScanResult(result) => results.push(result),
+            ScanMessage::SYNScanDevice(result) => results.push(result),
             _ => {
                 println!("{:?}", msg)
             }

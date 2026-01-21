@@ -108,7 +108,7 @@ impl FullScanner<'_> {
                         debug!("arp sending complete");
                         break;
                     }
-                    ScanMessage::ARPScanResult(device) => {
+                    ScanMessage::ARPScanDevice(device) => {
                         syn_targets.push(device.to_owned());
                     }
                     _ => {}

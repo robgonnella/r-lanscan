@@ -152,13 +152,6 @@ pub struct Scanning {
     pub port: Option<u16>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-/// Data structure representing the result of SYN scan on a device for a port
-pub struct SYNScanResult {
-    /// The device that was scanned
-    pub device: Device,
-}
-
 #[derive(Debug)]
 /// Generic enum representing the various kinds of scanning messages over the
 /// mcsp channel
@@ -168,9 +161,9 @@ pub enum ScanMessage {
     /// Send to inform that a device is about to be scanned
     Info(Scanning),
     /// Sent whenever an ARP response is received from a device
-    ARPScanResult(Device),
+    ARPScanDevice(Device),
     /// Sent whenever a SYN response is received from a device
-    SYNScanResult(SYNScanResult),
+    SYNScanDevice(Device),
 }
 
 #[cfg_attr(test, automock)]

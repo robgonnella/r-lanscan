@@ -1,7 +1,7 @@
 use mockall::mock;
 use mpsc::channel;
 use pnet::util::MacAddr;
-use r_lanlib::scanners::{Port, SYNScanResult, Scanner};
+use r_lanlib::scanners::{Port, Scanner};
 use std::{
     net::Ipv4Addr,
     thread::{self, JoinHandle},
@@ -210,7 +210,7 @@ fn performs_arp_scan() {
     let device_clone = device.clone();
 
     thread::spawn(move || {
-        let _ = tx.send(ScanMessage::ARPScanResult(device_clone));
+        let _ = tx.send(ScanMessage::ARPScanDevice(device_clone));
         thread::sleep(Duration::from_millis(500));
         let _ = tx.send(ScanMessage::Done);
     });
@@ -253,9 +253,7 @@ fn performs_syn_scan() {
     let device_clone = device.clone();
 
     thread::spawn(move || {
-        let _ = tx.send(ScanMessage::SYNScanResult(SYNScanResult {
-            device: device_clone,
-        }));
+        let _ = tx.send(ScanMessage::SYNScanDevice(device_clone));
         thread::sleep(Duration::from_millis(500));
         let _ = tx.send(ScanMessage::Done);
     });

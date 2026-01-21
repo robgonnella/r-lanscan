@@ -76,7 +76,7 @@ let mut devices = Vec::new();
 loop {
     match rx.recv().expect("Failed to receive message") {
         ScanMessage::Done => break,
-        ScanMessage::ARPScanResult(device) => {
+        ScanMessage::ARPScanDevice(device) => {
             println!("Found device: {} ({})", device.ip, device.hostname);
             devices.push(device);
         }
@@ -96,7 +96,7 @@ println!("Discovered {} devices", devices.len());
 use r_lanlib::{
     scanners::{
         syn_scanner::{SYNScanner, SYNScannerArgs},
-        Device, SYNScanResult, Scanner,
+        Device, SYNScanDevice, Scanner,
     },
     targets::ports::PortTargets,
 };
@@ -138,7 +138,7 @@ let handle = scanner.scan();
 loop {
     match rx.recv().expect("Failed to receive message") {
         ScanMessage::Done => break,
-        ScanMessage::SYNScanResult(result) => {
+        ScanMessage::SYNScanDevice(result) => {
             println!("Open port {} on {}",
                 result.open_port.id,
                 result.device.ip
@@ -236,12 +236,12 @@ pub struct Port {
 }
 ```
 
-#### `SYNScanResult`
+#### `SYNScanDevice`
 
 Result of a SYN scan operation:
 
 ```rust
-pub struct SYNScanResult {
+pub struct SYNScanDevice {
     pub device: Device,
     pub open_port: Port,
 }
@@ -255,8 +255,8 @@ Messages sent over the notification channel:
 pub enum ScanMessage {
     Done,                           // Scanning complete
     Info(Scanning),                 // Status update
-    ARPScanResult(Device),          // ARP discovery result
-    SYNScanResult(SYNScanResult),   // SYN scan result
+    ARPScanDevice(Device),          // ARP discovery result
+    SYNScanDevice(SYNScanDevice),   // SYN scan result
 }
 ```
 

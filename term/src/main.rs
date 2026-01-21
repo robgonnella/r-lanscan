@@ -149,7 +149,7 @@ fn process_arp(
                 debug!("scanning complete");
                 break;
             }
-            ScanMessage::ARPScanResult(d) => {
+            ScanMessage::ARPScanDevice(d) => {
                 debug!("received scanning message: {:?}", d);
                 dispatcher.dispatch(Action::AddDevice(d));
             }
@@ -208,16 +208,16 @@ fn process_syn(
                 debug!("scanning complete");
                 break;
             }
-            ScanMessage::SYNScanResult(m) => {
-                debug!("received scanning message: {:?}", m);
-                let result = syn_results.get_mut(&m.device.ip);
+            ScanMessage::SYNScanDevice(device) => {
+                debug!("received syn scanning device: {:?}", device);
+                let result = syn_results.get_mut(&device.ip);
                 match result {
-                    Some(device) => {
-                        device.open_ports.0.extend(m.device.open_ports.0);
-                        store.dispatch(Action::AddDevice(device.clone()));
+                    Some(d) => {
+                        d.open_ports.0.extend(device.open_ports.0);
+                        store.dispatch(Action::AddDevice(d.clone()));
                     }
                     None => {
-                        warn!("received syn result for unknown device: {:?}", m);
+                        warn!("received syn result for unknown device: {:?}", device);
                     }
                 }
             }

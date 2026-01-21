@@ -123,8 +123,8 @@ fn sends_and_reads_packets() {
                 ScanMessage::Done => {
                     break;
                 }
-                ScanMessage::SYNScanResult(m) => {
-                    detected_device = Some(m.device);
+                ScanMessage::SYNScanDevice(device) => {
+                    detected_device = Some(device);
                 }
                 _ => {}
             }
@@ -261,8 +261,8 @@ fn ignores_unrelated_packets() {
                 ScanMessage::Done => {
                     break;
                 }
-                ScanMessage::SYNScanResult(result) => {
-                    detected_devices.push(result.device);
+                ScanMessage::SYNScanDevice(device) => {
+                    detected_devices.push(device);
                 }
                 _ => {}
             }

@@ -2,7 +2,7 @@ use mockall::mock;
 use nanoid::nanoid;
 use pnet::util::MacAddr;
 use r_lanlib::packet::{Reader, Sender};
-use r_lanlib::scanners::{Device, Port, SYNScanResult};
+use r_lanlib::scanners::{Device, Port};
 use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
@@ -96,7 +96,7 @@ fn test_process_arp() {
         open_ports: PortSet::new(),
     };
 
-    tx.send(ScanMessage::ARPScanResult(device.clone())).unwrap();
+    tx.send(ScanMessage::ARPScanDevice(device.clone())).unwrap();
     tx.send(ScanMessage::Done).unwrap();
 
     let res = process_arp(
@@ -175,10 +175,7 @@ fn test_process_syn() {
         open_ports: open_ports.into(),
     };
 
-    tx.send(ScanMessage::SYNScanResult(SYNScanResult {
-        device: device.clone(),
-    }))
-    .unwrap();
+    tx.send(ScanMessage::SYNScanDevice(device.clone())).unwrap();
     tx.send(ScanMessage::Done).unwrap();
 
     store.dispatch(Action::AddDevice(device_with_ports.clone()));
