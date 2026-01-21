@@ -54,7 +54,7 @@ fn main() {
                 println!("scanning complete");
                 break;
             }
-            ScanMessage::ARPScanResult(result) => results.push(result),
+            ScanMessage::ARPScanDevice(result) => results.push(result),
             _ => {
                 println!("{:?}", msg)
             }

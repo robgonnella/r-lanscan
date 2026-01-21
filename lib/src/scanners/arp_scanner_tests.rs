@@ -112,7 +112,7 @@ fn sends_and_reads_packets() {
                 ScanMessage::Done => {
                     break;
                 }
-                ScanMessage::ARPScanResult(device) => {
+                ScanMessage::ARPScanDevice(device) => {
                     detected_device = device;
                 }
                 _ => {}
@@ -196,7 +196,7 @@ fn ignores_unrelated_packets() {
                 ScanMessage::Done => {
                     break;
                 }
-                ScanMessage::ARPScanResult(device) => {
+                ScanMessage::ARPScanDevice(device) => {
                     detected_devices.push(device);
                 }
                 _ => {}

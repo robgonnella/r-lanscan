@@ -3,7 +3,7 @@ use std::{env, sync::mpsc, time::Duration};
 use r_lanlib::{
     network, packet,
     scanners::{
-        SYNScanResult, ScanMessage, Scanner,
+        Device, ScanMessage, Scanner,
         full_scanner::{FullScanner, FullScannerArgs},
     },
     targets::{ips::IPTargets, ports::PortTargets},
@@ -45,7 +45,7 @@ fn main() {
         source_port,
     });
 
-    let mut results: Vec<SYNScanResult> = Vec::new();
+    let mut results: Vec<Device> = Vec::new();
 
     let handle = scanner.scan();
 
@@ -57,7 +57,7 @@ fn main() {
                 println!("scanning complete");
                 break;
             }
-            ScanMessage::SYNScanResult(result) => results.push(result),
+            ScanMessage::SYNScanDevice(device) => results.push(device),
             _ => {
                 println!("{:?}", msg)
             }

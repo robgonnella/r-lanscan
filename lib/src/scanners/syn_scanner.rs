@@ -18,7 +18,7 @@ use crate::{
     targets::ports::PortTargets,
 };
 
-use super::{Device, Port, SYNScanResult, ScanMessage, Scanner};
+use super::{Device, Port, ScanMessage, Scanner};
 
 /// Data structure representing an ARP scanner
 pub struct SYNScanner<'net> {
@@ -194,11 +194,9 @@ impl SYNScanner<'_> {
                 });
 
                 notifier
-                    .send(ScanMessage::SYNScanResult(SYNScanResult {
-                        device: Device {
-                            open_ports: ports,
-                            ..device.clone()
-                        },
+                    .send(ScanMessage::SYNScanDevice(Device {
+                        open_ports: ports,
+                        ..device.clone()
                     }))
                     .map_err(RLanLibError::from_channel_send_error)?;
             }

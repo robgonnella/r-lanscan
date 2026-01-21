@@ -165,7 +165,7 @@ impl ARPScanner<'_> {
                         String::new()
                     };
 
-                    let _ = notification_sender.send(ScanMessage::ARPScanResult(Device {
+                    let _ = notification_sender.send(ScanMessage::ARPScanDevice(Device {
                         hostname,
                         ip: ip4,
                         mac,

@@ -146,8 +146,8 @@ fn sends_and_reads_packets() {
         if let Ok(msg) = rx.recv() {
             match msg {
                 ScanMessage::Done => break,
-                ScanMessage::SYNScanResult(m) => {
-                    detected_device = Some(m.device);
+                ScanMessage::SYNScanDevice(device) => {
+                    detected_device = Some(device);
                 }
                 _ => {}
             }
