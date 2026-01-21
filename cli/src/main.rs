@@ -14,14 +14,13 @@
 use clap::Parser;
 use color_eyre::eyre::{Result, eyre};
 use core::time;
-use itertools::Itertools;
 use log::*;
 use r_lanlib::{
     error::Result as LibResult,
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        Device, DeviceWithPorts, IDLE_TIMEOUT, ScanMessage, Scanner,
+        Device, IDLE_TIMEOUT, PortSet, ScanMessage, Scanner,
         arp_scanner::{ARPScanner, ARPScannerArgs},
         syn_scanner::{SYNScanner, SYNScannerArgs},
     },
@@ -196,17 +195,17 @@ fn process_syn(
     scanner: &dyn Scanner,
     devices: Vec<Device>,
     rx: Receiver<ScanMessage>,
-) -> LibResult<Vec<DeviceWithPorts>> {
-    let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
+) -> LibResult<Vec<Device>> {
+    let mut syn_results: Vec<Device> = Vec::new();
 
     for d in devices.iter() {
-        syn_results.push(DeviceWithPorts {
+        syn_results.push(Device {
             hostname: d.hostname.to_owned(),
             ip: d.ip.to_owned(),
             mac: d.mac.to_owned(),
             vendor: d.vendor.to_owned(),
             is_current_host: d.is_current_host,
-            open_ports: HashSet::new(),
+            open_ports: PortSet::new(),
         })
     }
 
@@ -226,9 +225,7 @@ fn process_syn(
                 debug!("received scanning message: {:?}", m);
                 let device = syn_results.iter_mut().find(|d| d.mac == m.device.mac);
                 match device {
-                    Some(d) => {
-                        d.open_ports.insert(m.open_port.to_owned());
-                    }
+                    Some(d) => d.open_ports.0.extend(m.device.open_ports.0),
                     None => {
                         warn!("received syn result for unknown device: {:?}", m);
                     }
@@ -244,7 +241,7 @@ fn process_syn(
 }
 
 #[doc(hidden)]
-fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) -> Result<()> {
+fn print_syn(args: &Args, devices: &Vec<Device>) -> Result<()> {
     info!("syn results:");
 
     if args.json {
@@ -268,12 +265,12 @@ fn print_syn(args: &Args, devices: &Vec<DeviceWithPorts>) -> Result<()> {
                 d.ip.to_string()
             };
 
-            let ports = d
+            let ports: Vec<_> = d
                 .open_ports
-                .iter()
-                .sorted_by_key(|p| p.id)
-                .map(|p| p.id.to_owned().to_string())
-                .collect::<Vec<String>>();
+                .to_sorted_vec()
+                .into_iter()
+                .map(|p| p.id.to_string())
+                .collect();
             syn_table.add_row(prettytable::row![
                 ip_field,
                 d.hostname,

@@ -1,6 +1,6 @@
-use std::{net::Ipv4Addr, process::Output};
+use std::{collections::HashMap, net::Ipv4Addr, process::Output};
 
-use r_lanlib::scanners::DeviceWithPorts;
+use r_lanlib::scanners::Device;
 
 use crate::{
     config::{Config, DeviceConfig},
@@ -21,8 +21,8 @@ pub enum Action {
     UpdateView(ViewID),
     UpdateMessage(Option<String>),
     PreviewTheme(Theme),
-    UpdateAllDevices(Vec<DeviceWithPorts>),
-    AddDevice(DeviceWithPorts),
+    UpdateAllDevices(HashMap<Ipv4Addr, Device>),
+    AddDevice(Device),
     UpdateSelectedDevice(Ipv4Addr),
     UpdateConfig(Config),
     UpdateDeviceConfig(DeviceConfig),

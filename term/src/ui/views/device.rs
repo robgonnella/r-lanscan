@@ -14,8 +14,7 @@ use crate::{
         },
     },
 };
-use itertools::Itertools;
-use r_lanlib::scanners::DeviceWithPorts;
+use r_lanlib::scanners::Device;
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode},
     layout::{Constraint, Layout, Rect},
@@ -126,7 +125,7 @@ impl DeviceView {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        device: &DeviceWithPorts,
+        device: &Device,
         ctx: &CustomWidgetContext,
     ) {
         let [header_area, _, info_area] = Layout::vertical([
@@ -148,8 +147,8 @@ impl DeviceView {
             "Open Ports: {0}",
             device
                 .open_ports
+                .to_sorted_vec()
                 .iter()
-                .sorted_by_key(|p| p.id)
                 .map(|p| p.id.to_string())
                 .collect::<Vec<String>>()
                 .join(", ")
@@ -555,7 +554,7 @@ impl EventHandler for DeviceView {
                             {
                                 let _ = ctx.events.send(Event::ExecCommand(Command::Browse(
                                     BrowseArgs {
-                                        device: selected.clone().into(),
+                                        device: selected.clone(),
                                         port,
                                         use_lynx: self.browser_select_state.borrow().value
                                             == "lynx",
@@ -608,7 +607,7 @@ impl EventHandler for DeviceView {
                         if ctx.state.cmd_in_progress.is_none() {
                             handled = true;
                             let _ = ctx.events.send(Event::ExecCommand(Command::Ssh(
-                                selected.clone().into(),
+                                selected.clone(),
                                 selected_config.clone(),
                             )));
                         }
@@ -616,9 +615,9 @@ impl EventHandler for DeviceView {
                         if !self.is_tracing(ctx.state)
                             && let Some(selected) = ctx.state.selected_device.as_ref()
                         {
-                            let _ = ctx.events.send(Event::ExecCommand(Command::TraceRoute(
-                                selected.clone().into(),
-                            )));
+                            let _ = ctx
+                                .events
+                                .send(Event::ExecCommand(Command::TraceRoute(selected.clone())));
                             handled = true;
                         }
                     } else if c == 'b' {

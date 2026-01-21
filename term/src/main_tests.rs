@@ -3,9 +3,12 @@ use nanoid::nanoid;
 use pnet::util::MacAddr;
 use r_lanlib::packet::{Reader, Sender};
 use r_lanlib::scanners::{Device, Port, SYNScanResult};
+use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::time::Duration;
+
+use crate::ui::store::derived::get_sorted_devices;
 
 use super::*;
 
@@ -92,6 +95,7 @@ fn test_process_arp() {
         mac: MacAddr::default(),
         is_current_host: false,
         vendor: "vendor".to_string(),
+        open_ports: PortSet::new(),
     };
 
     tx.send(ScanMessage::ARPScanResult(device.clone())).unwrap();
@@ -117,16 +121,18 @@ fn test_process_arp() {
 
     let state = store.get_state().unwrap();
 
-    let expected_devices = vec![DeviceWithPorts {
+    let expected_devices = vec![Device {
         hostname: device.hostname,
         ip: device.ip,
         mac: device.mac,
         is_current_host: device.is_current_host,
         vendor: device.vendor,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     }];
 
-    assert_eq!(state.devices, expected_devices);
+    let devices = get_sorted_devices(&state);
+
+    assert_eq!(devices, expected_devices);
 
     tear_down(conf_path);
 }
@@ -150,6 +156,7 @@ fn test_process_syn() {
         mac: MacAddr::default(),
         is_current_host: false,
         vendor: "vendor".to_string(),
+        open_ports: PortSet::new(),
     };
 
     let mut open_ports = HashSet::new();
@@ -161,18 +168,17 @@ fn test_process_syn() {
 
     open_ports.insert(open_port.clone());
 
-    let device_with_ports = DeviceWithPorts {
+    let device_with_ports = Device {
         hostname: device.hostname.clone(),
         ip: device.ip,
         mac: device.mac,
         is_current_host: device.is_current_host,
         vendor: device.vendor.clone(),
-        open_ports: open_ports.clone(),
+        open_ports: open_ports.into(),
     };
 
     tx.send(ScanMessage::SYNScanResult(SYNScanResult {
         device: device.clone(),
-        open_port: open_port.clone(),
     }))
     .unwrap();
     tx.send(ScanMessage::Done).unwrap();
@@ -198,7 +204,8 @@ fn test_process_syn() {
 
     let devices = res.unwrap();
 
-    assert_eq!(devices, vec![device_with_ports]);
+    assert_eq!(devices.len(), 1);
+    assert_eq!(devices.get(&device_with_ports.ip), Some(&device_with_ports));
 
     tear_down(conf_path);
 }

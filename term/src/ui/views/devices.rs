@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use r_lanlib::scanners::Device;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
@@ -10,6 +11,7 @@ use crate::ui::{
     store::{
         Dispatcher,
         action::Action,
+        derived::get_sorted_devices,
         state::{State, ViewID},
     },
 };
@@ -34,7 +36,7 @@ impl DevicesView {
                     "MAC".to_string(),
                     "OPEN PORTS".to_string(),
                 ]),
-                vec![20, 20, 20, 17, 30],
+                vec![20, 15, 15, 18, 30],
                 DEFAULT_ITEM_HEIGHT,
             )),
         }
@@ -48,9 +50,9 @@ impl DevicesView {
         self.table.borrow_mut().previous();
     }
 
-    fn set_store_selected(&self, i: usize, state: &State) {
-        if !state.devices.is_empty() && i < state.devices.len() {
-            let ip = state.devices[i].ip;
+    fn set_store_selected(&self, i: usize, devices: &[Device]) {
+        if !devices.is_empty() && i < devices.len() {
+            let ip = devices[i].ip;
             self.dispatcher.dispatch(Action::UpdateSelectedDevice(ip));
         }
     }
@@ -67,9 +69,13 @@ impl DevicesView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        let items = ctx
-            .state
-            .devices
+        let devices = get_sorted_devices(ctx.state);
+
+        if let Some(selected_idx) = self.table.borrow().selected() {
+            self.set_store_selected(selected_idx, &devices);
+        }
+
+        let items = devices
             .iter()
             .map(|d| {
                 vec![
@@ -82,17 +88,20 @@ impl DevicesView {
                     d.vendor.clone(),
                     d.mac.to_string(),
                     d.open_ports
+                        .to_sorted_vec()
                         .iter()
-                        .sorted_by_key(|p| p.id)
                         .map(|p| p.id.to_string())
                         .join(", "),
                 ]
             })
             .collect_vec();
+
         let selected = self.table.borrow_mut().update_items(items);
+
         if let Some(selected) = selected {
-            self.set_store_selected(selected, ctx.state);
+            self.set_store_selected(selected, &devices);
         }
+
         self.table.borrow().render_ref(area, buf, ctx);
     }
 }
@@ -114,10 +123,6 @@ impl CustomWidgetRef for DevicesView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        if let Some(selected_idx) = self.table.borrow().selected() {
-            self.set_store_selected(selected_idx, ctx.state);
-        }
-
         let view_rects = Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).split(area);
 
         self.render_table(view_rects[1], buf, ctx);

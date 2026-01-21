@@ -1,4 +1,5 @@
 use pnet::util::MacAddr;
+use r_lanlib::scanners::PortSet;
 use std::net::Ipv4Addr;
 
 use super::*;
@@ -11,6 +12,7 @@ fn displays_command() {
         mac: MacAddr::default(),
         is_current_host: false,
         vendor: "".to_string(),
+        open_ports: PortSet::new(),
     };
 
     let device_config = DeviceConfig {

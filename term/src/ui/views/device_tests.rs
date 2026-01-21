@@ -40,17 +40,18 @@ fn setup() -> (DeviceView, Arc<Store>, String) {
     store.dispatch(Action::CreateAndSetConfig(config));
 
     let mut open_ports: HashSet<Port> = HashSet::new();
+
     open_ports.insert(Port {
         id: 80,
         service: "http".to_string(),
     });
 
-    let device = DeviceWithPorts {
+    let device = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 1),
         mac: MacAddr::default(),
         is_current_host: false,
-        open_ports,
+        open_ports: open_ports.into(),
         vendor: "mac".to_string(),
     };
 

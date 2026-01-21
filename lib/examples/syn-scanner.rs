@@ -2,7 +2,7 @@ use pnet::util::MacAddr;
 use r_lanlib::{
     network, packet,
     scanners::{
-        Device, SYNScanResult, ScanMessage, Scanner,
+        Device, PortSet, SYNScanResult, ScanMessage, Scanner,
         syn_scanner::{SYNScanner, SYNScannerArgs},
     },
     targets::ports::PortTargets,
@@ -29,6 +29,7 @@ fn main() {
             mac: MacAddr::new(0x00, 0x00, 0x00, 0x00, 0x00, 0x01),
             vendor: "".to_string(),
             is_current_host: false,
+            open_ports: PortSet::new(),
         },
         Device {
             hostname: "".to_string(),
@@ -36,6 +37,7 @@ fn main() {
             mac: MacAddr::new(0x00, 0x00, 0x00, 0x00, 0x00, 0x02),
             vendor: "".to_string(),
             is_current_host: false,
+            open_ports: PortSet::new(),
         },
         Device {
             hostname: "".to_string(),
@@ -43,6 +45,7 @@ fn main() {
             mac: MacAddr::new(0x00, 0x00, 0x00, 0x00, 0x00, 0x03),
             vendor: "".to_string(),
             is_current_host: false,
+            open_ports: PortSet::new(),
         },
     ];
     let port_targets = PortTargets::new(vec![

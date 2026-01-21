@@ -103,6 +103,7 @@ fn sends_and_reads_packets() {
         is_current_host: false,
         mac: MacAddr::default(),
         vendor: "".to_string(),
+        open_ports: PortSet::new(),
     };
 
     loop {

@@ -1,6 +1,6 @@
 use nanoid::nanoid;
 use pnet::util::MacAddr;
-use r_lanlib::scanners::Device;
+use r_lanlib::scanners::{Device, PortSet};
 use std::{
     fs::{self, File},
     io::{Seek, SeekFrom, Write},
@@ -84,6 +84,7 @@ fn handles_ssh_command_err() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let device_config = DeviceConfig {
@@ -130,6 +131,7 @@ fn handles_ssh_command_ok() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let device_config = DeviceConfig {
@@ -184,6 +186,7 @@ fn handles_ssh_command_ok_err() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let device_config = DeviceConfig {
@@ -234,6 +237,7 @@ fn handles_ssh_command_ok_err_empty() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let device_config = DeviceConfig {
@@ -280,6 +284,7 @@ fn handles_traceroute_command_err() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let rx = test.receiver.lock().unwrap();
@@ -325,6 +330,7 @@ fn handles_traceroute_command_ok() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let rx = test.receiver.lock().unwrap();
@@ -367,6 +373,7 @@ fn handles_browse_command_err() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let res = test.sender.send(Event::UIPaused);
@@ -411,6 +418,7 @@ fn handles_browse_command_ok() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let res = test.sender.send(Event::UIPaused);
@@ -463,6 +471,7 @@ fn handles_browse_command_ok_err() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let res = test.sender.send(Event::UIPaused);
@@ -511,6 +520,7 @@ fn handles_browse_command_ok_err_empty() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     let res = test.sender.send(Event::UIPaused);
@@ -555,6 +565,7 @@ fn listens_for_events() {
         mac: MacAddr::default(),
         vendor: "Vendor".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     };
 
     test.sender

@@ -81,7 +81,7 @@ impl SYNScanner<'_> {
         let heartbeat_packet_sender = Arc::clone(&self.packet_sender);
         let rst_packet_sender = Arc::clone(&self.packet_sender);
         // Build a HashMap for O(1) device lookups instead of O(n) linear search
-        let device_map: HashMap<Ipv4Addr, Device> =
+        let mut device_map: HashMap<Ipv4Addr, Device> =
             self.targets.iter().map(|d| (d.ip, d.clone())).collect();
         let notifier = self.notifier.clone();
         let source_ipv4 = self.interface.ipv4;
@@ -159,11 +159,16 @@ impl SYNScanner<'_> {
                     continue;
                 }
 
-                let Some(device) = device_map.get(&device_ip) else {
+                let Some(device) = device_map.get_mut(&device_ip) else {
                     continue;
                 };
 
                 let port = tcp_packet.get_source();
+
+                device.open_ports.0.insert(Port {
+                    id: port,
+                    service: "".into(),
+                });
 
                 // send rst packet to prevent SYN Flooding
                 // https://en.wikipedia.org/wiki/SYN_flood
@@ -190,10 +195,6 @@ impl SYNScanner<'_> {
                 notifier
                     .send(ScanMessage::SYNScanResult(SYNScanResult {
                         device: device.clone(),
-                        open_port: Port {
-                            id: port,
-                            service: String::new(),
-                        },
                     }))
                     .map_err(RLanLibError::from_channel_send_error)?;
             }

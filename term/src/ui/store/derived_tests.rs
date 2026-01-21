@@ -1,8 +1,8 @@
 use nanoid::nanoid;
 use pnet::util::MacAddr;
-use r_lanlib::scanners::DeviceWithPorts;
+use r_lanlib::scanners::{Device, PortSet};
 use std::{
-    collections::HashSet,
+    collections::HashMap,
     fs,
     net::Ipv4Addr,
     sync::{Arc, Mutex},
@@ -21,22 +21,22 @@ fn tear_down(conf_path: &str) {
 
 #[test]
 fn test_get_device_config_from_state() {
-    let device_1 = DeviceWithPorts {
+    let device_1 = Device {
         ip: Ipv4Addr::new(10, 10, 10, 1),
         mac: MacAddr::default(),
         hostname: "fancy_hostname".to_string(),
         vendor: "mac".to_string(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     };
 
-    let device_2 = DeviceWithPorts {
+    let device_2 = Device {
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         hostname: "super_fancy_hostname".to_string(),
         vendor: "linux".to_string(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     };
 
     fs::create_dir_all("generated").unwrap();
@@ -49,7 +49,10 @@ fn test_get_device_config_from_state() {
 
     let config = Config::new(user, identity);
     let store = Store::new(conf_manager, config.clone());
-    let devices = vec![device_1.clone(), device_2.clone()];
+
+    let mut devices = HashMap::new();
+    devices.insert(device_1.ip, device_1.clone());
+    devices.insert(device_2.ip, device_2.clone());
 
     store.dispatch(Action::CreateAndSetConfig(config.clone()));
     store.dispatch(Action::UpdateAllDevices(devices));
@@ -75,22 +78,22 @@ fn test_get_device_config_from_state() {
 
 #[test]
 fn test_get_device_config_from_state_default() {
-    let device_1 = DeviceWithPorts {
+    let device_1 = Device {
         ip: Ipv4Addr::new(10, 10, 10, 1),
         mac: MacAddr::default(),
         hostname: "fancy_hostname".to_string(),
         vendor: "mac".to_string(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     };
 
-    let device_2 = DeviceWithPorts {
+    let device_2 = Device {
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         hostname: "super_fancy_hostname".to_string(),
         vendor: "linux".to_string(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     };
 
     fs::create_dir_all("generated").unwrap();
@@ -105,7 +108,10 @@ fn test_get_device_config_from_state_default() {
 
     let config = Config::new(user, identity);
     let store = Store::new(conf_manager, config.clone());
-    let devices = vec![device_1.clone(), device_2.clone()];
+
+    let mut devices = HashMap::new();
+    devices.insert(device_1.ip, device_1.clone());
+    devices.insert(device_2.ip, device_2.clone());
 
     store.dispatch(Action::CreateAndSetConfig(config.clone()));
     store.dispatch(Action::UpdateAllDevices(devices));
@@ -130,31 +136,31 @@ fn test_get_device_config_from_state_default() {
 
 #[test]
 fn test_get_detected_devices() {
-    let device_1 = DeviceWithPorts {
+    let device_1 = Device {
         ip: Ipv4Addr::new(10, 10, 10, 1),
         mac: MacAddr::default(),
         hostname: "fancy_hostname".to_string(),
         vendor: "mac".to_string(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     };
 
-    let device_2 = DeviceWithPorts {
+    let device_2 = Device {
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
         hostname: "super_fancy_hostname".to_string(),
         vendor: "linux".to_string(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     };
 
-    let device_3 = DeviceWithPorts {
+    let device_3 = Device {
         ip: Ipv4Addr::new(10, 10, 10, 3),
         mac: MacAddr::new(0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa),
         hostname: "just_ok_hostname".to_string(),
         vendor: "linux".to_string(),
         is_current_host: false,
-        open_ports: HashSet::new(),
+        open_ports: PortSet::new(),
     };
 
     fs::create_dir_all("generated").unwrap();
@@ -177,36 +183,31 @@ fn test_get_detected_devices() {
     store.dispatch(Action::AddDevice(device_2.clone()));
     store.dispatch(Action::AddDevice(device_3.clone()));
 
-    store.dispatch(Action::UpdateAllDevices(vec![
-        device_1.clone(),
-        device_2.clone(),
-        device_3.clone(),
-    ]));
+    let mut devices = HashMap::new();
+    devices.insert(device_1.ip, device_1.clone());
+    devices.insert(device_2.ip, device_2.clone());
+    devices.insert(device_3.ip, device_3.clone());
+
+    store.dispatch(Action::UpdateAllDevices(devices.clone()));
 
     // missed dev2 & dev3
-    store.dispatch(Action::UpdateAllDevices(vec![device_1.clone()]));
+    devices.remove(&device_2.ip);
+    devices.remove(&device_3.ip);
+    store.dispatch(Action::UpdateAllDevices(devices.clone()));
 
     // missed dev3
-    store.dispatch(Action::UpdateAllDevices(vec![
-        device_1.clone(),
-        device_2.clone(),
-    ]));
+    devices.insert(device_2.ip, device_2.clone());
+    store.dispatch(Action::UpdateAllDevices(devices.clone()));
 
     // missed dev3 again
-    store.dispatch(Action::UpdateAllDevices(vec![
-        device_1.clone(),
-        device_2.clone(),
-    ]));
+    store.dispatch(Action::UpdateAllDevices(devices.clone()));
 
     // missed dev3 again
-    store.dispatch(Action::UpdateAllDevices(vec![
-        device_1.clone(),
-        device_2.clone(),
-    ]));
+    store.dispatch(Action::UpdateAllDevices(devices));
 
     // get just devices with miss count = 0 -> device_1
-    let arp_devices = get_detected_devices(&store.get_state().unwrap());
+    let arp_devices = get_detected_arp_devices(&store.get_state().unwrap());
     assert_eq!(arp_devices.len(), 1);
-    assert_eq!(arp_devices[0], device_1.into());
+    assert_eq!(arp_devices[0], device_1);
     tear_down(tmp_path.as_str());
 }

@@ -29,8 +29,9 @@ use log::*;
 use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
     any::Any,
-    collections::HashSet,
+    collections::HashMap,
     fs,
+    net::Ipv4Addr,
     sync::{
         Arc, Mutex,
         mpsc::{self, Receiver, channel},
@@ -42,7 +43,7 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet::{self, Reader as WireReader, Sender as WireSender},
     scanners::{
-        DeviceWithPorts, IDLE_TIMEOUT, ScanMessage, Scanner,
+        Device, IDLE_TIMEOUT, PortSet, ScanMessage, Scanner,
         arp_scanner::{ARPScanner, ARPScannerArgs},
         syn_scanner::{SYNScanner, SYNScannerArgs},
     },
@@ -51,7 +52,7 @@ use r_lanlib::{
 
 use ui::{
     app,
-    store::{Store, action::Action, derived::get_detected_devices},
+    store::{Store, action::Action, derived::get_detected_arp_devices},
 };
 
 use crate::{
@@ -148,16 +149,9 @@ fn process_arp(
                 debug!("scanning complete");
                 break;
             }
-            ScanMessage::ARPScanResult(m) => {
-                debug!("received scanning message: {:?}", m);
-                dispatcher.dispatch(Action::AddDevice(DeviceWithPorts {
-                    hostname: m.hostname.clone(),
-                    ip: m.ip,
-                    mac: m.mac,
-                    open_ports: HashSet::new(),
-                    vendor: m.vendor.clone(),
-                    is_current_host: m.is_current_host,
-                }));
+            ScanMessage::ARPScanResult(d) => {
+                debug!("received scanning message: {:?}", d);
+                dispatcher.dispatch(Action::AddDevice(d));
             }
             _ => {}
         }
@@ -178,20 +172,23 @@ fn process_syn(
     args: SYNScannerArgs,
     rx: Receiver<ScanMessage>,
     store: Arc<Store>,
-) -> Result<Vec<DeviceWithPorts>> {
+) -> Result<HashMap<Ipv4Addr, Device>> {
     let state = store.get_state()?;
-    let arp_devices = get_detected_devices(&state);
-    let mut syn_results: Vec<DeviceWithPorts> = Vec::new();
+    let arp_devices = get_detected_arp_devices(&state);
+    let mut syn_results: HashMap<Ipv4Addr, Device> = HashMap::new();
 
     for d in arp_devices.iter() {
-        syn_results.push(DeviceWithPorts {
-            hostname: d.hostname.to_owned(),
-            ip: d.ip.to_owned(),
-            mac: d.mac.to_owned(),
-            vendor: d.vendor.to_owned(),
-            is_current_host: d.is_current_host,
-            open_ports: HashSet::new(),
-        })
+        syn_results.insert(
+            d.ip,
+            Device {
+                hostname: d.hostname.to_owned(),
+                ip: d.ip.to_owned(),
+                mac: d.mac.to_owned(),
+                vendor: d.vendor.to_owned(),
+                is_current_host: d.is_current_host,
+                open_ports: PortSet::new(),
+            },
+        );
     }
 
     let scanner = SYNScanner::new(args);
@@ -213,11 +210,11 @@ fn process_syn(
             }
             ScanMessage::SYNScanResult(m) => {
                 debug!("received scanning message: {:?}", m);
-                let device = syn_results.iter_mut().find(|d| d.mac == m.device.mac);
-                match device {
-                    Some(d) => {
-                        d.open_ports.insert(m.open_port.to_owned());
-                        store.dispatch(Action::AddDevice(d.clone()));
+                let result = syn_results.get_mut(&m.device.ip);
+                match result {
+                    Some(device) => {
+                        device.open_ports.0.extend(m.device.open_ports.0);
+                        store.dispatch(Action::AddDevice(device.clone()));
                     }
                     None => {
                         warn!("received syn result for unknown device: {:?}", m);
@@ -275,7 +272,7 @@ fn monitor_network(
         )?;
 
         let state = store.get_state()?;
-        let arp_devices = get_detected_devices(&state);
+        let arp_devices = get_detected_arp_devices(&state);
 
         let results = process_syn(
             SYNScannerArgs {
