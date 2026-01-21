@@ -11,7 +11,11 @@ use std::{
 use thiserror::Error;
 
 use crate::{
-    packet::{Reader, Sender},
+    packet::{
+        Reader, Sender, arp_packet::ArpPacketBuilderError,
+        heartbeat_packet::HeartbeatPacketBuilderError, rst_packet::RstPacketBuilderError,
+        syn_packet::SynPacketBuilderError,
+    },
     scanners::ScanMessage,
 };
 
@@ -41,6 +45,22 @@ pub enum RLanLibError {
     /// Errors when consuming messages from channels
     #[error("failed to receive message from channel: {:#?}", _0)]
     ChannelReceive(#[from] RecvError),
+
+    /// Error generated during ARP packet construction
+    #[error("failed to build ARP packet: {_0}")]
+    ArpPacketBuild(#[from] ArpPacketBuilderError),
+
+    /// Error generated during RST packet construction
+    #[error("failed to build RST packet: {_0}")]
+    RstPacketBuild(#[from] RstPacketBuilderError),
+
+    /// Error generated during SYN packet construction
+    #[error("failed to build SYN packet: {_0}")]
+    SynPacketBuild(#[from] SynPacketBuilderError),
+
+    /// Error generated during heartbeat packet construction
+    #[error("failed to build heartbeat packet: {_0}")]
+    HeartbeatPacketBuild(#[from] HeartbeatPacketBuilderError),
 
     /// Wrapping errors related to scanning
     #[error("scanning error: {error} - ip: {:#?}, port: {:#?}", ip, port)]

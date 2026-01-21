@@ -28,7 +28,14 @@ fn sends_heartbeat_packets() {
 
     let mut packet_sender = MockPacketSender::new();
 
-    let expected_packet = build_heartbeat_packet(source_mac, source_ip, source_port);
+    let heartbeat_packet = HeartbeatPacketBuilder::default()
+        .source_ip(source_ip)
+        .source_mac(source_mac)
+        .source_port(source_port)
+        .build()
+        .unwrap();
+
+    let expected_packet = heartbeat_packet.to_raw();
 
     packet_sender
         .expect_send()

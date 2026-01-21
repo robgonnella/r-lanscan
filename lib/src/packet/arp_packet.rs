@@ -1,5 +1,6 @@
 //! Provides helpers for creating ARP packets
 
+use derive_builder::Builder;
 use pnet::{
     packet::{MutablePacket, arp, ethernet},
     util,
@@ -11,42 +12,52 @@ const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
 const PKT_TOTAL_SIZE: usize = PKT_ETH_SIZE + PKT_ARP_SIZE;
 
-/// Builds a new ARP request packet based on provided information
-/// This is what the internals of the arp_scanner will send when scanning
-/// for devices on the network
-pub fn build(
-    source_ipv4: net::Ipv4Addr,
+/// Represents a generator for raw ARP packets
+#[derive(Debug, Builder)]
+#[builder(setter(into))]
+pub struct ArpPacket {
+    /// Ip of the host sending the packet
+    source_ip: net::Ipv4Addr,
+    /// Mac address of the host sending the packet
     source_mac: util::MacAddr,
-    target_ipv4: net::Ipv4Addr,
-) -> [u8; PKT_TOTAL_SIZE] {
-    let mut pkt_buf = [0u8; PKT_TOTAL_SIZE];
+    /// Target destination IP for the packet
+    dest_ip: net::Ipv4Addr,
+}
 
-    // Build our base ethernet frame
-    let mut pkt_eth = ethernet::MutableEthernetPacket::new(&mut pkt_buf)
-        .expect("failed to generate ethernet packet");
+impl ArpPacket {
+    /// Builds a new ARP request packet based on provided information
+    /// This is what the internals of the arp_scanner will send when scanning
+    /// for devices on the network
+    pub fn to_raw(&self) -> [u8; PKT_TOTAL_SIZE] {
+        let mut pkt_buf = [0u8; PKT_TOTAL_SIZE];
 
-    let mut arp_buffer = [0u8; PKT_ARP_SIZE];
+        // Build our base ethernet frame
+        let mut pkt_eth = ethernet::MutableEthernetPacket::new(&mut pkt_buf)
+            .expect("failed to generate ethernet packet");
 
-    let mut pkt_arp =
-        arp::MutableArpPacket::new(&mut arp_buffer).expect("failed to generate arp packet");
+        let mut arp_buffer = [0u8; PKT_ARP_SIZE];
 
-    pkt_eth.set_destination(util::MacAddr::broadcast());
-    pkt_eth.set_source(source_mac);
-    pkt_eth.set_ethertype(ethernet::EtherTypes::Arp);
+        let mut pkt_arp =
+            arp::MutableArpPacket::new(&mut arp_buffer).expect("failed to generate arp packet");
 
-    pkt_arp.set_hardware_type(arp::ArpHardwareTypes::Ethernet);
-    pkt_arp.set_protocol_type(ethernet::EtherTypes::Ipv4);
-    pkt_arp.set_hw_addr_len(6);
-    pkt_arp.set_proto_addr_len(4);
-    pkt_arp.set_operation(arp::ArpOperations::Request);
-    pkt_arp.set_sender_hw_addr(source_mac);
-    pkt_arp.set_sender_proto_addr(source_ipv4);
-    pkt_arp.set_target_hw_addr(util::MacAddr::zero());
-    pkt_arp.set_target_proto_addr(target_ipv4);
+        pkt_eth.set_destination(util::MacAddr::broadcast());
+        pkt_eth.set_source(self.source_mac);
+        pkt_eth.set_ethertype(ethernet::EtherTypes::Arp);
 
-    pkt_eth.set_payload(pkt_arp.packet_mut());
+        pkt_arp.set_hardware_type(arp::ArpHardwareTypes::Ethernet);
+        pkt_arp.set_protocol_type(ethernet::EtherTypes::Ipv4);
+        pkt_arp.set_hw_addr_len(6);
+        pkt_arp.set_proto_addr_len(4);
+        pkt_arp.set_operation(arp::ArpOperations::Request);
+        pkt_arp.set_sender_hw_addr(self.source_mac);
+        pkt_arp.set_sender_proto_addr(self.source_ip);
+        pkt_arp.set_target_hw_addr(util::MacAddr::zero());
+        pkt_arp.set_target_proto_addr(self.dest_ip);
 
-    pkt_buf
+        pkt_eth.set_payload(pkt_arp.packet_mut());
+
+        pkt_buf
+    }
 }
 
 #[cfg(test)]

@@ -13,7 +13,7 @@ use std::{
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{self, Reader, Sender, rst_packet, syn_packet},
+    packet::{self, Reader, Sender, rst_packet::RstPacketBuilder, syn_packet::SynPacketBuilder},
     scanners::{PortSet, Scanning, heartbeat::HeartBeat},
     targets::ports::PortTargets,
 };
@@ -171,15 +171,17 @@ impl SYNScanner<'_> {
                 let dest_ipv4 = device.ip;
                 let dest_mac = device.mac;
 
-                let rst_packet = rst_packet::build(
-                    source_mac,
-                    source_ipv4,
-                    source_port,
-                    dest_ipv4,
-                    dest_mac,
-                    port,
-                    sequence + 1,
-                );
+                let rst_packet = RstPacketBuilder::default()
+                    .source_ip(source_ipv4)
+                    .source_mac(source_mac)
+                    .source_port(source_port)
+                    .dest_ip(dest_ipv4)
+                    .dest_mac(dest_mac)
+                    .dest_port(port)
+                    .sequence_number(sequence + 1)
+                    .build()?;
+
+                let rst_packet = rst_packet.to_raw();
 
                 let mut rst_sender = rst_packet_sender.lock()?;
 
@@ -240,14 +242,16 @@ impl Scanner for SYNScanner<'_> {
                     let dest_ipv4 = device.ip;
                     let dest_mac = device.mac;
 
-                    let pkt_buf = syn_packet::build(
-                        source_mac,
-                        source_ipv4,
-                        source_port,
-                        dest_ipv4,
-                        dest_mac,
-                        port,
-                    );
+                    let syn_packet = SynPacketBuilder::default()
+                        .source_ip(source_ipv4)
+                        .source_mac(source_mac)
+                        .source_port(source_port)
+                        .dest_ip(dest_ipv4)
+                        .dest_mac(dest_mac)
+                        .dest_port(port)
+                        .build()?;
+
+                    let pkt_buf = syn_packet.to_raw();
 
                     // send info message to consumer
                     notifier

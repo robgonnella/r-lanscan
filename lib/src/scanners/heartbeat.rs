@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::packet::{Sender, build_heartbeat_packet};
+use crate::packet::{Sender, heartbeat_packet::HeartbeatPacketBuilder};
 
 pub struct HeartBeat {
     source_mac: MacAddr,
@@ -30,14 +30,26 @@ impl HeartBeat {
     }
 
     pub fn beat(&self) {
-        if let Ok(mut pkt_sender) = self.packet_sender.lock()
-            && let Err(e) = pkt_sender.send(&build_heartbeat_packet(
-                self.source_mac,
-                self.source_ipv4,
-                self.source_port,
-            ))
-        {
-            error!("error sending heartbeat: {}", e);
+        let heartbeat_packet = HeartbeatPacketBuilder::default()
+            .source_ip(self.source_ipv4)
+            .source_mac(self.source_mac)
+            .source_port(self.source_port)
+            .build();
+
+        let packet = if let Ok(heartbeat_packet) = heartbeat_packet {
+            heartbeat_packet.to_raw()
+        } else {
+            let err = heartbeat_packet.unwrap_err();
+            error!("failed to build heartbeat packet: {}", err);
+            return;
+        };
+
+        if let Ok(mut pkt_sender) = self.packet_sender.lock() {
+            if let Err(err) = pkt_sender.send(&packet) {
+                error!("failed to send heartbeat packet: {}", err);
+            }
+        } else {
+            error!("failed to get lock on packet sender to send heartbeat");
         }
     }
 }

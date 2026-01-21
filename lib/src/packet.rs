@@ -3,12 +3,10 @@
 use core::time;
 
 pub mod arp_packet;
-mod heartbeat_packet;
+pub mod heartbeat_packet;
 pub mod rst_packet;
 pub mod syn_packet;
 pub mod wire;
-
-pub use heartbeat_packet::build as build_heartbeat_packet;
 
 use crate::error::Result;
 

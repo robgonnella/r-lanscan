@@ -12,13 +12,15 @@ fn creates_syn_packet() {
     let target_ip = net::Ipv4Addr::from_str("192.168.68.2").unwrap();
     let target_mac = MacAddr::from_str("00:00:00:00:00:01").unwrap();
     let target_port: u16 = 22;
-    let packet = build(
-        source_mac,
-        source_ip,
-        source_port,
-        target_ip,
-        target_mac,
-        target_port,
-    );
+    let syn_packet = SynPacketBuilder::default()
+        .source_ip(source_ip)
+        .source_mac(source_mac)
+        .source_port(source_port)
+        .dest_ip(target_ip)
+        .dest_mac(target_mac)
+        .dest_port(target_port)
+        .build()
+        .unwrap();
+    let packet = syn_packet.to_raw();
     assert!(!packet.is_empty());
 }

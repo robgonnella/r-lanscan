@@ -13,7 +13,7 @@ use threadpool::ThreadPool;
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{self, Reader, Sender, arp_packet},
+    packet::{self, Reader, Sender, arp_packet::ArpPacketBuilder},
     scanners::{Device, PortSet, Scanning},
     targets::ips::IPTargets,
 };
@@ -206,7 +206,13 @@ impl Scanner for ARPScanner<'_> {
 
                 debug!("scanning ARP target: {}", target_ipv4);
 
-                let pkt_buf = arp_packet::build(source_ipv4, source_mac, target_ipv4);
+                let arp_packet = ArpPacketBuilder::default()
+                    .source_ip(source_ipv4)
+                    .source_mac(source_mac)
+                    .dest_ip(target_ipv4)
+                    .build()?;
+
+                let pkt_buf = arp_packet.to_raw();
 
                 // inform consumer we are scanning this target (ignore error on failure to notify)
                 notifier
