@@ -48,6 +48,7 @@ impl Store {
                 config: current_config,
                 arp_history: HashMap::new(),
                 device_map: HashMap::new(),
+                sorted_device_list: vec![],
                 selected_device: None,
                 selected_device_config: None,
                 colors,

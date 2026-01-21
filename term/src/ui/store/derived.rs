@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use pnet::util::MacAddr;
 use r_lanlib::scanners::Device;
 
@@ -16,10 +15,6 @@ pub fn get_selected_device_config_from_state(state: &State) -> DeviceConfig {
             ssh_port: state.config.default_ssh_port,
             ssh_user: state.config.default_ssh_user.clone(),
         })
-}
-
-pub fn get_sorted_devices(state: &State) -> Vec<Device> {
-    state.device_map.values().cloned().sorted().collect()
 }
 
 // returns just the devices that were detected in last arp scan

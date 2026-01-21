@@ -8,8 +8,6 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::time::Duration;
 
-use crate::ui::store::derived::get_sorted_devices;
-
 use super::*;
 
 mock! {
@@ -130,7 +128,7 @@ fn test_process_arp() {
         open_ports: PortSet::new(),
     }];
 
-    let devices = get_sorted_devices(&state);
+    let devices = state.sorted_device_list;
 
     assert_eq!(devices, expected_devices);
 

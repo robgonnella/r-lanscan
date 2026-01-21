@@ -11,7 +11,6 @@ use crate::ui::{
     store::{
         Dispatcher,
         action::Action,
-        derived::get_sorted_devices,
         state::{State, ViewID},
     },
 };
@@ -69,7 +68,7 @@ impl DevicesView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        let devices = get_sorted_devices(ctx.state);
+        let devices = ctx.state.sorted_device_list.clone();
 
         if let Some(selected_idx) = self.table.borrow().selected() {
             self.set_store_selected(selected_idx, &devices);
