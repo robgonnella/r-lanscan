@@ -37,6 +37,7 @@ mockall_double = "0.3.1"
 signal-hook = "0.3.18"
 whoami = "2.0.2"
 dirs = "6.0.0"
+md5 = "0.8.0"
 
 [dev-dependencies]
 insta = "1.43.1"

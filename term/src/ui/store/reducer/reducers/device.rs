@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use r_lanlib::scanners::{Device, Port};
 use std::{
     collections::{HashMap, HashSet},
@@ -11,6 +12,7 @@ const MAX_ARP_MISS: i8 = 3;
 pub fn update_all_devices(state: &mut State, devices: HashMap<Ipv4Addr, Device>) {
     let mut new_arp_history: HashMap<Ipv4Addr, (Device, i8)> = HashMap::new();
 
+    state.sorted_device_list = devices.values().cloned().sorted().collect();
     state.device_map = devices;
 
     // keep devices that may have been missed in last scan but
@@ -45,6 +47,8 @@ pub fn add_device(state: &mut State, device: Device) {
     } else {
         state.device_map.insert(device.ip, device);
     }
+
+    state.sorted_device_list = state.device_map.values().cloned().sorted().collect();
 }
 
 pub fn update_selected_device(state: &mut State, ip: Ipv4Addr) {

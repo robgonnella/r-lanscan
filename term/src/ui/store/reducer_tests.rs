@@ -18,7 +18,6 @@ use crate::{
         colors::{Colors, Theme},
         store::{
             action::Action,
-            derived::get_sorted_devices,
             state::{State, ViewID},
         },
     },
@@ -170,7 +169,7 @@ fn test_update_all_devices() {
         Action::UpdateAllDevices(expected_devices.clone()),
     );
 
-    let devices = get_sorted_devices(&state);
+    let devices = state.sorted_device_list;
 
     assert_eq!(devices.len(), 2);
     // sorted by IP so dev2 should be 1st
@@ -194,7 +193,7 @@ fn test_add_device() {
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev3.clone()));
-    let devices = get_sorted_devices(&state);
+    let devices = state.sorted_device_list;
     assert_eq!(devices, vec![dev3]);
     tear_down(conf_path);
 }
@@ -381,14 +380,14 @@ fn test_updates_device_with_new_info() {
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
-    let devices = get_sorted_devices(&state);
+    let devices = state.sorted_device_list.clone();
 
     assert_eq!(devices.len(), 1);
 
     dev.open_ports.0.insert(port.clone());
 
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
-    let devices = get_sorted_devices(&state);
+    let devices = state.sorted_device_list;
 
     assert_eq!(devices.len(), 1);
     assert_eq!(devices[0], dev);
