@@ -1,3 +1,5 @@
+//! Configuration management for SSH, ports, and per-device settings.
+
 use std::collections::HashMap;
 
 use color_eyre::eyre::Result;
@@ -9,6 +11,7 @@ pub const DEFAULT_CONFIG_ID: &str = "default";
 pub const DEFAULT_PORTS_STR: &str = "22,80,443,2000-9999,27017";
 pub const DEFAULT_PORTS: [&str; 5] = ["22", "80", "443", "2000-9999", "27017"];
 
+/// SSH configuration for a specific device.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DeviceConfig {
     pub id: String,
@@ -17,6 +20,7 @@ pub struct DeviceConfig {
     pub ssh_user: String,
 }
 
+/// Application configuration for a network (CIDR).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     pub id: String,
@@ -51,6 +55,7 @@ impl Config {
     }
 }
 
+/// Persists and retrieves configurations from YAML file.
 pub struct ConfigManager {
     path: String,
     configs: HashMap<String, Config>,

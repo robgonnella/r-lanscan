@@ -1,3 +1,5 @@
+//! Pure reducer functions that compute new state from actions.
+
 use std::sync::{Arc, Mutex};
 
 use crate::config::ConfigManager;
@@ -6,6 +8,7 @@ use super::{action::Action, state::State};
 
 mod reducers;
 
+/// Applies actions to state, producing new state.
 pub struct Reducer {
     config_manager: Arc<Mutex<ConfigManager>>,
 }

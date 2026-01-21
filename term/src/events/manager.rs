@@ -1,3 +1,5 @@
+//! Processes UI events and executes external commands.
+
 use color_eyre::eyre::{Result, eyre};
 use mockall_double::double;
 use std::{
@@ -16,6 +18,7 @@ use super::types::{Command as AppCommand, Event};
 #[double]
 use super::commander::Commander;
 
+/// Runs the event loop, handling UI pause/resume and command execution.
 pub struct EventManager {
     tx: Sender<Event>,
     rx: Arc<Mutex<Receiver<Event>>>,

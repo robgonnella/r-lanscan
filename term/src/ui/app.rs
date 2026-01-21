@@ -1,3 +1,5 @@
+//! Main application loop and terminal management.
+
 use color_eyre::eyre::{Context, Result};
 use core::time;
 use log::*;
@@ -42,6 +44,7 @@ use super::{
 
 type Backend = CrosstermBackend<Stdout>;
 
+/// Main application coordinating rendering and event handling.
 pub struct App {
     terminal: RefCell<Terminal<Backend>>,
     // here to enable unit tests - not an ideal solution but okay for now
@@ -52,6 +55,7 @@ pub struct App {
     event_loop_receiver: Receiver<Event>,
 }
 
+/// Creates and initializes the terminal application.
 pub fn create_app(
     tx: Sender<Event>,
     rx: Receiver<Event>,

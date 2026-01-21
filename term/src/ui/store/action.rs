@@ -1,3 +1,5 @@
+//! Action types for state transitions.
+
 use std::{collections::HashMap, net::Ipv4Addr, process::Output};
 
 use r_lanlib::scanners::Device;
@@ -10,6 +12,7 @@ use crate::{
 
 use super::state::ViewID;
 
+/// Commands that trigger state changes via the reducer.
 #[derive(Debug)]
 pub enum Action {
     SetUIPaused(bool),

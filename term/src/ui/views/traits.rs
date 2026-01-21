@@ -1,3 +1,5 @@
+//! Traits for UI components, views, and event handling.
+
 use std::sync::mpsc::Sender;
 
 use ratatui::{crossterm::event::Event as CrossTermEvent, layout::Rect};
@@ -7,10 +9,12 @@ use crate::{
     ui::store::state::{State, ViewID},
 };
 
+/// Handles keyboard and mouse events, returns true if consumed.
 pub trait EventHandler {
     fn process_event(&self, evt: &CrossTermEvent, ctx: &CustomWidgetContext) -> bool;
 }
 
+/// Context passed to widgets during rendering and event handling.
 pub struct CustomWidgetContext<'a> {
     // app state
     pub state: &'a State,
@@ -23,14 +27,17 @@ pub struct CustomWidgetContext<'a> {
     pub events: Sender<Event>,
 }
 
+/// Owned widget that consumes self on render.
 pub trait CustomWidget {
     fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, ctx: &CustomWidgetContext);
 }
 
+/// Borrowed widget that can render multiple times.
 pub trait CustomWidgetRef {
     fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, ctx: &CustomWidgetContext);
 }
 
+/// Stateful widget with mutable render state.
 pub trait CustomStatefulWidget {
     type State;
 
@@ -43,6 +50,7 @@ pub trait CustomStatefulWidget {
     );
 }
 
+/// A screen that handles events and renders content.
 pub trait View: EventHandler + CustomWidgetRef {
     fn id(&self) -> ViewID;
     fn legend(&self, _state: &State) -> &str {

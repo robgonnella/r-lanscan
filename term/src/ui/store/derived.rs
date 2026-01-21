@@ -1,3 +1,5 @@
+//! Derived state selectors for computed values.
+
 use pnet::util::MacAddr;
 use r_lanlib::scanners::Device;
 
@@ -5,6 +7,7 @@ use crate::config::DeviceConfig;
 
 use super::state::State;
 
+/// Returns the selected device's config, falling back to defaults.
 pub fn get_selected_device_config_from_state(state: &State) -> DeviceConfig {
     state
         .selected_device_config
@@ -17,8 +20,7 @@ pub fn get_selected_device_config_from_state(state: &State) -> DeviceConfig {
         })
 }
 
-// returns just the devices that were detected in last arp scan
-// i.e. miss count = 0
+/// Returns devices detected in the last ARP scan (miss count = 0).
 pub fn get_detected_arp_devices(state: &State) -> Vec<Device> {
     state
         .arp_history

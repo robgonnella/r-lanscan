@@ -1,3 +1,5 @@
+//! Redux-like state container for the terminal UI.
+
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -15,9 +17,7 @@ pub mod derived;
 pub mod reducer;
 pub mod state;
 
-/**
- * Manages the state of our application
- */
+/// Centralized state container with thread-safe access.
 pub struct Store {
     state: Mutex<state::State>,
     reducer: reducer::Reducer,
@@ -68,6 +68,7 @@ impl Store {
     }
 }
 
+/// Dispatches actions to update application state.
 pub trait Dispatcher {
     fn dispatch(&self, action: Action);
 }

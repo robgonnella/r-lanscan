@@ -1,3 +1,5 @@
+//! Application state definitions.
+
 use core::fmt;
 use std::{collections::HashMap, net::Ipv4Addr, process::Output};
 
@@ -12,8 +14,10 @@ use crate::{
 #[cfg(test)]
 use crate::ui::colors::Theme;
 
+/// Tracks how many scans a device has been missing from.
 pub type MissedCount = i8;
 
+/// Identifies the currently active view.
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub enum ViewID {
     Main,
@@ -29,6 +33,7 @@ impl fmt::Display for ViewID {
     }
 }
 
+/// Complete application state for the terminal UI.
 #[derive(Debug, Clone)]
 pub struct State {
     pub true_color_enabled: bool,
