@@ -96,7 +96,7 @@ println!("Discovered {} devices", devices.len());
 use r_lanlib::{
     scanners::{
         syn_scanner::{SYNScanner, SYNScannerArgs},
-        Device, SYNScanDevice, Scanner,
+        Device, PortSet, Scanner,
     },
     targets::ports::PortTargets,
 };
@@ -105,10 +105,11 @@ use r_lanlib::{
 let devices = vec![
     Device {
         hostname: "router".to_string(),
-        ip: "192.168.1.1".to_string(),
-        mac: "aa:bb:cc:dd:ee:ff".to_string(),
+        ip: Ipv4Addr::new(192, 168, 1, 1),
+        mac: MacAddr::new(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff),
         vendor: "".to_string(),
         is_current_host: false,
+        open_ports: PortSet::new(),
     }
 ];
 
@@ -138,12 +139,11 @@ let handle = scanner.scan();
 loop {
     match rx.recv().expect("Failed to receive message") {
         ScanMessage::Done => break,
-        ScanMessage::SYNScanDevice(result) => {
-            println!("Open port {} on {}",
-                result.open_port.id,
-                result.device.ip
-            );
-            results.push(result);
+        ScanMessage::SYNScanDevice(device) => {
+            for port in device.open_ports.to_sorted_vec() {
+                println!("Open port {} on {}", port.id, device.ip);
+            }
+            results.push(device);
         }
         _ => {}
     }
@@ -218,10 +218,11 @@ Represents a discovered network device:
 ```rust
 pub struct Device {
     pub hostname: String,
-    pub ip: String,
-    pub mac: String,
+    pub ip: Ipv4Addr,
+    pub mac: MacAddr,
     pub vendor: String,
     pub is_current_host: bool,
+    pub open_ports: PortSet,
 }
 ```
 
@@ -236,14 +237,16 @@ pub struct Port {
 }
 ```
 
-#### `SYNScanDevice`
+#### `PortSet`
 
-Result of a SYN scan operation:
+Wrapper around `HashSet<Port>` with convenience methods:
 
 ```rust
-pub struct SYNScanDevice {
-    pub device: Device,
-    pub open_port: Port,
+pub struct PortSet(pub HashSet<Port>);
+
+impl PortSet {
+    pub fn new() -> Self;
+    pub fn to_sorted_vec(&self) -> Vec<Port>;
 }
 ```
 
@@ -253,10 +256,10 @@ Messages sent over the notification channel:
 
 ```rust
 pub enum ScanMessage {
-    Done,                           // Scanning complete
-    Info(Scanning),                 // Status update
-    ARPScanDevice(Device),          // ARP discovery result
-    SYNScanDevice(SYNScanDevice),   // SYN scan result
+    Done,                    // Scanning complete
+    Info(Scanning),          // Status update
+    ARPScanDevice(Device),   // ARP discovery result
+    SYNScanDevice(Device),   // SYN scan result (Device with open_ports populated)
 }
 ```
 
