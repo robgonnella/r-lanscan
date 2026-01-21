@@ -1268,6 +1268,7 @@ version = "0.3.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "itertools 0.14.0",
  "log",
  "mockall",
  "nix",

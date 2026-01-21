@@ -14,20 +14,22 @@
 use clap::Parser;
 use color_eyre::eyre::{Result, eyre};
 use core::time;
+use itertools::Itertools;
 use log::*;
 use r_lanlib::{
     error::Result as LibResult,
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        Device, IDLE_TIMEOUT, PortSet, ScanMessage, Scanner,
+        Device, IDLE_TIMEOUT, ScanMessage, Scanner,
         arp_scanner::{ARPScanner, ARPScannerArgs},
         syn_scanner::{SYNScanner, SYNScannerArgs},
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
+    net::Ipv4Addr,
     sync::{
         Arc,
         mpsc::{self, Receiver},
@@ -195,18 +197,11 @@ fn process_syn(
     scanner: &dyn Scanner,
     devices: Vec<Device>,
     rx: Receiver<ScanMessage>,
-) -> LibResult<Vec<Device>> {
-    let mut syn_results: Vec<Device> = Vec::new();
+) -> LibResult<HashMap<Ipv4Addr, Device>> {
+    let mut syn_results: HashMap<Ipv4Addr, Device> = HashMap::new();
 
     for d in devices.iter() {
-        syn_results.push(Device {
-            hostname: d.hostname.to_owned(),
-            ip: d.ip.to_owned(),
-            mac: d.mac.to_owned(),
-            vendor: d.vendor.to_owned(),
-            is_current_host: d.is_current_host,
-            open_ports: PortSet::new(),
-        })
+        syn_results.insert(d.ip, d.clone());
     }
 
     info!("starting syn scan...");
@@ -223,7 +218,7 @@ fn process_syn(
             }
             ScanMessage::SYNScanDevice(device) => {
                 debug!("received syn scanning device: {:?}", device);
-                let found_device = syn_results.iter_mut().find(|d| d.mac == device.mac);
+                let found_device = syn_results.get_mut(&device.ip);
                 match found_device {
                     Some(d) => d.open_ports.0.extend(device.open_ports.0),
                     None => {
@@ -241,11 +236,13 @@ fn process_syn(
 }
 
 #[doc(hidden)]
-fn print_syn(args: &Args, devices: &Vec<Device>) -> Result<()> {
+fn print_syn(args: &Args, device_map: &HashMap<Ipv4Addr, Device>) -> Result<()> {
     info!("syn results:");
 
+    let devices: Vec<_> = device_map.values().cloned().sorted().collect();
+
     if args.json {
-        let j: String = serde_json::to_string(devices)?;
+        let j: String = serde_json::to_string(&devices)?;
         println!("{}", j);
     } else {
         let mut syn_table: prettytable::Table = prettytable::Table::new();
