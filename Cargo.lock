@@ -796,12 +796,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "md5"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae960838283323069879657ca3de837e9f7bbb4c7bf6ea7f1b290d5e9476d2e0"
-
-[[package]]
 name = "memchr"
 version = "2.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1274,15 +1268,12 @@ version = "0.3.0"
 dependencies = [
  "clap",
  "color-eyre",
- "itertools 0.14.0",
  "log",
  "mockall",
  "nix",
- "paris",
  "pnet",
  "prettytable-rs",
  "r-lanlib",
- "serde",
  "serde_json",
  "simplelog",
 ]
@@ -1298,11 +1289,8 @@ dependencies = [
  "mockall",
  "openssl",
  "oui-data",
- "paris",
  "pnet",
  "serde",
- "serde_json",
- "simplelog",
  "thiserror 2.0.17",
  "threadpool",
 ]
@@ -1320,21 +1308,17 @@ dependencies = [
  "insta",
  "itertools 0.14.0",
  "log",
- "md5",
  "mockall",
  "mockall_double",
  "nanoid",
  "nix",
- "paris",
  "pnet",
  "r-lanlib",
  "ratatui",
  "serde",
- "serde_json",
  "serde_yaml",
  "signal-hook",
  "simplelog",
- "strum 0.27.2",
  "supports-color",
  "tempfile",
  "unicode-width 0.2.0",
@@ -1515,7 +1499,7 @@ dependencies = [
  "itertools 0.13.0",
  "lru",
  "paste",
- "strum 0.26.3",
+ "strum",
  "unicode-segmentation",
  "unicode-truncate",
  "unicode-width 0.2.0",
@@ -1799,12 +1783,6 @@ checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 dependencies = [
  "strum_macros",
 ]
-
-[[package]]
-name = "strum"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
 
 [[package]]
 name = "strum_macros"

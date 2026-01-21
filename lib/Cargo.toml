@@ -11,6 +11,9 @@ license.workspace = true
 keywords.workspace = true
 edition.workspace = true
 
+[package.metadata.cargo-machete]
+ignored = ["openssl"]
+
 [[example]]
 name = "arp-scanner"
 path = "examples/arp-scanner.rs"
@@ -28,10 +31,7 @@ path = "examples/full-scanner.rs"
 [dependencies]
 ipnet = "^2.11"
 log = "^0.4"
-paris = { version = "^1.5", features = ["timestamps"] }
-simplelog = { version = "^0.12", features = ["paris"] }
 serde = { version = "^1.0", features = ["derive"] }
-serde_json = "^1.0"
 pnet = "^0.35"
 oui-data = "^0.2"
 dns-lookup = "^2.0"
