@@ -39,6 +39,19 @@ jobs:
       - name: Fmt
         run: cargo fmt --all --check
 
+  machete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/rust-setup
+      - name: Install cargo machete
+        run: |
+          if ! cargo machete --version; then
+            cargo install cargo-machete
+          fi
+      - name: Run cargo machete
+        run: cargo machete
+
   test:
     strategy:
       matrix:
