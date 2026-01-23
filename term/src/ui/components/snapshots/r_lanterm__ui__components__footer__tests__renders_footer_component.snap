@@ -1,5 +1,5 @@
 ---
-source: r-lanterm/src/ui/components/./footer_tests.rs
+source: term/src/ui/components/./footer_tests.rs
 expression: terminal.backend()
 ---
 "╔══════════════════════════════════════════════════════════════════════════════╗"

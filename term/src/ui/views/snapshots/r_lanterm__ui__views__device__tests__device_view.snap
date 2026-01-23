@@ -1,5 +1,5 @@
 ---
-source: r-lanterm/src/ui/views/device.rs
+source: term/src/ui/views/./device_tests.rs
 expression: terminal.backend()
 ---
 "Device SSH Config                                                               "
