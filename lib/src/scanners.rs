@@ -13,6 +13,7 @@ use pnet::util::MacAddr;
 use serde;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::hash::Hash;
 use std::net::Ipv4Addr;
 use std::thread::JoinHandle;
@@ -29,6 +30,16 @@ pub struct Port {
     pub id: u16,
     /// The associated service name for the port if known
     pub service: String,
+}
+
+impl Display for Port {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.service.is_empty() {
+            write!(f, "{}", self.id)
+        } else {
+            write!(f, "{}:{}", self.id, self.service)
+        }
+    }
 }
 
 impl PartialEq for Port {

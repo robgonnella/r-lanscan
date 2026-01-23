@@ -266,7 +266,7 @@ fn print_syn(args: &Args, device_map: &HashMap<Ipv4Addr, Device>) -> Result<()> 
                 .open_ports
                 .to_sorted_vec()
                 .into_iter()
-                .map(|p| p.id.to_string())
+                .map(|p| p.to_string())
                 .collect();
             syn_table.add_row(prettytable::row![
                 ip_field,

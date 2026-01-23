@@ -89,7 +89,7 @@ impl DevicesView {
                     d.open_ports
                         .to_sorted_vec()
                         .iter()
-                        .map(|p| p.id.to_string())
+                        .map(|p| p.to_string())
                         .join(", "),
                 ]
             })

@@ -15,7 +15,7 @@ jobs:
       - name: pause for PR availability
         run: sleep 20
         shell: bash
-      - uses: robgonnella/releasaurus/action@v0.10.1
+      - uses: robgonnella/releasaurus/action@v0.11.0
         with:
           command: release
           command_args: >-
@@ -23,7 +23,7 @@ jobs:
             --repo ${{ github.server_url}}/${{ github.repository }}
             --token ${{ secrets.RELEASE_TOKEN }}
             --debug
-      - uses: robgonnella/releasaurus/action@v0.10.1
+      - uses: robgonnella/releasaurus/action@v0.11.0
         with:
           command: release-pr
           command_args: >-
