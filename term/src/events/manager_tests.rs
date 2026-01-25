@@ -7,6 +7,7 @@ use std::{
     net::Ipv4Addr,
     os::{fd::OwnedFd, unix::process::ExitStatusExt},
     process::{ChildStderr, ExitStatus, Output},
+    sync::Mutex,
 };
 
 use crate::{
@@ -18,7 +19,7 @@ use super::*;
 
 fn new_with_commander(
     tx: Sender<Event>,
-    rx: Arc<Mutex<Receiver<Event>>>,
+    rx: Receiver<Event>,
     store: Arc<Store>,
     commander: Commander,
 ) -> EventManager {
@@ -32,7 +33,6 @@ fn new_with_commander(
 
 struct SetUpReturn {
     sender: Sender<Event>,
-    receiver: Arc<Mutex<Receiver<Event>>>,
     store: Arc<Store>,
     manager: EventManager,
 }
@@ -44,16 +44,9 @@ fn setup(conf_manager: ConfigManager, commander: Commander) -> SetUpReturn {
     let config = Config::new(user, identity, cidr);
     let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager)), config));
     let (tx, rx) = std::sync::mpsc::channel::<Event>();
-    let arc_rx = Arc::new(Mutex::new(rx));
-    let evt_manager = new_with_commander(
-        tx.clone(),
-        Arc::clone(&arc_rx),
-        Arc::clone(&store),
-        commander,
-    );
+    let evt_manager = new_with_commander(tx.clone(), rx, Arc::clone(&store), commander);
     SetUpReturn {
         sender: tx,
-        receiver: arc_rx,
         store,
         manager: evt_manager,
     }
@@ -106,15 +99,13 @@ fn handles_ssh_command_err() {
     let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(&rx, AppCommand::Ssh(device, device_config));
-    assert!(res.is_ok());
+        .handle_cmd(AppCommand::Ssh(device, device_config));
 
+    assert!(res.is_ok());
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
-
     tear_down(tmp_path.as_str());
 }
 
@@ -161,10 +152,10 @@ fn handles_ssh_command_ok() {
     let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(&rx, AppCommand::Ssh(device, device_config));
+        .handle_cmd(AppCommand::Ssh(device, device_config));
+
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -224,10 +215,9 @@ fn handles_ssh_command_ok_err() {
     let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(&rx, AppCommand::Ssh(device, device_config));
+        .handle_cmd(AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -283,10 +273,9 @@ fn handles_ssh_command_ok_err_empty() {
     let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(&rx, AppCommand::Ssh(device, device_config));
+        .handle_cmd(AppCommand::Ssh(device, device_config));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -328,8 +317,7 @@ fn handles_traceroute_command_err() {
         open_ports: PortSet::new(),
     };
 
-    let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(&rx, AppCommand::TraceRoute(device));
+    let res = test.manager.handle_cmd(AppCommand::TraceRoute(device));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -382,10 +370,9 @@ fn handles_traceroute_command_ok() {
         open_ports: PortSet::new(),
     };
 
-    let rx = test.receiver.lock().unwrap();
     let res = test
         .manager
-        .handle_cmd(&rx, AppCommand::TraceRoute(device.clone()));
+        .handle_cmd(AppCommand::TraceRoute(device.clone()));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -436,15 +423,11 @@ fn handles_browse_command_err() {
     let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(
-        &rx,
-        AppCommand::Browse(BrowseArgs {
-            device,
-            port: 80,
-            use_lynx: false,
-        }),
-    );
+    let res = test.manager.handle_cmd(AppCommand::Browse(BrowseArgs {
+        device,
+        port: 80,
+        use_lynx: false,
+    }));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -489,15 +472,11 @@ fn handles_browse_command_ok() {
     let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(
-        &rx,
-        AppCommand::Browse(BrowseArgs {
-            device,
-            port: 80,
-            use_lynx: false,
-        }),
-    );
+    let res = test.manager.handle_cmd(AppCommand::Browse(BrowseArgs {
+        device,
+        port: 80,
+        use_lynx: false,
+    }));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -550,15 +529,11 @@ fn handles_browse_command_ok_err() {
     let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(
-        &rx,
-        AppCommand::Browse(BrowseArgs {
-            device,
-            port: 80,
-            use_lynx: false,
-        }),
-    );
+    let res = test.manager.handle_cmd(AppCommand::Browse(BrowseArgs {
+        device,
+        port: 80,
+        use_lynx: false,
+    }));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
@@ -607,15 +582,11 @@ fn handles_browse_command_ok_err_empty() {
     let res = test.sender.send(Event::UIPaused);
     assert!(res.is_ok());
 
-    let rx = test.receiver.lock().unwrap();
-    let res = test.manager.handle_cmd(
-        &rx,
-        AppCommand::Browse(BrowseArgs {
-            device,
-            port: 80,
-            use_lynx: false,
-        }),
-    );
+    let res = test.manager.handle_cmd(AppCommand::Browse(BrowseArgs {
+        device,
+        port: 80,
+        use_lynx: false,
+    }));
     assert!(res.is_ok());
 
     let state = test.store.get_state().unwrap();
