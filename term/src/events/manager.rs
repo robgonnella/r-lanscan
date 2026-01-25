@@ -68,7 +68,7 @@ impl EventManager {
         self.store
             .dispatch(Action::SetCommandInProgress(Some(cmd.clone())));
 
-        match cmd.clone() {
+        match &cmd {
             AppCommand::Ssh(device, device_config) => {
                 self.tx.send(Event::PauseUI)?;
                 loop {

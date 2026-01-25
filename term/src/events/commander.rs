@@ -30,12 +30,12 @@ impl Commander {
 
     pub fn ssh(
         &self,
-        device: Device,
-        config: DeviceConfig,
+        device: &Device,
+        config: &DeviceConfig,
     ) -> Result<(ExitStatus, Option<ChildStderr>), Box<dyn Error>> {
         let mut handle = ShellCommand::new("ssh")
             .arg("-i")
-            .arg(config.ssh_identity_file)
+            .arg(config.ssh_identity_file.clone())
             .arg(format!("{}@{}", config.ssh_user, device.ip))
             .arg("-p")
             .arg(config.ssh_port.to_string())
@@ -47,7 +47,7 @@ impl Commander {
         Ok((status, handle.stderr))
     }
 
-    pub fn traceroute(&self, device: Device) -> Result<Output, Box<dyn Error>> {
+    pub fn traceroute(&self, device: &Device) -> Result<Output, Box<dyn Error>> {
         ShellCommand::new("traceroute")
             .arg("-w")
             .arg("2")
@@ -60,7 +60,7 @@ impl Commander {
 
     pub fn browse(
         &self,
-        args: BrowseArgs,
+        args: &BrowseArgs,
     ) -> Result<(ExitStatus, Option<ChildStderr>), Box<dyn Error>> {
         let mut protocol = "http";
         if args.port == 443 {
