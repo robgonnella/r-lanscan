@@ -13,43 +13,33 @@ use std::{
 
 use crate::{
     config::{Config, ConfigManager, DeviceConfig},
+    ipc::traits::{MockIpcReceiver, MockIpcSender},
     shell::traits::MockShellExecutor,
 };
 
 use super::*;
 
-fn new_with_executor(
-    tx: Sender<Message>,
-    rx: Receiver<Message>,
-    store: Arc<Store>,
-    executor: Box<dyn ShellExecutor>,
-) -> IpcManager {
-    IpcManager {
-        tx,
-        rx,
-        store,
-        executor,
-    }
-}
-
 struct SetUpReturn {
-    sender: Sender<Message>,
     store: Arc<Store>,
-    manager: IpcManager,
+    main_handler: MainEventHandler,
 }
 
-fn setup(conf_manager: ConfigManager, executor: Box<dyn ShellExecutor>) -> SetUpReturn {
+fn setup(
+    conf_manager: ConfigManager,
+    mock_executor: MockShellExecutor,
+    mock_sender: MockIpcSender<RendererMessage>,
+    mock_receiver: MockIpcReceiver<MainMessage>,
+) -> SetUpReturn {
     let user = "user".to_string();
     let identity = "/home/user/.ssh/id_rsa".to_string();
     let cidr = "192.168.1.1/24".to_string();
     let config = Config::new(user, identity, cidr);
     let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager)), config));
-    let (tx, rx) = std::sync::mpsc::channel::<Message>();
-    let evt_manager = new_with_executor(tx.clone(), rx, Arc::clone(&store), executor);
+    let main_ipc = MainIpc::new(Box::new(mock_sender), Box::new(mock_receiver));
+    let main_handler = MainEventHandler::new(Arc::clone(&store), Box::new(mock_executor), main_ipc);
     SetUpReturn {
-        sender: tx,
         store,
-        manager: evt_manager,
+        main_handler,
     }
 }
 
@@ -73,13 +63,29 @@ fn handles_ssh_command_err() {
         .build()
         .unwrap();
 
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor
         .expect_ssh()
         .returning(|_, _| Err(eyre!("mock error")));
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -97,16 +103,13 @@ fn handles_ssh_command_err() {
         ssh_user: "user".to_string(),
     };
 
-    let res = test.sender.send(Message::UIPaused);
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::Ssh(device, device_config))
+        .unwrap();
 
-    let res = test
-        .manager
-        .handle_cmd(AppCommand::Ssh(device, device_config));
-
-    assert!(res.is_ok());
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
+
     tear_down(tmp_path.as_str());
 }
 
@@ -126,13 +129,29 @@ fn handles_ssh_command_ok() {
         .build()
         .unwrap();
 
-    let mut executor = MockShellExecutor::new();
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
+    let mut mock_executor = MockShellExecutor::new();
 
-    executor
+    mock_executor
         .expect_ssh()
         .returning(|_, _| Ok((ExitStatus::default(), None)));
 
-    let test = setup(conf_manager, Box::new(executor));
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -150,18 +169,12 @@ fn handles_ssh_command_ok() {
         ssh_user: "user".to_string(),
     };
 
-    let res = test.sender.send(Message::UIPaused);
-    assert!(res.is_ok());
-
-    let res = test
-        .manager
-        .handle_cmd(AppCommand::Ssh(device, device_config));
-
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::Ssh(device, device_config))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_none());
-
     tear_down(tmp_path.as_str());
 }
 
@@ -181,6 +194,8 @@ fn handles_ssh_command_ok_err() {
         .build()
         .unwrap();
 
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor.expect_ssh().returning(|_, _| {
@@ -195,7 +210,21 @@ fn handles_ssh_command_ok_err() {
         Ok((status, Some(mock_stderr)))
     });
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -213,13 +242,9 @@ fn handles_ssh_command_ok_err() {
         ssh_user: "user".to_string(),
     };
 
-    let res = test.sender.send(Message::UIPaused);
-    assert!(res.is_ok());
-
-    let res = test
-        .manager
-        .handle_cmd(AppCommand::Ssh(device, device_config));
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::Ssh(device, device_config))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
@@ -246,6 +271,8 @@ fn handles_ssh_command_ok_err_empty() {
         .build()
         .unwrap();
 
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor.expect_ssh().returning(|_, _| {
@@ -253,7 +280,21 @@ fn handles_ssh_command_ok_err_empty() {
         Ok((status, None))
     });
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -271,13 +312,9 @@ fn handles_ssh_command_ok_err_empty() {
         ssh_user: "user".to_string(),
     };
 
-    let res = test.sender.send(Message::UIPaused);
-    assert!(res.is_ok());
-
-    let res = test
-        .manager
-        .handle_cmd(AppCommand::Ssh(device, device_config));
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::Ssh(device, device_config))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
@@ -301,13 +338,15 @@ fn handles_traceroute_command_err() {
         .build()
         .unwrap();
 
+    let mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor
         .expect_traceroute()
         .returning(|_| Err(eyre!("mock error")));
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -318,12 +357,12 @@ fn handles_traceroute_command_err() {
         open_ports: PortSet::new(),
     };
 
-    let res = test.manager.handle_cmd(AppCommand::TraceRoute(device));
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::TraceRoute(device))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
-
     tear_down(tmp_path.as_str());
 }
 
@@ -343,13 +382,9 @@ fn handles_traceroute_command_ok() {
         .build()
         .unwrap();
 
+    let mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
-
-    let expected_output = Output {
-        status: ExitStatusExt::from_raw(0),
-        stdout: "this is some output".as_bytes().to_vec(),
-        stderr: vec![],
-    };
 
     mock_executor.expect_traceroute().returning(|_| {
         let o = Output {
@@ -360,7 +395,13 @@ fn handles_traceroute_command_ok() {
         Ok(o)
     });
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
+
+    let expected_output = Output {
+        status: ExitStatusExt::from_raw(0),
+        stdout: "this is some output".as_bytes().to_vec(),
+        stderr: vec![],
+    };
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -371,20 +412,17 @@ fn handles_traceroute_command_ok() {
         open_ports: PortSet::new(),
     };
 
-    let res = test
-        .manager
-        .handle_cmd(AppCommand::TraceRoute(device.clone()));
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::TraceRoute(device.clone()))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_none());
-
     assert!(state.cmd_output.is_some());
 
     let output = state.cmd_output.unwrap();
     assert_eq!(output.0, AppCommand::TraceRoute(device));
     assert_eq!(output.1, expected_output);
-
     tear_down(tmp_path.as_str());
 }
 
@@ -404,13 +442,29 @@ fn handles_browse_command_err() {
         .build()
         .unwrap();
 
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor
         .expect_browse()
         .returning(|_| Err(eyre!("mock error")));
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -421,19 +475,16 @@ fn handles_browse_command_err() {
         open_ports: PortSet::new(),
     };
 
-    let res = test.sender.send(Message::UIPaused);
-    assert!(res.is_ok());
-
-    let res = test.manager.handle_cmd(AppCommand::Browse(BrowseArgs {
-        device,
-        port: 80,
-        use_lynx: false,
-    }));
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::Browse(BrowseArgs {
+            device,
+            port: 80,
+            use_lynx: false,
+        }))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
-
     tear_down(tmp_path.as_str());
 }
 
@@ -453,13 +504,29 @@ fn handles_browse_command_ok() {
         .build()
         .unwrap();
 
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor
         .expect_browse()
         .returning(|_| Ok((ExitStatus::default(), None)));
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -470,19 +537,16 @@ fn handles_browse_command_ok() {
         open_ports: PortSet::new(),
     };
 
-    let res = test.sender.send(Message::UIPaused);
-    assert!(res.is_ok());
-
-    let res = test.manager.handle_cmd(AppCommand::Browse(BrowseArgs {
-        device,
-        port: 80,
-        use_lynx: false,
-    }));
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::Browse(BrowseArgs {
+            device,
+            port: 80,
+            use_lynx: false,
+        }))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_none());
-
     tear_down(tmp_path.as_str());
 }
 
@@ -502,6 +566,8 @@ fn handles_browse_command_ok_err() {
         .build()
         .unwrap();
 
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor.expect_browse().returning(|_| {
@@ -516,7 +582,21 @@ fn handles_browse_command_ok_err() {
         Ok((status, Some(mock_stderr)))
     });
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -527,22 +607,19 @@ fn handles_browse_command_ok_err() {
         open_ports: PortSet::new(),
     };
 
-    let res = test.sender.send(Message::UIPaused);
-    assert!(res.is_ok());
-
-    let res = test.manager.handle_cmd(AppCommand::Browse(BrowseArgs {
-        device,
-        port: 80,
-        use_lynx: false,
-    }));
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::Browse(BrowseArgs {
+            device,
+            port: 80,
+            use_lynx: false,
+        }))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
 
     let err = state.error.unwrap();
     assert_eq!(err, "test error\n");
-
     tear_down(tmp_path.as_str());
 }
 
@@ -562,6 +639,8 @@ fn handles_browse_command_ok_err_empty() {
         .build()
         .unwrap();
 
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor.expect_browse().returning(|_| {
@@ -569,7 +648,21 @@ fn handles_browse_command_ok_err_empty() {
         Ok((status, None))
     });
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
     let device = Device {
         hostname: "Hostname".to_string(),
@@ -580,19 +673,16 @@ fn handles_browse_command_ok_err_empty() {
         open_ports: PortSet::new(),
     };
 
-    let res = test.sender.send(Message::UIPaused);
-    assert!(res.is_ok());
-
-    let res = test.manager.handle_cmd(AppCommand::Browse(BrowseArgs {
-        device,
-        port: 80,
-        use_lynx: false,
-    }));
-    assert!(res.is_ok());
+    test.main_handler
+        .handle_cmd(AppCommand::Browse(BrowseArgs {
+            device,
+            port: 80,
+            use_lynx: false,
+        }))
+        .unwrap();
 
     let state = test.store.get_state().unwrap();
     assert!(state.error.is_some());
-
     tear_down(tmp_path.as_str());
 }
 
@@ -612,32 +702,36 @@ fn listens_for_events() {
         .build()
         .unwrap();
 
+    let mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
     let mut mock_executor = MockShellExecutor::new();
 
     mock_executor
         .expect_traceroute()
         .returning(|_| Err(eyre!("mock error")));
 
-    let test = setup(conf_manager, Box::new(mock_executor));
+    mock_receiver
+        .expect_recv()
+        .returning(|| {
+            Ok(MainMessage::ExecCommand(AppCommand::TraceRoute(Device {
+                hostname: "Hostname".to_string(),
+                ip: Ipv4Addr::new(10, 10, 10, 1),
+                mac: MacAddr::default(),
+                vendor: "Vendor".to_string(),
+                is_current_host: false,
+                open_ports: PortSet::new(),
+            })))
+        })
+        .times(1);
 
-    let device = Device {
-        hostname: "Hostname".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 1),
-        mac: MacAddr::default(),
-        vendor: "Vendor".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-    };
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::Quit))
+        .times(1);
 
-    test.sender
-        .send(Message::ExecCommand(AppCommand::TraceRoute(device)))
-        .unwrap();
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
-    test.sender.send(Message::Quit).unwrap();
-
-    let res = test.manager.start_event_loop();
-
-    assert!(res.is_ok());
+    test.main_handler.process_events().unwrap();
 
     let state = test.store.get_state().unwrap();
 

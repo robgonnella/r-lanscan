@@ -24,15 +24,19 @@ impl Display for Command {
     }
 }
 
-/// UI lifecycle and command events passed between app and event manager.
-#[derive(Debug, Eq, PartialEq)]
-pub enum Message {
-    PauseUI,
+#[derive(Debug, PartialEq)]
+pub enum MainMessage {
     UIPaused,
-    ResumeUI,
     UIResumed,
     ExecCommand(Command),
     Quit,
+}
+
+/// UI lifecycle and command events passed between app and event manager.
+#[derive(Debug, PartialEq)]
+pub enum RendererMessage {
+    PauseUI,
+    ResumeUI,
 }
 
 #[cfg(test)]

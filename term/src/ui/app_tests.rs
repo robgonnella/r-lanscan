@@ -7,6 +7,7 @@ use std::{collections::HashSet, fs, net::Ipv4Addr, sync::Mutex};
 
 use crate::{
     config::{Config, ConfigManager},
+    ipc::renderer::RendererSender,
     ui::store::Store,
 };
 
@@ -83,13 +84,14 @@ fn test_main_view() {
     let mut terminal = Terminal::new(TestBackend::new(80, 15)).unwrap();
     let state = store.get_state().unwrap();
     let channel = std::sync::mpsc::channel();
+    let sender = RendererSender::new(channel.0);
 
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                ipc: channel.0,
+                ipc: Box::new(sender),
             };
 
             main_view.render_ref(frame.area(), frame.buffer_mut(), &ctx);

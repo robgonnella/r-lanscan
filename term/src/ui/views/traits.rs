@@ -1,11 +1,9 @@
 //! Traits for UI components, views, and event handling.
 
-use std::sync::mpsc::Sender;
-
 use ratatui::{crossterm::event::Event as CrossTermEvent, layout::Rect};
 
 use crate::{
-    ipc::message::Message,
+    ipc::{message::MainMessage, traits::IpcSender},
     ui::store::state::{State, ViewID},
 };
 
@@ -24,7 +22,7 @@ pub struct CustomWidgetContext<'a> {
     // event producer - this how components and views can communicate user
     // behavior back to main loop to perform actions that aren't related to
     // state - executing a shell command
-    pub ipc: Sender<Message>,
+    pub ipc: Box<dyn IpcSender<MainMessage>>,
 }
 
 /// Owned widget that consumes self on render.

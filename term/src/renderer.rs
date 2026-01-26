@@ -16,16 +16,13 @@ use ratatui::{
     layout::Rect,
     prelude::Backend,
 };
-use std::{
-    cell::RefCell,
-    sync::{
-        Arc,
-        mpsc::{Receiver, Sender},
-    },
-};
+use std::{cell::RefCell, io, sync::Arc};
 
 use crate::{
-    ipc::message::Message,
+    ipc::{
+        message::{MainMessage, RendererMessage},
+        renderer::RendererIpc,
+    },
     ui::{
         app::{App, Application},
         colors::Theme,
@@ -39,35 +36,27 @@ pub struct Renderer<B: Backend + std::io::Write> {
     terminal: RefCell<Terminal<B>>,
     store: Arc<Store>,
     app: Box<dyn Application>,
-    event_loop_sender: Sender<Message>,
-    event_loop_receiver: Receiver<Message>,
+    ipc: RendererIpc,
 }
 
 impl<B: Backend + std::io::Write> Renderer<B> {
-    pub fn new(
-        tx: Sender<Message>,
-        rx: Receiver<Message>,
-        terminal: Terminal<B>,
-        theme: Theme,
-        store: Arc<Store>,
-    ) -> Self {
+    pub fn new(terminal: Terminal<B>, theme: Theme, store: Arc<Store>, ipc: RendererIpc) -> Self {
         Self {
             terminal: RefCell::new(terminal),
             store: Arc::clone(&store),
             app: Box::new(App::new(theme, store as Arc<dyn Dispatcher>)),
-            event_loop_sender: tx,
-            event_loop_receiver: rx,
+            ipc,
         }
     }
 
     pub fn launch(&self) -> Result<()> {
         enable_raw_mode().wrap_err("failed to enter raw mode")?;
-        execute!(
-            self.terminal.borrow_mut().backend_mut(),
-            EnterAlternateScreen,
-            EnableMouseCapture
-        )
-        .wrap_err("failed to enter alternate screen")?;
+        // Note we must use io::stdout() directly here. Using
+        // self.terminal.borrow_mut().backend_mut() will result in immediate
+        // exit. I believe this is maybe due to backend being dropped after the
+        // call to execute?
+        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)
+            .wrap_err("failed to enter alternate screen")?;
         self.render()?;
         self.exit()?;
         Ok(())
@@ -78,25 +67,25 @@ impl<B: Backend + std::io::Write> Renderer<B> {
             let state = self.store.get_state()?;
 
             if state.ui_paused {
-                if let Ok(evt) = self.event_loop_receiver.recv()
-                    && evt == Message::ResumeUI
+                if let Ok(evt) = self.ipc.rx.recv()
+                    && evt == RendererMessage::ResumeUI
                 {
                     self.restart()?;
-                    self.event_loop_sender.send(Message::UIResumed)?;
+                    self.ipc.tx.send(MainMessage::UIResumed)?;
                     continue;
                 }
-            } else if let Ok(evt) = self.event_loop_receiver.try_recv()
-                && evt == Message::PauseUI
+            } else if let Ok(evt) = self.ipc.rx.try_recv()
+                && evt == RendererMessage::PauseUI
             {
                 self.pause()?;
-                self.event_loop_sender.send(Message::UIPaused)?;
+                self.ipc.tx.send(MainMessage::UIPaused)?;
                 continue;
             }
 
             let mut ctx = CustomWidgetContext {
                 state: &state,
                 app_area: Rect::default(),
-                ipc: self.event_loop_sender.clone(),
+                ipc: self.ipc.tx.clone(),
             };
 
             self.terminal.borrow_mut().draw(|f| {
@@ -118,7 +107,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                         KeyCode::Char('q') => {
                             // allow overriding q key
                             if !handled {
-                                self.event_loop_sender.send(Message::Quit)?;
+                                self.ipc.tx.send(MainMessage::Quit)?;
                                 return Ok(());
                             }
                         }
@@ -126,7 +115,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                             // do not allow overriding ctrl-c
                             if key.modifiers == KeyModifiers::CONTROL {
                                 info!("APP RECEIVED CONTROL-C SEQUENCE");
-                                self.event_loop_sender.send(Message::Quit)?;
+                                self.ipc.tx.send(MainMessage::Quit)?;
                                 return Ok(());
                             }
                         }

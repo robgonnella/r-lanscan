@@ -1,4 +1,7 @@
-use crate::ui::store::state::State;
+use crate::{
+    ipc::{message::MainMessage, traits::MockIpcSender},
+    ui::store::state::State,
+};
 
 use super::*;
 use insta::assert_snapshot;
@@ -15,14 +18,14 @@ fn renders_input_component_non_edit_mode() {
 
     let mut terminal = Terminal::new(TestBackend::new(80, 3)).unwrap();
     let state = State::default();
-    let channel = std::sync::mpsc::channel();
+    let sender = MockIpcSender::<MainMessage>::new();
 
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                ipc: channel.0,
+                ipc: Box::new(sender),
             };
 
             input.render(frame.area(), frame.buffer_mut(), &mut input_state, &ctx);
@@ -42,14 +45,14 @@ fn renders_input_component_edit_mode() {
 
     let mut terminal = Terminal::new(TestBackend::new(80, 3)).unwrap();
     let state = State::default();
-    let channel = std::sync::mpsc::channel();
+    let sender = MockIpcSender::<MainMessage>::new();
 
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                ipc: channel.0,
+                ipc: Box::new(sender),
             };
 
             input.render(frame.area(), frame.buffer_mut(), &mut input_state, &ctx);
