@@ -18,7 +18,7 @@ use crate::{
 
 use super::*;
 
-fn new_with_commander(
+fn new_with_executor(
     tx: Sender<Message>,
     rx: Receiver<Message>,
     store: Arc<Store>,
@@ -45,7 +45,7 @@ fn setup(conf_manager: ConfigManager, executor: Box<dyn ShellExecutor>) -> SetUp
     let config = Config::new(user, identity, cidr);
     let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager)), config));
     let (tx, rx) = std::sync::mpsc::channel::<Message>();
-    let evt_manager = new_with_commander(tx.clone(), rx, Arc::clone(&store), executor);
+    let evt_manager = new_with_executor(tx.clone(), rx, Arc::clone(&store), executor);
     SetUpReturn {
         sender: tx,
         store,

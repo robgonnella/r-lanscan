@@ -1,239 +1,308 @@
-//! Main application loop and terminal management.
-
-use color_eyre::eyre::{Context, Result};
-use core::time;
-use log::*;
 use ratatui::{
-    Terminal,
-    backend::TestBackend,
-    crossterm::{
-        event::{
-            self, DisableMouseCapture, EnableMouseCapture, Event as CrossTermEvent, KeyCode,
-            KeyModifiers,
-        },
-        execute,
-        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-    },
-    layout::Rect,
-    prelude::CrosstermBackend,
+    crossterm::event::{Event as CrossTermEvent, KeyCode},
+    layout::{Constraint, Layout, Rect},
+    style::{Style, palette::tailwind},
+    text::Line,
+    widgets::{Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget, WidgetRef},
 };
 use std::{
-    cell::RefCell,
-    io::{self, Stdout},
-    sync::{
-        Arc,
-        mpsc::{Receiver, Sender},
-    },
+    collections::HashMap,
+    rc::Rc,
+    sync::{Arc, mpsc::Sender},
 };
 
 use crate::{
     ipc::message::Message,
     ui::{
         colors::Theme,
-        store::{Dispatcher, Store},
+        components::{footer::InfoFooter, header::Header, popover::get_popover_area},
+        store::{
+            Dispatcher,
+            action::Action,
+            state::{State, ViewID},
+        },
+        views::{
+            config::ConfigView,
+            device::DeviceView,
+            devices::DevicesView,
+            traits::{CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View},
+            view_select::ViewSelect,
+        },
     },
 };
 
-use super::{
-    store::action::Action,
-    views::{
-        main::MainView,
-        traits::{CustomWidgetContext, View},
-    },
-};
+const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 
-type Backend = CrosstermBackend<Stdout>;
-
-/// Main application coordinating rendering and event handling.
 pub struct App {
-    terminal: RefCell<Terminal<Backend>>,
-    // here to enable unit tests - not an ideal solution but okay for now
-    test_terminal: Option<Terminal<TestBackend>>,
-    store: Arc<Store>,
-    main_view: Box<dyn View>,
-    event_loop_sender: Sender<Message>,
-    event_loop_receiver: Receiver<Message>,
-}
-
-/// Creates and initializes the terminal application.
-pub fn create_app(
-    tx: Sender<Message>,
-    rx: Receiver<Message>,
-    theme: Theme,
-    store: Arc<Store>,
-) -> Result<App> {
-    // setup terminal
-    enable_raw_mode().wrap_err("failed to enter raw mode")?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)
-        .wrap_err("failed to enter alternate screen")?;
-    let backend = CrosstermBackend::new(stdout);
-    let terminal = Terminal::new(backend).wrap_err("failed to create terminal")?;
-    Ok(App::new(tx, rx, terminal, theme, store))
+    dispatcher: Arc<dyn Dispatcher>,
+    sub_views: HashMap<ViewID, Box<dyn View>>,
+    _tx: Sender<Message>,
 }
 
 impl App {
-    fn new(
-        tx: Sender<Message>,
-        rx: Receiver<Message>,
-        terminal: Terminal<Backend>,
-        theme: Theme,
-        store: Arc<Store>,
-    ) -> Self {
+    pub fn new(theme: Theme, dispatcher: Arc<dyn Dispatcher>, tx: Sender<Message>) -> Self {
+        let mut sub_views: HashMap<ViewID, Box<dyn View>> = HashMap::new();
+        let config = Box::new(ConfigView::new(Arc::clone(&dispatcher), theme));
+        let device = Box::new(DeviceView::new(Arc::clone(&dispatcher)));
+        let devices = Box::new(DevicesView::new(Arc::clone(&dispatcher)));
+        let view_select = Box::new(ViewSelect::new(
+            vec![ViewID::Devices, ViewID::Config],
+            2,
+            Arc::clone(&dispatcher),
+        ));
+
+        sub_views.insert(config.id(), config);
+        sub_views.insert(device.id(), device);
+        sub_views.insert(devices.id(), devices);
+        sub_views.insert(view_select.id(), view_select);
+
         Self {
-            terminal: RefCell::new(terminal),
-            test_terminal: None,
-            store: Arc::clone(&store),
-            main_view: Box::new(MainView::new(
-                theme,
-                store as Arc<dyn Dispatcher>,
-                tx.clone(),
-            )),
-            event_loop_sender: tx,
-            event_loop_receiver: rx,
+            dispatcher,
+            sub_views,
+            _tx: tx,
         }
     }
 
-    // only exposed in tests to enable unit testing App
-    // not an ideal solution but okay for now
-    #[cfg(test)]
-    fn new_test(
-        tx: Sender<Message>,
-        rx: Receiver<Message>,
-        terminal: Terminal<Backend>,
-        test_terminal: Terminal<TestBackend>,
-        theme: Theme,
-        store: Arc<Store>,
-    ) -> Self {
-        Self {
-            terminal: RefCell::new(terminal),
-            test_terminal: Some(test_terminal),
-            store: Arc::clone(&store),
-            main_view: Box::new(MainView::new(theme, store, tx.clone())),
-            event_loop_sender: tx,
-            event_loop_receiver: rx,
+    fn render_buffer_bg(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+        let block = Block::new()
+            .style(Style::new().bg(state.colors.buffer_bg))
+            .padding(DEFAULT_PADDING);
+        block.render(area, buf);
+    }
+
+    fn get_top_section_areas(&self, area: Rect) -> Rc<[Rect]> {
+        Layout::horizontal([
+            Constraint::Percentage(20),
+            Constraint::Percentage(100),
+            Constraint::Percentage(20),
+        ])
+        .split(area)
+    }
+
+    fn render_top(
+        &self,
+        sections: Rc<[Rect]>,
+        buf: &mut ratatui::prelude::Buffer,
+        message: Option<&String>,
+        ctx: &CustomWidgetContext,
+    ) {
+        let logo =
+            Paragraph::new("\nr-lanterm").style(Style::new().fg(ctx.state.colors.border_color));
+        let logo_block: Block<'_> = Block::bordered()
+            .border_style(Style::new().fg(ctx.state.colors.border_color))
+            .border_type(BorderType::Double)
+            .padding(DEFAULT_PADDING);
+        let logo_inner_area = logo_block.inner(sections[0]);
+
+        logo_block.render(sections[0], buf);
+        logo.render_ref(logo_inner_area, buf);
+
+        if let Some(message) = message {
+            let message_block = Block::default().padding(Padding::uniform(2));
+            let message_inner_area = message_block.inner(sections[1]);
+            let m = Header::new(format!("\n\n{message}"));
+            message_block.render(sections[1], buf);
+            m.render(message_inner_area, buf, ctx);
+        }
+
+        let current_view = Paragraph::new(format!("\n{} ▼", ctx.state.view_id))
+            .style(Style::new().fg(ctx.state.colors.border_color));
+        let current_view_block = Block::bordered()
+            .border_style(Style::new().fg(ctx.state.colors.border_color))
+            .border_type(BorderType::Double)
+            .padding(DEFAULT_PADDING);
+        let current_view_inner_area = current_view_block.inner(sections[2]);
+
+        current_view_block.render(sections[2], buf);
+        current_view.render_ref(current_view_inner_area, buf);
+    }
+
+    fn render_middle_view(
+        &self,
+        view: &dyn View,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        let block: Block<'_> = Block::bordered()
+            .border_style(Style::new().fg(ctx.state.colors.border_color))
+            .border_type(BorderType::Plain)
+            .padding(DEFAULT_PADDING);
+        let inner_area = block.inner(area);
+        block.render(area, buf);
+        view.render_ref(inner_area, buf, ctx);
+    }
+
+    fn render_view_select_popover(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        let view = self.sub_views.get(&ViewID::ViewSelect);
+
+        if let Some(view_select) = view {
+            view_select.render_ref(area, buf, ctx);
         }
     }
 
-    pub fn launch(&self) -> Result<()> {
-        self.start_app_loop()?;
-        self.exit()?;
-        Ok(())
+    fn render_error_popover(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+        if let Some(msg) = state.error.as_ref() {
+            let block = Block::bordered()
+                .border_type(BorderType::Double)
+                .border_style(
+                    Style::new()
+                        .fg(tailwind::RED.c600)
+                        .bg(state.colors.buffer_bg),
+                )
+                .padding(Padding::uniform(2))
+                .style(Style::default().bg(state.colors.buffer_bg));
+            let inner_area = block.inner(area);
+            let [msg_area, exit_area] = Layout::vertical([
+                Constraint::Percentage(100), // msg
+                Constraint::Length(1),       // exit
+            ])
+            .areas(inner_area);
+
+            let message = Line::from(format!("Error: {}", msg));
+            let exit = Paragraph::new("Press enter to clear error").centered();
+            ClearWidget.render(area, buf);
+            block.render(area, buf);
+            message.render(msg_area, buf);
+            exit.render(exit_area, buf);
+        }
     }
 
-    fn start_app_loop(&self) -> Result<()> {
-        loop {
-            let state = self.store.get_state()?;
+    fn render_footer(
+        &self,
+        legend: &str,
+        override_legend: bool,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        if override_legend {
+            let footer = InfoFooter::new(legend.to_string());
+            footer.render(area, buf, ctx);
+        } else {
+            let mut info = String::from("(q) quit | (v) change view");
 
-            if state.ui_paused {
-                if let Ok(evt) = self.event_loop_receiver.recv()
-                    && evt == Message::ResumeUI
-                {
-                    self.restart()?;
-                    self.store.dispatch(Action::SetUIPaused(false));
-                    self.event_loop_sender.send(Message::UIResumed)?;
-                    continue;
-                }
-            } else if let Ok(evt) = self.event_loop_receiver.try_recv()
-                && evt == Message::PauseUI
-            {
-                self.pause()?;
-                self.store.dispatch(Action::SetUIPaused(true));
-                self.event_loop_sender.send(Message::UIPaused)?;
-                continue;
+            if !legend.is_empty() {
+                info = format!("{info} | {legend}");
             }
 
-            let mut ctx = CustomWidgetContext {
-                state: &state,
-                app_area: Rect::default(),
-                ipc: self.event_loop_sender.clone(),
-            };
-
-            if self.test_terminal.is_some() {
-                // app is under test - just draw once and exit
-                // not an ideal solution but okay for now
-                let mut terminal = self.test_terminal.clone().unwrap();
-                let _ = terminal.draw(|f| {
-                    ctx.app_area = f.area();
-                    self.main_view.render_ref(f.area(), f.buffer_mut(), &ctx)
-                });
-                return Ok(());
-            }
-
-            self.terminal.borrow_mut().draw(|f| {
-                ctx.app_area = f.area();
-                self.main_view.render_ref(f.area(), f.buffer_mut(), &ctx)
-            })?;
-
-            // Use poll here so we don't block the thread, this will allow
-            // rendering of incoming device data from network as it's received
-            if let Ok(has_event) = event::poll(time::Duration::from_millis(60))
-                && has_event
-            {
-                let evt = event::read()?;
-
-                let handled = self.main_view.process_event(&evt, &ctx);
-
-                if let CrossTermEvent::Key(key) = evt {
-                    match key.code {
-                        KeyCode::Char('q') => {
-                            // allow overriding q key
-                            if !handled {
-                                self.event_loop_sender.send(Message::Quit)?;
-                                return Ok(());
-                            }
-                        }
-                        KeyCode::Char('c') => {
-                            // do not allow overriding ctrl-c
-                            if key.modifiers == KeyModifiers::CONTROL {
-                                info!("APP RECEIVED CONTROL-C SEQUENCE");
-                                self.event_loop_sender.send(Message::Quit)?;
-                                return Ok(());
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            let footer = InfoFooter::new(info);
+            footer.render(area, buf, ctx);
         }
-    }
-
-    fn pause(&self) -> Result<()> {
-        self.exit()?;
-        self.store.dispatch(Action::SetUIPaused(true));
-        Ok(())
-    }
-
-    fn restart(&self) -> Result<()> {
-        if self.test_terminal.is_none() {
-            let mut terminal = self.terminal.borrow_mut();
-            enable_raw_mode()?;
-            execute!(
-                terminal.backend_mut(),
-                EnterAlternateScreen,
-                EnableMouseCapture
-            )?;
-            terminal.hide_cursor()?;
-            terminal.clear()?;
-            self.store.dispatch(Action::SetUIPaused(false));
-        }
-        Ok(())
-    }
-
-    fn exit(&self) -> Result<()> {
-        if self.test_terminal.is_none() {
-            let mut terminal = self.terminal.borrow_mut();
-            disable_raw_mode()?;
-            execute!(
-                terminal.backend_mut(),
-                LeaveAlternateScreen,
-                DisableMouseCapture
-            )?;
-            terminal.show_cursor()?;
-        }
-        Ok(())
     }
 }
+
+impl CustomWidgetRef for App {
+    fn render_ref(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        // consists of 3 vertical rectangles (top, middle, bottom)
+        let page_areas = Layout::vertical([
+            Constraint::Length(5),
+            Constraint::Min(10),
+            Constraint::Length(3),
+        ])
+        .split(area);
+
+        let view_id = ctx.state.view_id;
+        // TODO: there shouldn't be a case where we don't find a view but
+        // this will require a larger refactor
+        if let Some(view) = self.sub_views.get(&view_id) {
+            let legend = view.legend(ctx.state);
+            let override_legend = view.override_main_legend(ctx.state);
+
+            // render background for entire display
+            self.render_buffer_bg(area, buf, ctx.state);
+            // logo & view select
+            let top_section_areas = self.get_top_section_areas(page_areas[0]);
+            let top_section_areas_clone = Rc::clone(&top_section_areas);
+            self.render_top(top_section_areas, buf, ctx.state.message.as_ref(), ctx);
+            // view
+            self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx);
+            // legend for current view
+            self.render_footer(legend, override_legend, page_areas[2], buf, ctx);
+
+            // view selection
+            if ctx.state.render_view_select {
+                let mut select_area = top_section_areas_clone[2];
+                select_area.height = (self.sub_views.len() * 3).try_into().unwrap_or_default();
+
+                let select_block = Block::bordered()
+                    .border_style(Style::new().fg(ctx.state.colors.border_color))
+                    .border_type(BorderType::Double);
+
+                let select_inner_area = select_block.inner(select_area);
+
+                select_block.render(select_area, buf);
+
+                ClearWidget.render(select_inner_area, buf);
+                self.render_buffer_bg(select_inner_area, buf, ctx.state);
+                self.render_view_select_popover(select_inner_area, buf, ctx);
+            }
+
+            // popover when there are errors in the store
+            // important to render this last so it properly layers on top
+            self.render_error_popover(get_popover_area(area, 50, 40), buf, ctx.state);
+        }
+    }
+}
+
+impl EventHandler for App {
+    fn process_event(&self, evt: &CrossTermEvent, ctx: &CustomWidgetContext) -> bool {
+        let view_id = ctx.state.view_id;
+
+        if ctx.state.render_view_select
+            && let Some(select_view) = self.sub_views.get(&ViewID::ViewSelect)
+        {
+            return select_view.process_event(evt, ctx);
+        }
+
+        if ctx.state.error.is_some() {
+            if let CrossTermEvent::Key(key) = evt
+                && key.code == KeyCode::Enter
+            {
+                self.dispatcher.dispatch(Action::SetError(None));
+            }
+            true
+        } else if let Some(view) = self.sub_views.get(&view_id) {
+            let mut handled = view.process_event(evt, ctx);
+
+            if !handled && let CrossTermEvent::Key(key) = evt {
+                match key.code {
+                    KeyCode::Char('v') => {
+                        if !ctx.state.render_view_select {
+                            handled = true;
+                            self.dispatcher.dispatch(Action::ToggleViewSelect);
+                        }
+                    }
+                    KeyCode::Esc => {
+                        if ctx.state.render_view_select {
+                            handled = true;
+                            self.dispatcher.dispatch(Action::ToggleViewSelect);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            handled
+        } else {
+            false
+        }
+    }
+}
+
+pub trait Application: CustomWidgetRef + EventHandler {}
+
+impl Application for App {}
 
 #[cfg(test)]
 #[path = "./app_tests.rs"]
