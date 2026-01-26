@@ -78,7 +78,7 @@ impl CrossTermRenderer {
             terminal: RefCell::new(terminal),
             test_terminal: None,
             store: Arc::clone(&store),
-            app: Box::new(App::new(theme, store as Arc<dyn Dispatcher>, tx.clone())),
+            app: Box::new(App::new(theme, store as Arc<dyn Dispatcher>)),
             event_loop_sender: tx,
             event_loop_receiver: rx,
         }
@@ -99,7 +99,7 @@ impl CrossTermRenderer {
             terminal: RefCell::new(terminal),
             test_terminal: Some(test_terminal),
             store: Arc::clone(&store),
-            app: Box::new(App::new(theme, store, tx.clone())),
+            app: Box::new(App::new(theme, store)),
             event_loop_sender: tx,
             event_loop_receiver: rx,
         }
