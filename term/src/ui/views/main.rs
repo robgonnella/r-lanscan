@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    events::types::Event,
+    ipc::message::Message,
     ui::{
         colors::Theme,
         components::{footer::InfoFooter, header::Header, popover::get_popover_area},
@@ -37,11 +37,11 @@ const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 pub struct MainView {
     dispatcher: Arc<dyn Dispatcher>,
     sub_views: HashMap<ViewID, Box<dyn View>>,
-    _tx: Sender<Event>,
+    _tx: Sender<Message>,
 }
 
 impl MainView {
-    pub fn new(theme: Theme, dispatcher: Arc<dyn Dispatcher>, tx: Sender<Event>) -> Self {
+    pub fn new(theme: Theme, dispatcher: Arc<dyn Dispatcher>, tx: Sender<Message>) -> Self {
         let mut sub_views: HashMap<ViewID, Box<dyn View>> = HashMap::new();
         let config = Box::new(ConfigView::new(Arc::clone(&dispatcher), theme));
         let device = Box::new(DeviceView::new(Arc::clone(&dispatcher)));

@@ -17,7 +17,7 @@ fn renders_scrollbar_component() {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                events: channel.0,
+                ipc: channel.0,
             };
 
             scroll.render(frame.area(), frame.buffer_mut(), &mut scroll_state, &ctx);

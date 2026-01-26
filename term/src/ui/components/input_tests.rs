@@ -22,7 +22,7 @@ fn renders_input_component_non_edit_mode() {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                events: channel.0,
+                ipc: channel.0,
             };
 
             input.render(frame.area(), frame.buffer_mut(), &mut input_state, &ctx);
@@ -49,7 +49,7 @@ fn renders_input_component_edit_mode() {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                events: channel.0,
+                ipc: channel.0,
             };
 
             input.render(frame.area(), frame.buffer_mut(), &mut input_state, &ctx);

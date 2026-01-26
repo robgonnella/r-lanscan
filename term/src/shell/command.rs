@@ -1,13 +1,11 @@
-#[cfg(test)]
-use mockall::automock;
-
+use color_eyre::eyre::Result;
 use r_lanlib::scanners::Device;
-use std::{
-    error::Error,
-    process::{ChildStderr, Command as ShellCommand, ExitStatus, Output, Stdio},
-};
+use std::process::{ChildStderr, Command as ShellCommand, ExitStatus, Output, Stdio};
 
-use crate::{config::DeviceConfig, events::types::BrowseArgs};
+use crate::{
+    config::DeviceConfig,
+    shell::traits::{BrowseArgs, ShellExecutor},
+};
 
 #[cfg(target_os = "linux")]
 const fn browser_command() -> &'static str {
@@ -19,20 +17,20 @@ const fn browser_command() -> &'static str {
     "open"
 }
 
-pub struct Commander {}
+pub struct Command {}
 
-// generates mocked implementation of Commander when in test
-#[cfg_attr(test, automock, allow(warnings))]
-impl Commander {
+impl Command {
     pub fn new() -> Self {
         Self {}
     }
+}
 
-    pub fn ssh(
+impl ShellExecutor for Command {
+    fn ssh(
         &self,
         device: &Device,
         config: &DeviceConfig,
-    ) -> Result<(ExitStatus, Option<ChildStderr>), Box<dyn Error>> {
+    ) -> Result<(ExitStatus, Option<ChildStderr>)> {
         let mut handle = ShellCommand::new("ssh")
             .arg("-i")
             .arg(config.ssh_identity_file.clone())
@@ -47,21 +45,18 @@ impl Commander {
         Ok((status, handle.stderr))
     }
 
-    pub fn traceroute(&self, device: &Device) -> Result<Output, Box<dyn Error>> {
-        ShellCommand::new("traceroute")
+    fn traceroute(&self, device: &Device) -> Result<Output> {
+        let output = ShellCommand::new("traceroute")
             .arg("-w")
             .arg("2")
             .arg("-I")
             .arg("-v")
             .arg(device.ip.to_string())
-            .output()
-            .map_err(|e| Box::from(e.to_string()))
+            .output()?;
+        Ok(output)
     }
 
-    pub fn browse(
-        &self,
-        args: &BrowseArgs,
-    ) -> Result<(ExitStatus, Option<ChildStderr>), Box<dyn Error>> {
+    fn browse(&self, args: &BrowseArgs) -> Result<(ExitStatus, Option<ChildStderr>)> {
         let mut protocol = "http";
         if args.port == 443 {
             protocol = "https"
