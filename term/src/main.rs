@@ -50,10 +50,7 @@ use r_lanlib::{
     targets::{ips::IPTargets, ports::PortTargets},
 };
 
-use ui::{
-    app,
-    store::{Store, action::Action, derived::get_detected_arp_devices},
-};
+use ui::store::{Store, action::Action, derived::get_detected_arp_devices};
 
 use crate::{
     config::DEFAULT_CONFIG_ID,
@@ -65,6 +62,8 @@ use crate::{
 mod config;
 #[doc(hidden)]
 mod ipc;
+#[doc(hidden)]
+mod renderer;
 #[doc(hidden)]
 mod shell;
 #[doc(hidden)]
@@ -419,11 +418,16 @@ fn main() -> Result<()> {
         Box::new(executor),
     );
 
-    let application = app::create_app(event_manager_channel.0, app_channel.1, theme, store)?;
+    let cross_term_renderer = renderer::cross_term::create_renderer(
+        event_manager_channel.0,
+        app_channel.1,
+        theme,
+        store,
+    )?;
 
     let event_handle = thread::spawn(move || event_manager.start_event_loop());
 
-    application.launch()?;
+    cross_term_renderer.launch()?;
     event_handle.join().map_err(report_from_thread_panic)??;
     Ok(())
 }

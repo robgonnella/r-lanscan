@@ -1,5 +1,5 @@
 ---
-source: term/src/ui/views/./main_tests.rs
+source: term/src/ui/./app_tests.rs
 expression: terminal.backend()
 ---
 "╔══════════════╗                                                ╔══════════════╗"

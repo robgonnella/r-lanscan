@@ -20,7 +20,6 @@ pub type MissedCount = i8;
 /// Identifies the currently active view.
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub enum ViewID {
-    Main,
     Device,
     Devices,
     Config,
