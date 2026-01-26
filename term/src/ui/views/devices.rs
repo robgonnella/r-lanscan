@@ -1,3 +1,5 @@
+//! Devices list view showing all discovered network devices in a table.
+
 use itertools::Itertools;
 use r_lanlib::scanners::Device;
 use ratatui::{
@@ -17,12 +19,14 @@ use crate::ui::{
 
 use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
+/// Main view showing all discovered devices in a selectable table.
 pub struct DevicesView {
     dispatcher: Arc<dyn Dispatcher>,
     table: RefCell<Table>,
 }
 
 impl DevicesView {
+    /// Creates a new devices view with the given dispatcher.
     pub fn new(dispatcher: Arc<dyn Dispatcher>) -> Self {
         Self {
             dispatcher,

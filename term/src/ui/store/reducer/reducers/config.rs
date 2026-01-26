@@ -1,3 +1,5 @@
+//! Config state reducers for persisting app and device settings.
+
 use std::sync::{Arc, Mutex};
 
 use crate::{
@@ -8,6 +10,7 @@ use crate::{
     },
 };
 
+/// Updates the current config and persists it to disk.
 pub fn update_config(
     state: &mut State,
     config: Config,
@@ -25,6 +28,7 @@ pub fn update_config(
     }
 }
 
+/// Loads an existing config by ID and applies its theme.
 pub fn set_config(
     state: &mut State,
     config_id: String,
@@ -45,6 +49,7 @@ pub fn set_config(
     }
 }
 
+/// Creates a new config, persists it, and sets it as current.
 pub fn create_and_set_config(
     state: &mut State,
     config: Config,
@@ -67,6 +72,7 @@ pub fn create_and_set_config(
     }
 }
 
+/// Updates SSH config for a specific device and persists it.
 pub fn update_device_config(
     state: &mut State,
     device_config: DeviceConfig,

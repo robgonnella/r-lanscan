@@ -1,15 +1,19 @@
+//! Read-only key-value field component.
+
 use ratatui::{
     layout::Rect,
     text::{Line, Span},
     widgets::{Paragraph, Widget, Wrap},
 };
 
+/// Displays a labeled value as "key: value".
 pub struct Field {
     key: String,
     value: String,
 }
 
 impl Field {
+    /// Creates a new field with the given key and value.
     pub fn new(key: String, value: String) -> Self {
         Self { key, value }
     }

@@ -1,3 +1,5 @@
+//! Configuration view for editing SSH defaults, theme, and scan ports.
+
 use crate::ui::{
     colors::Theme,
     components::{
@@ -25,6 +27,7 @@ use super::traits::{
 
 const THEMES: [Theme; 4] = [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
 
+/// Tracks which input field currently has focus.
 #[derive(Debug, Clone)]
 enum Focus {
     SSHUser,
@@ -34,6 +37,7 @@ enum Focus {
     ScanPorts,
 }
 
+/// View for editing global application settings.
 pub struct ConfigView {
     dispatcher: Arc<dyn Dispatcher>,
     theme_index: RefCell<usize>,
@@ -47,6 +51,7 @@ pub struct ConfigView {
 }
 
 impl ConfigView {
+    /// Creates a new config view with the given dispatcher and initial theme.
     pub fn new(dispatcher: Arc<dyn Dispatcher>, theme: Theme) -> Self {
         let (idx, _) = THEMES
             .iter()

@@ -24,18 +24,25 @@ impl Display for Command {
     }
 }
 
+/// Messages sent from the renderer to the main event handler.
 #[derive(Debug, PartialEq)]
 pub enum MainMessage {
+    /// UI has been paused (ready for shell command).
     UIPaused,
+    /// UI has resumed after shell command.
     UIResumed,
+    /// Request to execute an external command.
     ExecCommand(Command),
+    /// Request to quit the application.
     Quit,
 }
 
-/// UI lifecycle and command events passed between app and event manager.
+/// Messages sent from the main event handler to the renderer.
 #[derive(Debug, PartialEq)]
 pub enum RendererMessage {
+    /// Request the renderer to pause (exit raw mode for shell command).
     PauseUI,
+    /// Request the renderer to resume after shell command.
     ResumeUI,
 }
 

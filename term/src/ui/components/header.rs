@@ -1,3 +1,5 @@
+//! Header component for section titles.
+
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -7,11 +9,13 @@ use ratatui::{
 
 use crate::ui::views::traits::{CustomWidget, CustomWidgetContext};
 
+/// Bold styled section header.
 pub struct Header {
     title: String,
 }
 
 impl Header {
+    /// Creates a new header with the given title.
     pub fn new(title: String) -> Self {
         Self { title }
     }

@@ -1,7 +1,10 @@
+//! Theme and color palette definitions for the terminal UI.
+
 use std::fmt;
 
 use ratatui::style::{Color, palette::tailwind};
 
+/// Color palette derived from the current theme.
 #[derive(Clone, Debug)]
 pub struct Colors {
     pub buffer_bg: Color,
@@ -17,6 +20,8 @@ pub struct Colors {
 }
 
 impl Colors {
+    /// Creates a color palette from the given tailwind palette, falling back
+    /// to basic colors if true color is not supported.
     pub fn new(color: &tailwind::Palette, true_color_enabled: bool) -> Self {
         let basic_colors = Self {
             buffer_bg: Color::Black,
@@ -52,6 +57,7 @@ impl Colors {
     }
 }
 
+/// Available color themes for the application.
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum Theme {
     Blue,
@@ -60,6 +66,7 @@ pub enum Theme {
     Red,
 }
 
+// Fallback palettes for terminals without true color support.
 const BASIC_BLUE_PALLETE: tailwind::Palette = tailwind::Palette {
     c50: Color::LightCyan,
     c100: Color::LightCyan,
@@ -128,6 +135,7 @@ impl fmt::Display for Theme {
 }
 
 impl Theme {
+    /// Parses a theme from its string name, defaulting to Blue.
     pub fn from_string(value: &str) -> Theme {
         match value {
             "Blue" => Theme::Blue,
@@ -138,6 +146,8 @@ impl Theme {
         }
     }
 
+    /// Returns the tailwind palette for this theme, using basic colors if
+    /// true color is not supported.
     pub fn to_palette(self, true_color_enabled: bool) -> &'static tailwind::Palette {
         if true_color_enabled {
             match self {

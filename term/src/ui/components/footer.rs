@@ -1,3 +1,5 @@
+//! Footer component showing keyboard shortcuts and status info.
+
 use ratatui::{
     layout::Rect,
     style::Style,
@@ -7,11 +9,13 @@ use ratatui::{
 
 use crate::ui::views::traits::{CustomWidget, CustomWidgetContext};
 
+/// Centered footer with border, typically showing keyboard legends.
 pub struct InfoFooter {
     content: String,
 }
 
 impl InfoFooter {
+    /// Creates a new footer with the given content.
     pub fn new(content: String) -> Self {
         Self { content }
     }

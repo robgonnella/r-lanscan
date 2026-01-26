@@ -1,3 +1,5 @@
+//! Single device detail view with SSH config, info, and command output.
+
 use crate::{
     ipc::message::{Command, MainMessage},
     shell::traits::BrowseArgs,
@@ -29,6 +31,7 @@ use super::traits::{
     CustomStatefulWidget, CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View,
 };
 
+/// Tracks which input field currently has focus.
 #[derive(Debug, Clone)]
 enum Focus {
     SSHUser,
@@ -38,6 +41,7 @@ enum Focus {
     BrowserPort,
 }
 
+/// View for displaying device details and executing SSH, traceroute, browse.
 pub struct DeviceView {
     dispatcher: Arc<dyn Dispatcher>,
     editing: RefCell<bool>,
@@ -50,6 +54,7 @@ pub struct DeviceView {
 }
 
 impl DeviceView {
+    /// Creates a new device view with the given dispatcher.
     pub fn new(dispatcher: Arc<dyn Dispatcher>) -> Self {
         Self {
             dispatcher,

@@ -1,3 +1,5 @@
+//! Editable text input component.
+
 use ratatui::{
     layout::Rect,
     style::Style,
@@ -7,17 +9,20 @@ use ratatui::{
 
 use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext};
 
+/// State for an input field (editing mode and current value).
 #[derive(Debug, Clone)]
 pub struct InputState {
     pub editing: bool,
     pub value: String,
 }
 
+/// Labeled text input that highlights when in edit mode.
 pub struct Input {
     label: String,
 }
 
 impl Input {
+    /// Creates a new input with the given label.
     pub fn new(label: &str) -> Self {
         Self {
             label: String::from(label),
