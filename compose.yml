@@ -10,11 +10,17 @@ services:
       LOG_STDOUT: "1"
     ports:
       - 2222:2222
+    networks:
+      default:
+        ipv4_address: 172.22.0.10
 
   nginx:
     image: nginx:latest
     ports:
       - 8080:80
+    networks:
+      default:
+        ipv4_address: 172.22.0.11
 
   workspace:
     build: .
@@ -24,6 +30,9 @@ services:
     environment:
       USER: root
       LOG_LEVEL: debug
+    networks:
+      default:
+        ipv4_address: 172.22.0.12
 
 networks:
   default:

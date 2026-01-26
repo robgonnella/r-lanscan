@@ -12,6 +12,10 @@ in Rust. This is the modern Rust implementation of the
 [go-lanscan](https://github.com/robgonnella/go-lanscan) project, offering
 improved performance, safety, and usability.
 
+# Demo
+
+![](./assets/r-lanterm.gif)
+
 ## Features
 
 - 🔍 **ARP Scanning** - Discover active devices on your network
