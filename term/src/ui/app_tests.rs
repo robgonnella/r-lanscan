@@ -3,12 +3,7 @@ use nanoid::nanoid;
 use pnet::util::MacAddr;
 use r_lanlib::scanners::{Device, Port};
 use ratatui::{Terminal, backend::TestBackend};
-use std::{
-    collections::HashSet,
-    fs,
-    net::Ipv4Addr,
-    sync::{Mutex, mpsc},
-};
+use std::{collections::HashSet, fs, net::Ipv4Addr, sync::Mutex};
 
 use crate::{
     config::{Config, ConfigManager},
@@ -71,9 +66,8 @@ fn setup() -> (App, Arc<Store>, String) {
     store.dispatch(Action::AddDevice(device_1.clone()));
     store.dispatch(Action::AddDevice(device_2.clone()));
     let theme = Theme::Blue;
-    let (tx, _rx) = mpsc::channel();
     (
-        App::new(theme, Arc::clone(&store) as Arc<dyn Dispatcher>, tx),
+        App::new(theme, Arc::clone(&store) as Arc<dyn Dispatcher>),
         store,
         tmp_path,
     )

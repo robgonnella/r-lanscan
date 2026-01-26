@@ -5,29 +5,22 @@ use ratatui::{
     text::Line,
     widgets::{Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget, WidgetRef},
 };
-use std::{
-    collections::HashMap,
-    rc::Rc,
-    sync::{Arc, mpsc::Sender},
-};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
-use crate::{
-    ipc::message::Message,
-    ui::{
-        colors::Theme,
-        components::{footer::InfoFooter, header::Header, popover::get_popover_area},
-        store::{
-            Dispatcher,
-            action::Action,
-            state::{State, ViewID},
-        },
-        views::{
-            config::ConfigView,
-            device::DeviceView,
-            devices::DevicesView,
-            traits::{CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View},
-            view_select::ViewSelect,
-        },
+use crate::ui::{
+    colors::Theme,
+    components::{footer::InfoFooter, header::Header, popover::get_popover_area},
+    store::{
+        Dispatcher,
+        action::Action,
+        state::{State, ViewID},
+    },
+    views::{
+        config::ConfigView,
+        device::DeviceView,
+        devices::DevicesView,
+        traits::{CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View},
+        view_select::ViewSelect,
     },
 };
 
@@ -36,11 +29,10 @@ const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 pub struct App {
     dispatcher: Arc<dyn Dispatcher>,
     sub_views: HashMap<ViewID, Box<dyn View>>,
-    _tx: Sender<Message>,
 }
 
 impl App {
-    pub fn new(theme: Theme, dispatcher: Arc<dyn Dispatcher>, tx: Sender<Message>) -> Self {
+    pub fn new(theme: Theme, dispatcher: Arc<dyn Dispatcher>) -> Self {
         let mut sub_views: HashMap<ViewID, Box<dyn View>> = HashMap::new();
         let config = Box::new(ConfigView::new(Arc::clone(&dispatcher), theme));
         let device = Box::new(DeviceView::new(Arc::clone(&dispatcher)));
@@ -59,7 +51,6 @@ impl App {
         Self {
             dispatcher,
             sub_views,
-            _tx: tx,
         }
     }
 

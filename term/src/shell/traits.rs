@@ -1,5 +1,5 @@
 #[cfg(test)]
-use mockall::{automock, predicate::*};
+use mockall::automock;
 
 use color_eyre::eyre::Result;
 use r_lanlib::scanners::Device;
