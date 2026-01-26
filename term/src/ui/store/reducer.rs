@@ -14,10 +14,12 @@ pub struct Reducer {
 }
 
 impl Reducer {
+    /// Creates a new reducer with the given config manager for persistence.
     pub fn new(config_manager: Arc<Mutex<ConfigManager>>) -> Self {
         Self { config_manager }
     }
 
+    /// Applies an action to the state, mutating it in place.
     pub fn reduce(&self, state: &mut State, action: Action) {
         match action {
             // UI actions

@@ -1,3 +1,5 @@
+//! Scrollbar component for tables and lists.
+
 use ratatui::{
     layout::{Margin, Rect},
     style::Style,
@@ -6,9 +8,11 @@ use ratatui::{
 
 use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext};
 
+/// Vertical scrollbar positioned on the right side.
 pub struct ScrollBar {}
 
 impl ScrollBar {
+    /// Creates a new scrollbar.
     pub fn new() -> Self {
         Self {}
     }

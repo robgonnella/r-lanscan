@@ -24,6 +24,7 @@ pub struct Store {
 }
 
 impl Store {
+    /// Creates a new store with the given config manager and initial config.
     pub fn new(config_manager: Arc<Mutex<ConfigManager>>, current_config: Config) -> Self {
         let true_color_enabled = match supports_color::on(supports_color::Stream::Stdout) {
             Some(support) => support.has_16m,
@@ -59,6 +60,7 @@ impl Store {
         }
     }
 
+    /// Returns a clone of the current state.
     pub fn get_state(&self) -> Result<state::State> {
         let state = self
             .state

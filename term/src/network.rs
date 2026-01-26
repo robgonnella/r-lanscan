@@ -1,3 +1,8 @@
+//! Network monitoring and scanning orchestration.
+//!
+//! Runs continuous ARP and SYN scans to discover devices and open ports on
+//! the local network.
+
 use color_eyre::eyre::{Result, eyre};
 use r_lanlib::{
     network::{self, NetworkInterface},
@@ -25,6 +30,7 @@ use crate::{
     ui::store::{Dispatcher, Store, action::Action, derived::get_detected_arp_devices},
 };
 
+/// Runs an ARP scan and dispatches discovered devices to the store.
 pub fn process_arp(
     args: ARPScannerArgs,
     rx: Receiver<ScanMessage>,
@@ -64,6 +70,7 @@ pub fn process_arp(
     Ok(rx)
 }
 
+/// Runs a SYN scan on discovered devices and returns devices with open ports.
 pub fn process_syn(
     args: SYNScannerArgs,
     rx: Receiver<ScanMessage>,
@@ -128,6 +135,8 @@ pub fn process_syn(
     Ok(syn_results)
 }
 
+/// Main network monitoring loop. Continuously runs ARP and SYN scans,
+/// updating the store with discovered devices.
 pub fn monitor_network(
     exit: Receiver<()>,
     packet_reader: Arc<Mutex<dyn WireReader>>,

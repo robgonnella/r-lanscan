@@ -1,3 +1,5 @@
+//! Device state reducers for managing discovered network devices.
+
 use itertools::Itertools;
 use r_lanlib::scanners::{Device, Port};
 use std::{
@@ -9,6 +11,7 @@ use crate::{config::DeviceConfig, ui::store::state::State};
 
 const MAX_ARP_MISS: i8 = 3;
 
+/// Replaces all devices after a full scan, tracking devices that went missing.
 pub fn update_all_devices(state: &mut State, devices: HashMap<Ipv4Addr, Device>) {
     let mut new_arp_history: HashMap<Ipv4Addr, (Device, i8)> = HashMap::new();
 
@@ -31,6 +34,7 @@ pub fn update_all_devices(state: &mut State, devices: HashMap<Ipv4Addr, Device>)
     state.arp_history = new_arp_history;
 }
 
+/// Adds or updates a single device, merging open ports if already known.
 pub fn add_device(state: &mut State, device: Device) {
     let arp_device: Device = device.clone();
 
@@ -51,6 +55,7 @@ pub fn add_device(state: &mut State, device: Device) {
     state.sorted_device_list = state.device_map.values().cloned().sorted().collect();
 }
 
+/// Selects a device by IP, loading its config (or defaults).
 pub fn update_selected_device(state: &mut State, ip: Ipv4Addr) {
     if let Some(device) = state.device_map.get(&ip) {
         state.selected_device = Some(device.clone());

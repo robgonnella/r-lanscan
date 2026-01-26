@@ -1,3 +1,5 @@
+//! Shell command execution for SSH, traceroute, and browser launch.
+
 use color_eyre::eyre::Result;
 use r_lanlib::scanners::Device;
 use std::process::{ChildStderr, Command as ShellCommand, ExitStatus, Output, Stdio};
@@ -19,10 +21,12 @@ const fn browser_command() -> &'static str {
     "open"
 }
 
+/// Default implementation of `ShellExecutor` that spawns real shell commands.
 #[derive(Default)]
 pub struct Shell {}
 
 impl Shell {
+    /// Creates a new Shell instance.
     pub fn new() -> Self {
         Self {}
     }

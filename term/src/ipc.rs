@@ -1,4 +1,7 @@
-//! Event handling and command execution for the terminal UI.
+//! Inter-process communication between the renderer and main event handler.
+//!
+//! Provides thread-safe message passing for UI lifecycle events (pause/resume)
+//! and command execution requests.
 
 pub mod main;
 pub mod message;

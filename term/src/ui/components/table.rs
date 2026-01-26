@@ -1,3 +1,5 @@
+//! Scrollable table component with selection support.
+
 use std::cell::RefCell;
 
 use ratatui::{
@@ -15,10 +17,13 @@ use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext, Custom
 
 use super::scrollbar::ScrollBar;
 
+/// Default height for table rows.
 pub const DEFAULT_ITEM_HEIGHT: usize = 3;
+/// Maximum column width before truncation.
 pub const COLUMN_MAX_WIDTH: u16 = 50;
 const ELLIPSIS: &str = "…";
 
+/// Scrollable table with optional headers, row selection, and scrollbar.
 pub struct Table {
     headers: Option<Vec<String>>,
     items: Vec<Vec<String>>,
@@ -29,6 +34,8 @@ pub struct Table {
 }
 
 impl Table {
+    /// Creates a new table with the given items, optional headers, and column
+    /// sizes.
     pub fn new(
         items: Vec<Vec<String>>,
         headers: Option<Vec<String>>,
@@ -51,6 +58,8 @@ impl Table {
         }
     }
 
+    /// Updates the table items, adjusting selection if needed. Returns the new
+    /// selected index if changed.
     pub fn update_items(&mut self, items: Vec<Vec<String>>) -> Option<usize> {
         let mut selected: Option<usize> = None;
         let selection_opt = self.table_state.borrow().selected();
@@ -74,10 +83,12 @@ impl Table {
         selected
     }
 
+    /// Returns the currently selected row index, if any.
     pub fn selected(&self) -> Option<usize> {
         self.table_state.borrow().selected()
     }
 
+    /// Moves selection to the next row (wraps around).
     pub fn next(&mut self) -> usize {
         let i = match self.table_state.borrow().selected() {
             Some(i) => (i + 1) % self.items.len(),
@@ -96,6 +107,7 @@ impl Table {
         i
     }
 
+    /// Moves selection to the previous row (wraps around).
     pub fn previous(&mut self) -> usize {
         let i = match self.table_state.borrow().selected() {
             Some(i) => {

@@ -34,6 +34,7 @@ pub struct Config {
     pub device_configs: HashMap<String, DeviceConfig>,
 }
 
+/// Returns the default ports to scan as a vector of strings.
 pub fn get_default_ports() -> Vec<String> {
     DEFAULT_PORTS
         .iter()
@@ -42,6 +43,8 @@ pub fn get_default_ports() -> Vec<String> {
 }
 
 impl Config {
+    /// Creates a new config with defaults for the given user, identity, and
+    /// network CIDR.
     pub fn new(user: String, identity: String, cidr: String) -> Self {
         Self {
             id: DEFAULT_CONFIG_ID.to_string(),
@@ -114,16 +117,18 @@ impl ConfigManagerBuilder {
 }
 
 impl ConfigManager {
-    /// Returns a new instance of ConfigManagerBuilder
+    /// Returns a new instance of ConfigManagerBuilder.
     pub fn builder() -> ConfigManagerBuilder {
         ConfigManagerBuilder::default()
     }
 
+    /// Retrieves a config by its unique ID.
     pub fn get_by_id(&self, id: &str) -> Option<Config> {
         let c = self.configs.get(id);
         c.cloned()
     }
 
+    /// Retrieves a config by network CIDR.
     pub fn get_by_cidr(&self, cidr: &str) -> Option<Config> {
         let mut config: Option<Config> = None;
 
@@ -136,11 +141,13 @@ impl ConfigManager {
         config
     }
 
+    /// Creates a new config and persists it to disk.
     pub fn create(&mut self, config: &Config) -> Result<()> {
         self.configs.insert(config.id.clone(), config.clone());
         self.write()
     }
 
+    /// Updates an existing config and persists it to disk.
     pub fn update_config(&mut self, new_config: Config) -> Result<()> {
         self.configs.insert(new_config.id.clone(), new_config);
         self.write()

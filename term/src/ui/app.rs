@@ -1,3 +1,5 @@
+//! Main application widget and view router.
+
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode},
     layout::{Constraint, Layout, Rect},
@@ -26,12 +28,14 @@ use crate::ui::{
 
 const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 
+/// Root widget that manages views, handles global events, and renders layout.
 pub struct App {
     dispatcher: Arc<dyn Dispatcher>,
     sub_views: HashMap<ViewID, Box<dyn View>>,
 }
 
 impl App {
+    /// Creates a new app with the given theme and dispatcher.
     pub fn new(theme: Theme, dispatcher: Arc<dyn Dispatcher>) -> Self {
         let mut sub_views: HashMap<ViewID, Box<dyn View>> = HashMap::new();
         let config = Box::new(ConfigView::new(Arc::clone(&dispatcher), theme));
@@ -291,6 +295,7 @@ impl EventHandler for App {
     }
 }
 
+/// Trait combining rendering and event handling for the main application.
 pub trait Application: CustomWidgetRef + EventHandler {}
 
 impl Application for App {}

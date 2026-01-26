@@ -1,3 +1,5 @@
+//! View selection menu for switching between different views.
+
 use std::{cell::RefCell, sync::Arc};
 
 use itertools::Itertools;
@@ -10,6 +12,7 @@ use crate::ui::{
 
 use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
+/// Popover menu for selecting which view to display.
 pub struct ViewSelect {
     dispatcher: Arc<dyn Dispatcher>,
     view_ids: Vec<ViewID>,
@@ -17,6 +20,7 @@ pub struct ViewSelect {
 }
 
 impl ViewSelect {
+    /// Creates a new view selector with the given view options.
     pub fn new(view_ids: Vec<ViewID>, padding: usize, dispatcher: Arc<dyn Dispatcher>) -> Self {
         let mut spacer = String::from("");
 

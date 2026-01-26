@@ -26,6 +26,8 @@ pub struct MainEventHandler {
 }
 
 impl MainEventHandler {
+    /// Creates a new event handler with the given store, shell executor, and
+    /// IPC channels.
     pub fn new(store: Arc<Store>, executor: Box<dyn ShellExecutor>, ipc: MainIpc) -> Self {
         Self {
             store,
@@ -34,6 +36,8 @@ impl MainEventHandler {
         }
     }
 
+    /// Runs the main event loop, blocking until a quit message is received.
+    /// Dispatches commands to the appropriate handler (SSH, traceroute, browse).
     pub fn process_events(&self) -> Result<()> {
         loop {
             if let Ok(evt) = self.ipc.rx.recv() {

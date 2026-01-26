@@ -32,6 +32,9 @@ use crate::{
 };
 
 /// Main application coordinating rendering and event handling.
+///
+/// Manages the terminal lifecycle (raw mode, alternate screen) and runs the
+/// render loop that draws UI and processes input events.
 pub struct Renderer<B: Backend + std::io::Write> {
     terminal: RefCell<Terminal<B>>,
     store: Arc<Store>,
@@ -40,6 +43,7 @@ pub struct Renderer<B: Backend + std::io::Write> {
 }
 
 impl<B: Backend + std::io::Write> Renderer<B> {
+    /// Creates a new renderer with the given terminal, theme, store, and IPC.
     pub fn new(terminal: Terminal<B>, theme: Theme, store: Arc<Store>, ipc: RendererIpc) -> Self {
         Self {
             terminal: RefCell::new(terminal),
@@ -49,6 +53,8 @@ impl<B: Backend + std::io::Write> Renderer<B> {
         }
     }
 
+    /// Initializes the terminal and starts the render loop. Returns when the
+    /// user quits.
     pub fn launch(&self) -> Result<()> {
         enable_raw_mode().wrap_err("failed to enter raw mode")?;
         // Note we must use io::stdout() directly here. Using
