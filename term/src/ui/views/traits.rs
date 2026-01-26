@@ -5,7 +5,7 @@ use std::sync::mpsc::Sender;
 use ratatui::{crossterm::event::Event as CrossTermEvent, layout::Rect};
 
 use crate::{
-    events::types::Event,
+    ipc::message::Message,
     ui::store::state::{State, ViewID},
 };
 
@@ -24,7 +24,7 @@ pub struct CustomWidgetContext<'a> {
     // event producer - this how components and views can communicate user
     // behavior back to main loop to perform actions that aren't related to
     // state - executing a shell command
-    pub events: Sender<Event>,
+    pub ipc: Sender<Message>,
 }
 
 /// Owned widget that consumes self on render.

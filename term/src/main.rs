@@ -57,13 +57,16 @@ use ui::{
 
 use crate::{
     config::DEFAULT_CONFIG_ID,
+    shell::command::Command,
     ui::{colors::Theme, store::Dispatcher},
 };
 
 #[doc(hidden)]
 mod config;
 #[doc(hidden)]
-mod events;
+mod ipc;
+#[doc(hidden)]
+mod shell;
 #[doc(hidden)]
 mod ui;
 
@@ -408,10 +411,12 @@ fn main() -> Result<()> {
     let event_manager_channel = channel();
     let app_channel = channel();
 
-    let event_manager = events::manager::EventManager::new(
+    let executor = Command::new();
+    let event_manager = ipc::manager::IpcManager::new(
         app_channel.0,
         event_manager_channel.1,
         Arc::clone(&store),
+        Box::new(executor),
     );
 
     let application = app::create_app(event_manager_channel.0, app_channel.1, theme, store)?;

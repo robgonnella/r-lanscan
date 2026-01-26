@@ -95,7 +95,7 @@ fn test_view_select_view() {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                events: channel.0,
+                ipc: channel.0,
             };
 
             view_select.render_ref(frame.area(), frame.buffer_mut(), &ctx);

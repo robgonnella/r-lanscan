@@ -1,5 +1,6 @@
 use crate::{
-    events::types::{BrowseArgs, Command, Event},
+    ipc::message::{Command, Message},
+    shell::traits::BrowseArgs,
     ui::{
         components::{
             header::Header,
@@ -552,7 +553,7 @@ impl EventHandler for DeviceView {
                             if let Ok(port) = port_str.parse::<u16>()
                                 && let Some(selected) = ctx.state.selected_device.as_ref()
                             {
-                                let _ = ctx.events.send(Event::ExecCommand(Command::Browse(
+                                let _ = ctx.ipc.send(Message::ExecCommand(Command::Browse(
                                     BrowseArgs {
                                         device: selected.clone(),
                                         port,
@@ -606,7 +607,7 @@ impl EventHandler for DeviceView {
                     {
                         if ctx.state.cmd_in_progress.is_none() {
                             handled = true;
-                            let _ = ctx.events.send(Event::ExecCommand(Command::Ssh(
+                            let _ = ctx.ipc.send(Message::ExecCommand(Command::Ssh(
                                 selected.clone(),
                                 selected_config.clone(),
                             )));
@@ -616,8 +617,8 @@ impl EventHandler for DeviceView {
                             && let Some(selected) = ctx.state.selected_device.as_ref()
                         {
                             let _ = ctx
-                                .events
-                                .send(Event::ExecCommand(Command::TraceRoute(selected.clone())));
+                                .ipc
+                                .send(Message::ExecCommand(Command::TraceRoute(selected.clone())));
                             handled = true;
                         }
                     } else if c == 'b' {

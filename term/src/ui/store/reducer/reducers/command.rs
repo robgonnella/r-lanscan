@@ -1,6 +1,6 @@
 use std::process::Output;
 
-use crate::{events::types::Command, ui::store::state::State};
+use crate::{ipc::message::Command, ui::store::state::State};
 
 pub fn set_command_in_progress(state: &mut State, value: Option<Command>) {
     state.cmd_in_progress = value;

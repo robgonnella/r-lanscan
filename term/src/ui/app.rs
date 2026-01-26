@@ -27,7 +27,7 @@ use std::{
 };
 
 use crate::{
-    events::types::Event,
+    ipc::message::Message,
     ui::{
         colors::Theme,
         store::{Dispatcher, Store},
@@ -51,14 +51,14 @@ pub struct App {
     test_terminal: Option<Terminal<TestBackend>>,
     store: Arc<Store>,
     main_view: Box<dyn View>,
-    event_loop_sender: Sender<Event>,
-    event_loop_receiver: Receiver<Event>,
+    event_loop_sender: Sender<Message>,
+    event_loop_receiver: Receiver<Message>,
 }
 
 /// Creates and initializes the terminal application.
 pub fn create_app(
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
+    tx: Sender<Message>,
+    rx: Receiver<Message>,
     theme: Theme,
     store: Arc<Store>,
 ) -> Result<App> {
@@ -74,8 +74,8 @@ pub fn create_app(
 
 impl App {
     fn new(
-        tx: Sender<Event>,
-        rx: Receiver<Event>,
+        tx: Sender<Message>,
+        rx: Receiver<Message>,
         terminal: Terminal<Backend>,
         theme: Theme,
         store: Arc<Store>,
@@ -98,8 +98,8 @@ impl App {
     // not an ideal solution but okay for now
     #[cfg(test)]
     fn new_test(
-        tx: Sender<Event>,
-        rx: Receiver<Event>,
+        tx: Sender<Message>,
+        rx: Receiver<Message>,
         terminal: Terminal<Backend>,
         test_terminal: Terminal<TestBackend>,
         theme: Theme,
@@ -127,26 +127,26 @@ impl App {
 
             if state.ui_paused {
                 if let Ok(evt) = self.event_loop_receiver.recv()
-                    && evt == Event::ResumeUI
+                    && evt == Message::ResumeUI
                 {
                     self.restart()?;
                     self.store.dispatch(Action::SetUIPaused(false));
-                    self.event_loop_sender.send(Event::UIResumed)?;
+                    self.event_loop_sender.send(Message::UIResumed)?;
                     continue;
                 }
             } else if let Ok(evt) = self.event_loop_receiver.try_recv()
-                && evt == Event::PauseUI
+                && evt == Message::PauseUI
             {
                 self.pause()?;
                 self.store.dispatch(Action::SetUIPaused(true));
-                self.event_loop_sender.send(Event::UIPaused)?;
+                self.event_loop_sender.send(Message::UIPaused)?;
                 continue;
             }
 
             let mut ctx = CustomWidgetContext {
                 state: &state,
                 app_area: Rect::default(),
-                events: self.event_loop_sender.clone(),
+                ipc: self.event_loop_sender.clone(),
             };
 
             if self.test_terminal.is_some() {
@@ -154,22 +154,14 @@ impl App {
                 // not an ideal solution but okay for now
                 let mut terminal = self.test_terminal.clone().unwrap();
                 let _ = terminal.draw(|f| {
-                    ctx = CustomWidgetContext {
-                        state: &state,
-                        app_area: f.area(),
-                        events: self.event_loop_sender.clone(),
-                    };
+                    ctx.app_area = f.area();
                     self.main_view.render_ref(f.area(), f.buffer_mut(), &ctx)
                 });
                 return Ok(());
             }
 
             self.terminal.borrow_mut().draw(|f| {
-                ctx = CustomWidgetContext {
-                    state: &state,
-                    app_area: f.area(),
-                    events: self.event_loop_sender.clone(),
-                };
+                ctx.app_area = f.area();
                 self.main_view.render_ref(f.area(), f.buffer_mut(), &ctx)
             })?;
 
@@ -187,7 +179,7 @@ impl App {
                         KeyCode::Char('q') => {
                             // allow overriding q key
                             if !handled {
-                                self.event_loop_sender.send(Event::Quit)?;
+                                self.event_loop_sender.send(Message::Quit)?;
                                 return Ok(());
                             }
                         }
@@ -195,7 +187,7 @@ impl App {
                             // do not allow overriding ctrl-c
                             if key.modifiers == KeyModifiers::CONTROL {
                                 info!("APP RECEIVED CONTROL-C SEQUENCE");
-                                self.event_loop_sender.send(Event::Quit)?;
+                                self.event_loop_sender.send(Message::Quit)?;
                                 return Ok(());
                             }
                         }

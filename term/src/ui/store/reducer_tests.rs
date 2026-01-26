@@ -13,7 +13,8 @@ use r_lanlib::scanners::{Device, Port, PortSet};
 
 use crate::{
     config::{Config, ConfigManager, DeviceConfig},
-    events::types::{BrowseArgs, Command},
+    ipc::message::Command,
+    shell::traits::BrowseArgs,
     ui::{
         colors::{Colors, Theme},
         store::{

@@ -6,7 +6,7 @@ use r_lanlib::scanners::Device;
 
 use crate::{
     config::{Config, DeviceConfig},
-    events::types::Command,
+    ipc::message::Command,
     ui::colors::Theme,
 };
 

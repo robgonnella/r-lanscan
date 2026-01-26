@@ -60,7 +60,7 @@ fn test_config_view() {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                events: channel.0,
+                ipc: channel.0,
             };
 
             conf_view.render_ref(frame.area(), frame.buffer_mut(), &ctx);

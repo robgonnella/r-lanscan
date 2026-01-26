@@ -1,7 +1,6 @@
 //! Processes UI events and executes external commands.
 
 use color_eyre::eyre::Result;
-use mockall_double::double;
 use r_lanlib::scanners::Device;
 use std::{
     io::{BufReader, Read},
@@ -13,31 +12,32 @@ use std::{
 
 use crate::{
     config::DeviceConfig,
-    events::types::BrowseArgs,
+    shell::traits::{BrowseArgs, ShellExecutor},
     ui::store::{Dispatcher, Store, action::Action},
 };
 
-use super::types::{Command as AppCommand, Event};
-
-// double allows tests to use the mocked version of Commander
-#[double]
-use super::commander::Commander;
+use super::message::{Command as AppCommand, Message};
 
 /// Runs the event loop, handling UI pause/resume and command execution.
-pub struct EventManager {
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
+pub struct IpcManager {
+    tx: Sender<Message>,
+    rx: Receiver<Message>,
     store: Arc<Store>,
-    commander: Commander,
+    executor: Box<dyn ShellExecutor>,
 }
 
-impl EventManager {
-    pub fn new(tx: Sender<Event>, rx: Receiver<Event>, store: Arc<Store>) -> Self {
+impl IpcManager {
+    pub fn new(
+        tx: Sender<Message>,
+        rx: Receiver<Message>,
+        store: Arc<Store>,
+        executor: Box<dyn ShellExecutor>,
+    ) -> Self {
         Self {
             tx,
             rx,
             store,
-            commander: Commander::new(),
+            executor,
         }
     }
 
@@ -46,10 +46,10 @@ impl EventManager {
             if let Ok(evt) = self.rx.recv() {
                 // event loop
                 match evt {
-                    Event::ExecCommand(cmd) => {
+                    Message::ExecCommand(cmd) => {
                         let _ = self.handle_cmd(cmd);
                     }
-                    Event::Quit => return Ok(()),
+                    Message::Quit => return Ok(()),
                     _ => {}
                 }
             }
@@ -58,11 +58,11 @@ impl EventManager {
 
     fn pause_ui(&self) -> Result<()> {
         // send event to app thread to pause UI
-        self.tx.send(Event::PauseUI)?;
+        self.tx.send(Message::PauseUI)?;
         // wait for app to respond that UI has been paused
         loop {
             if let Ok(evt) = self.rx.recv()
-                && evt == Event::UIPaused
+                && evt == Message::UIPaused
             {
                 return Ok(());
             }
@@ -71,8 +71,8 @@ impl EventManager {
 
     fn handle_ssh(&self, device: &Device, device_config: &DeviceConfig) -> Result<()> {
         self.pause_ui()?;
-        let res = self.commander.ssh(device, device_config);
-        self.tx.send(Event::ResumeUI)?;
+        let res = self.executor.ssh(device, device_config);
+        self.tx.send(Message::ResumeUI)?;
         match res {
             Ok((status, err)) => {
                 if !status.success() {
@@ -96,7 +96,7 @@ impl EventManager {
     }
 
     fn handle_traceroute(&self, cmd: &AppCommand, device: &Device) -> Result<()> {
-        let exec = self.commander.traceroute(device);
+        let exec = self.executor.traceroute(device);
         match exec {
             Ok(output) => {
                 self.store
@@ -114,9 +114,9 @@ impl EventManager {
     fn handle_browse(&self, args: &BrowseArgs) -> Result<()> {
         self.pause_ui()?;
 
-        let res = self.commander.browse(args);
+        let res = self.executor.browse(args);
 
-        self.tx.send(Event::ResumeUI)?;
+        self.tx.send(Message::ResumeUI)?;
 
         match res {
             Ok((status, err)) => {
