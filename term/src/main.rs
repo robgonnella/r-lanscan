@@ -21,48 +21,46 @@
 //! ```
 
 use clap::Parser;
-use color_eyre::eyre::{ContextCompat, Report, Result, eyre};
+use color_eyre::eyre::{ContextCompat, Result, eyre};
 use config::{Config, ConfigManager};
-use core::time;
 use directories::ProjectDirs;
-use log::*;
+use r_lanlib::{
+    network::{NetworkInterface, get_default_interface},
+    packet,
+};
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
-    any::Any,
-    collections::HashMap,
     fs, io,
-    net::Ipv4Addr,
     sync::{
         Arc, Mutex,
-        mpsc::{self, Receiver, channel},
+        mpsc::{self, channel},
     },
     thread,
 };
 
-use r_lanlib::{
-    network::{self, NetworkInterface},
-    packet::{self, Reader as WireReader, Sender as WireSender},
-    scanners::{
-        Device, IDLE_TIMEOUT, PortSet, ScanMessage, Scanner,
-        arp_scanner::{ARPScanner, ARPScannerArgs},
-        syn_scanner::{SYNScanner, SYNScannerArgs},
-    },
-    targets::{ips::IPTargets, ports::PortTargets},
-};
-
-use ui::store::{Store, action::Action, derived::get_detected_arp_devices};
+use ui::store::{Store, action::Action};
 
 use crate::{
     config::DEFAULT_CONFIG_ID,
-    shell::command::Command,
+    ipc::{
+        main::{MainIpc, MainReceiver, MainSender},
+        renderer::{RendererIpc, RendererReceiver, RendererSender},
+    },
+    shell::Shell,
     ui::{colors::Theme, store::Dispatcher},
 };
 
 #[doc(hidden)]
 mod config;
 #[doc(hidden)]
+mod error;
+#[doc(hidden)]
 mod ipc;
+#[doc(hidden)]
+mod main_event_handler;
+#[doc(hidden)]
+mod network;
 #[doc(hidden)]
 mod renderer;
 #[doc(hidden)]
@@ -117,188 +115,6 @@ fn get_project_config_path() -> Result<String> {
         .ok_or(eyre!("unable to construct config file path"))?
         .to_string();
     Ok(config_file_path)
-}
-
-#[doc(hidden)]
-fn report_from_thread_panic(e: Box<dyn Any + Send>) -> Report {
-    if let Some(value) = e.downcast_ref::<&str>() {
-        eyre!("thread panicked with {value}")
-    } else if let Some(value) = e.downcast_ref::<&String>() {
-        eyre!("thread panicked with {value}")
-    } else {
-        eyre!("thread panicked for unknown reason")
-    }
-}
-
-#[doc(hidden)]
-fn process_arp(
-    args: ARPScannerArgs,
-    rx: Receiver<ScanMessage>,
-    dispatcher: Arc<dyn Dispatcher>,
-) -> Result<Receiver<ScanMessage>> {
-    let scanner = ARPScanner::new(args);
-
-    dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
-        "Performing ARP Scan…",
-    ))));
-
-    let handle = scanner.scan();
-
-    loop {
-        let msg = rx.recv()?;
-
-        match msg {
-            ScanMessage::Done => {
-                debug!("scanning complete");
-                break;
-            }
-            ScanMessage::ARPScanDevice(d) => {
-                debug!("received scanning message: {:?}", d);
-                dispatcher.dispatch(Action::AddDevice(d));
-            }
-            _ => {}
-        }
-    }
-
-    debug!("waiting for arp handle to finish");
-
-    handle.join().map_err(report_from_thread_panic)??;
-
-    dispatcher.dispatch(Action::UpdateMessage(None));
-
-    debug!("finished arp scan");
-    Ok(rx)
-}
-
-#[doc(hidden)]
-fn process_syn(
-    args: SYNScannerArgs,
-    rx: Receiver<ScanMessage>,
-    store: Arc<Store>,
-) -> Result<HashMap<Ipv4Addr, Device>> {
-    let state = store.get_state()?;
-    let arp_devices = get_detected_arp_devices(&state);
-    let mut syn_results: HashMap<Ipv4Addr, Device> = HashMap::new();
-
-    for d in arp_devices.iter() {
-        syn_results.insert(
-            d.ip,
-            Device {
-                hostname: d.hostname.to_owned(),
-                ip: d.ip.to_owned(),
-                mac: d.mac.to_owned(),
-                vendor: d.vendor.to_owned(),
-                is_current_host: d.is_current_host,
-                open_ports: PortSet::new(),
-            },
-        );
-    }
-
-    let scanner = SYNScanner::new(args);
-
-    debug!("starting syn scan");
-    store.dispatch(Action::UpdateMessage(Some(String::from(
-        "Performing SYN Scan…",
-    ))));
-
-    let handle = scanner.scan();
-
-    loop {
-        let msg = rx.recv()?;
-
-        match msg {
-            ScanMessage::Done => {
-                debug!("scanning complete");
-                break;
-            }
-            ScanMessage::SYNScanDevice(device) => {
-                debug!("received syn scanning device: {:?}", device);
-                let result = syn_results.get_mut(&device.ip);
-                match result {
-                    Some(d) => {
-                        d.open_ports.0.extend(device.open_ports.0);
-                        store.dispatch(Action::AddDevice(d.clone()));
-                    }
-                    None => {
-                        warn!("received syn result for unknown device: {:?}", device);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    handle.join().map_err(report_from_thread_panic)??;
-
-    store.dispatch(Action::UpdateMessage(None));
-
-    Ok(syn_results)
-}
-
-#[doc(hidden)]
-fn monitor_network(
-    exit: Receiver<()>,
-    packet_reader: Arc<Mutex<dyn WireReader>>,
-    packet_sender: Arc<Mutex<dyn WireSender>>,
-    config: Config,
-    interface: Arc<NetworkInterface>,
-    store: Arc<Store>,
-) -> Result<()> {
-    info!("starting network monitor");
-
-    loop {
-        let res = exit.try_recv();
-
-        if res.is_ok() {
-            return Ok(());
-        }
-
-        let source_port = network::get_available_port()?;
-
-        let (tx, rx) = mpsc::channel::<ScanMessage>();
-
-        let rx = process_arp(
-            ARPScannerArgs {
-                interface: &interface,
-                packet_reader: Arc::clone(&packet_reader),
-                packet_sender: Arc::clone(&packet_sender),
-                targets: IPTargets::new(vec![interface.cidr.clone()])
-                    .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
-                include_host_names: true,
-                include_vendor: true,
-                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-                source_port,
-                notifier: tx.clone(),
-            },
-            rx,
-            Arc::clone(&store) as Arc<dyn Dispatcher>,
-        )?;
-
-        let state = store.get_state()?;
-        let arp_devices = get_detected_arp_devices(&state);
-
-        let results = process_syn(
-            SYNScannerArgs {
-                interface: &interface,
-                packet_reader: Arc::clone(&packet_reader),
-                packet_sender: Arc::clone(&packet_sender),
-                targets: arp_devices,
-                ports: PortTargets::new(config.ports.clone())
-                    .map_err(|e| eyre!("Invalid port targets: {}", e))?,
-                source_port,
-                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-                notifier: tx.clone(),
-            },
-            rx,
-            Arc::clone(&store),
-        )?;
-
-        store.dispatch(Action::UpdateAllDevices(results));
-
-        debug!("network scan completed");
-
-        thread::sleep(time::Duration::from_secs(15));
-    }
 }
 
 #[doc(hidden)]
@@ -373,19 +189,18 @@ fn main() -> Result<()> {
         return Err(eyre!("permission denied: must run with root privileges"));
     }
 
-    let interface = network::get_default_interface()
+    let interface = get_default_interface()
         .ok_or_else(|| eyre!("Could not detect default network interface"))?;
     let (config, store) = init(&args, &interface)?;
     let theme = Theme::from_string(&config.theme);
     let (_, exit_rx) = mpsc::channel();
-
     let wire = packet::wire::default(&interface)?;
-
     let net_monitor_store = Arc::clone(&store);
+
     // ignore handle here - we will forcefully exit instead of waiting
     // for scan to finish
     thread::spawn(move || -> Result<()> {
-        monitor_network(
+        network::monitor_network(
             exit_rx,
             wire.0,
             wire.1,
@@ -408,32 +223,36 @@ fn main() -> Result<()> {
     // to our app where we can restart our ui and key-handlers
     ctrlc::set_handler(move || println!("captured ctrl-c!"))?;
 
-    let event_manager_channel = channel();
-    let app_channel = channel();
+    let (renderer_tx, renderer_rx) = channel();
+    let (main_tx, main_rx) = channel();
 
-    let executor = Command::new();
-    let event_manager = ipc::manager::IpcManager::new(
-        app_channel.0,
-        event_manager_channel.1,
-        Arc::clone(&store),
-        Box::new(executor),
+    let renderer_ipc = RendererIpc::new(
+        Box::new(RendererSender::new(main_tx)),
+        Box::new(RendererReceiver::new(renderer_rx)),
+    );
+
+    let main_ipc = MainIpc::new(
+        Box::new(MainSender::new(renderer_tx)),
+        Box::new(MainReceiver::new(main_rx)),
     );
 
     let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
     let terminal = Terminal::new(backend)?;
-    let app_renderer = renderer::Renderer::new(
-        event_manager_channel.0,
-        app_channel.1,
-        terminal,
-        theme,
-        store,
-    );
 
-    let event_handle = thread::spawn(move || event_manager.start_event_loop());
+    let app_renderer = renderer::Renderer::new(terminal, theme, Arc::clone(&store), renderer_ipc);
+
+    let handler = main_event_handler::MainEventHandler::new(
+        Arc::clone(&store),
+        Box::new(Shell::new()),
+        main_ipc,
+    );
+    let event_handle = thread::spawn(move || handler.process_events());
 
     app_renderer.launch()?;
-    event_handle.join().map_err(report_from_thread_panic)??;
+    event_handle
+        .join()
+        .map_err(error::report_from_thread_panic)??;
     Ok(())
 }
 

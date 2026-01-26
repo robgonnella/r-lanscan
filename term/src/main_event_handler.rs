@@ -4,52 +4,45 @@ use color_eyre::eyre::Result;
 use r_lanlib::scanners::Device;
 use std::{
     io::{BufReader, Read},
-    sync::{
-        Arc,
-        mpsc::{Receiver, Sender},
-    },
+    sync::Arc,
+    time::{Duration, Instant},
 };
 
 use crate::{
     config::DeviceConfig,
+    ipc::{
+        main::MainIpc,
+        message::{Command as AppCommand, MainMessage, RendererMessage},
+    },
     shell::traits::{BrowseArgs, ShellExecutor},
     ui::store::{Dispatcher, Store, action::Action},
 };
 
-use super::message::{Command as AppCommand, Message};
-
 /// Runs the event loop, handling UI pause/resume and command execution.
-pub struct IpcManager {
-    tx: Sender<Message>,
-    rx: Receiver<Message>,
+pub struct MainEventHandler {
     store: Arc<Store>,
     executor: Box<dyn ShellExecutor>,
+    ipc: MainIpc,
 }
 
-impl IpcManager {
-    pub fn new(
-        tx: Sender<Message>,
-        rx: Receiver<Message>,
-        store: Arc<Store>,
-        executor: Box<dyn ShellExecutor>,
-    ) -> Self {
+impl MainEventHandler {
+    pub fn new(store: Arc<Store>, executor: Box<dyn ShellExecutor>, ipc: MainIpc) -> Self {
         Self {
-            tx,
-            rx,
             store,
             executor,
+            ipc,
         }
     }
 
-    pub fn start_event_loop(&self) -> Result<()> {
+    pub fn process_events(&self) -> Result<()> {
         loop {
-            if let Ok(evt) = self.rx.recv() {
+            if let Ok(evt) = self.ipc.rx.recv() {
                 // event loop
                 match evt {
-                    Message::ExecCommand(cmd) => {
+                    MainMessage::ExecCommand(cmd) => {
                         let _ = self.handle_cmd(cmd);
                     }
-                    Message::Quit => return Ok(()),
+                    MainMessage::Quit => return Ok(()),
                     _ => {}
                 }
             }
@@ -58,11 +51,17 @@ impl IpcManager {
 
     fn pause_ui(&self) -> Result<()> {
         // send event to app thread to pause UI
-        self.tx.send(Message::PauseUI)?;
+        self.ipc.tx.send(RendererMessage::PauseUI)?;
+        let start = Instant::now();
+        let timeout = Duration::from_millis(5000);
         // wait for app to respond that UI has been paused
         loop {
-            if let Ok(evt) = self.rx.recv()
-                && evt == Message::UIPaused
+            // continue if we're stuck waiting for UI to respond
+            if start.elapsed() >= timeout {
+                return Ok(());
+            }
+            if let Ok(evt) = self.ipc.rx.recv()
+                && evt == MainMessage::UIPaused
             {
                 return Ok(());
             }
@@ -72,7 +71,7 @@ impl IpcManager {
     fn handle_ssh(&self, device: &Device, device_config: &DeviceConfig) -> Result<()> {
         self.pause_ui()?;
         let res = self.executor.ssh(device, device_config);
-        self.tx.send(Message::ResumeUI)?;
+        self.ipc.tx.send(RendererMessage::ResumeUI)?;
         match res {
             Ok((status, err)) => {
                 if !status.success() {
@@ -116,7 +115,7 @@ impl IpcManager {
 
         let res = self.executor.browse(args);
 
-        self.tx.send(Message::ResumeUI)?;
+        self.ipc.tx.send(RendererMessage::ResumeUI)?;
 
         match res {
             Ok((status, err)) => {
@@ -163,5 +162,5 @@ impl IpcManager {
 }
 
 #[cfg(test)]
-#[path = "./manager_tests.rs"]
+#[path = "./main_event_handler_tests.rs"]
 mod tests;

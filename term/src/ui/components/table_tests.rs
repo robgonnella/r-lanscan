@@ -1,4 +1,7 @@
-use crate::ui::store::state::State;
+use crate::{
+    ipc::{message::MainMessage, traits::MockIpcSender},
+    ui::store::state::State,
+};
 
 use super::*;
 use insta::assert_snapshot;
@@ -11,7 +14,7 @@ fn renders_table_component() {
     let col_sizes = vec![10];
     let table = Table::new(items, headers, col_sizes, 2);
     let state = State::default();
-    let channel = std::sync::mpsc::channel();
+    let sender = MockIpcSender::<MainMessage>::new();
     let mut terminal = Terminal::new(TestBackend::new(80, 10)).unwrap();
 
     terminal
@@ -19,7 +22,7 @@ fn renders_table_component() {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                ipc: channel.0,
+                ipc: Box::new(sender),
             };
 
             table.render_ref(frame.area(), frame.buffer_mut(), &ctx);
