@@ -7,14 +7,19 @@ way to discover, monitor, and connect to devices on your local network.
 
 ## Features
 
-- **Interactive Device Discovery**: Real-time ARP and SYN scanning with live updates
-- **Device Management**: View detailed information about discovered network devices
+- **Interactive Device Discovery**: Real-time ARP and SYN scanning with live
+  updates
+- **Device Management**: View detailed information about discovered network
+  devices
 - **SSH Integration**: Connect to devices via SSH with configurable credentials
 - **Network Diagnostics**: Run traceroute commands directly from the interface
-- **Web Browsing**: Open terminal web browser (lynx) on any port for any device
-- **Persistent Configuration**: Save global and device-specific SSH configurations
+- **Web Browsing**: Open web browser on any port for any device (supports
+  system default browser or lynx)
+- **Persistent Configuration**: Save global and device-specific SSH
+  configurations
 - **Customizable Themes**: Multiple color themes (Blue, Emerald, Indigo, Red)
-- **Port Scanning**: Configurable port ranges for comprehensive network analysis
+- **Port Scanning**: Configurable port ranges for comprehensive network
+  analysis
 - **Vendor Detection**: MAC address vendor lookup for device identification
 - **Hostname Resolution**: Automatic DNS resolution for discovered devices
 
@@ -25,7 +30,7 @@ way to discover, monitor, and connect to devices on your local network.
 - **External tools** (optional but recommended):
   - `ssh` - For SSH connections to devices
   - `traceroute` - For network path analysis
-  - `lynx` - For terminal web browsing
+  - `lynx` - For in-terminal web browsing (system browser works without this)
 
 ## Installation
 
@@ -117,12 +122,13 @@ The application provides several interactive views:
 #### 2. Device Detail View
 
 - **Purpose**: Detailed information and actions for a specific device
-- **Features**: SSH connection, traceroute, port browsing, device configuration
+- **Features**: SSH connection, traceroute, port browsing, device
+  configuration
 
 #### 3. Configuration View
 
 - **Purpose**: Manage global and device-specific settings
-- **Options**: SSH credentials, port ranges, themes, network settings
+- **Options**: SSH credentials, port ranges, themes
 
 ### Navigation and Controls
 
@@ -154,7 +160,7 @@ The application provides several interactive views:
 - **`Shift+Tab`** - Focus previous input field
 - **`Enter`** - Save configuration
 - **`Esc`** - Exit configuration mode
-- **`← / →`** - Navigate theme colors (when in theme selection)
+- **`← / →`** - Navigate theme colors (when in theme field)
 - **`Backspace`** - Delete character in input fields
 
 ## Configuration
@@ -212,7 +218,8 @@ Available color themes:
 - **Indigo**: Purple/indigo color scheme
 - **Red**: Red-based color scheme
 
-Themes automatically adapt to terminal capabilities (true color vs basic colors).
+Themes automatically adapt to terminal capabilities (true color vs basic
+colors).
 
 ## Features in Detail
 
@@ -223,7 +230,7 @@ r-lanterm continuously monitors your network:
 1. **Initial Scan**: Comprehensive ARP + SYN scan on startup
 2. **Periodic Updates**: Rescans every 15 seconds to detect changes
 3. **Real-time Updates**: Live display of scan progress and results
-4. **Device Tracking**: Maintains persistent device information
+4. **Device Tracking**: Maintains device information across scans
 
 ### SSH Integration
 
@@ -262,12 +269,12 @@ r-lanterm continuously monitors your network:
 
 ### Web Browsing
 
-**Prerequisites**: `lynx` terminal web browser must be installed
+**Prerequisites**: `lynx` terminal browser (optional, for in-terminal browsing)
 
 **Features**:
 
 - Browse web interfaces on any device port
-- Terminal-based browsing with lynx
+- Choose between system default browser or lynx (terminal-based)
 - Custom port specification
 - Useful for router admin interfaces, web servers, etc.
 
@@ -275,8 +282,9 @@ r-lanterm continuously monitors your network:
 
 1. Select device in Device Detail view
 2. Press `b` to browse
-3. Enter port number when prompted
-4. Press `Enter` to launch lynx
+3. Select browser type (default or lynx) using arrow keys
+4. Enter port number
+5. Press `Enter` to launch browser
 
 ### Port Scanning
 
@@ -483,16 +491,10 @@ at your option.
 
 ## Related Tools
 
-- **[r-lanlib](../lib/README.md)**: The underlying Rust library powering this application
+- **[r-lanlib](../lib/README.md)**: The underlying Rust library powering this
+  application
 - **[r-lancli](../cli/README.md)**: Command-line interface for batch scanning
-- **SSH clients**: Works with any SSH client (OpenSSH, PuTTY, etc.)
-
-### Optional External Tools
-
-- `ssh`: SSH client for device connections
-- `traceroute`: Network path analysis
-- `lynx`: Terminal web browser
 
 ## Changelog
 
-This is version 0.1.0 - the initial Rust implementation, representing a complete rewrite and improvement over the original Go-based [ops](https://github.com/robgonnella/ops) tool.
+See [CHANGELOG.md](./CHANGELOG.md) for version history.
