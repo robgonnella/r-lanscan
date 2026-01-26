@@ -26,11 +26,12 @@ use config::{Config, ConfigManager};
 use core::time;
 use directories::ProjectDirs;
 use log::*;
+use ratatui::{Terminal, prelude::CrosstermBackend};
 use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
     any::Any,
     collections::HashMap,
-    fs,
+    fs, io,
     net::Ipv4Addr,
     sync::{
         Arc, Mutex,
@@ -418,16 +419,20 @@ fn main() -> Result<()> {
         Box::new(executor),
     );
 
-    let cross_term_renderer = renderer::cross_term::create_renderer(
+    let stdout = io::stdout();
+    let backend = CrosstermBackend::new(stdout);
+    let terminal = Terminal::new(backend)?;
+    let app_renderer = renderer::Renderer::new(
         event_manager_channel.0,
         app_channel.1,
+        terminal,
         theme,
         store,
-    )?;
+    );
 
     let event_handle = thread::spawn(move || event_manager.start_event_loop());
 
-    cross_term_renderer.launch()?;
+    app_renderer.launch()?;
     event_handle.join().map_err(report_from_thread_panic)??;
     Ok(())
 }
