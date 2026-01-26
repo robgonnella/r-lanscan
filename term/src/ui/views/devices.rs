@@ -146,11 +146,15 @@ impl EventHandler for DevicesView {
                 if key.kind == KeyEventKind::Press {
                     match key.code {
                         KeyCode::Char('j') | KeyCode::Down => {
-                            self.next();
+                            if !ctx.state.device_map.is_empty() {
+                                self.next();
+                            }
                             handled = true;
                         }
                         KeyCode::Char('k') | KeyCode::Up => {
-                            self.previous();
+                            if !ctx.state.device_map.is_empty() {
+                                self.previous();
+                            }
                             handled = true;
                         }
                         KeyCode::Enter => {
