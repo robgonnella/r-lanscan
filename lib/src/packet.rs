@@ -15,13 +15,13 @@ pub const DEFAULT_PACKET_SEND_TIMING: time::Duration =
     time::Duration::from_micros(50);
 
 /// Trait describing a packet reader
-pub trait Reader: Send + Sync {
+pub trait Reader: Send {
     /// Should return the next packet off of the wire
     fn next_packet(&mut self) -> Result<&[u8]>;
 }
 
 /// Trait describing a packet sender
-pub trait Sender: Send + Sync {
+pub trait Sender: Send {
     /// Should send a packet over the wire
     fn send(&mut self, packet: &[u8]) -> Result<()>;
 }

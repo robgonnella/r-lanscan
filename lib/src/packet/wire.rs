@@ -26,8 +26,6 @@ impl Reader for PNetReader {
     }
 }
 
-unsafe impl Sync for PNetReader {}
-
 /// A PNetSender implementation of packet Sender
 pub struct PNetSender {
     sender: Box<dyn datalink::DataLinkSender>,
@@ -45,8 +43,6 @@ impl Sender for PNetSender {
         }
     }
 }
-
-unsafe impl Sync for PNetSender {}
 
 /// Returns the default wire for current host
 ///
