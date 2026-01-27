@@ -85,7 +85,7 @@ impl<'n> SYNScanner<'n> {
     fn read_packets(
         &self,
         done_rx: mpsc::Receiver<()>,
-    ) -> JoinHandle<Result<()>> {
+    ) -> Result<JoinHandle<Result<()>>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let heartbeat_packet_sender = Arc::clone(&self.packet_sender);
         let rst_packet_sender = Arc::clone(&self.packet_sender);
@@ -98,33 +98,16 @@ impl<'n> SYNScanner<'n> {
         let source_port = self.source_port;
         let (heartbeat_tx, heartbeat_rx) = sync::mpsc::channel::<()>();
 
-        // since reading packets off the wire is a blocking operation, we
-        // won't be able to detect a "done" signal if no packets are being
-        // received as we'll be blocked on waiting for one to come it. To fix
-        // this we send periodic "heartbeat" packets so we can continue to
-        // check for "done" signals
-        thread::spawn(move || -> Result<()> {
-            debug!("starting syn heartbeat thread");
-            let heartbeat = HeartBeat::builder()
-                .source_mac(source_mac)
-                .source_ipv4(source_ipv4)
-                .source_port(source_port)
-                .packet_sender(heartbeat_packet_sender)
-                .build()?;
+        let heartbeat = HeartBeat::builder()
+            .source_mac(source_mac)
+            .source_ipv4(source_ipv4)
+            .source_port(source_port)
+            .packet_sender(heartbeat_packet_sender)
+            .build()?;
 
-            let interval = Duration::from_secs(1);
-            loop {
-                if heartbeat_rx.try_recv().is_ok() {
-                    debug!("stopping syn heartbeat");
-                    return Ok(());
-                }
-                debug!("sending syn heartbeat");
-                heartbeat.beat();
-                thread::sleep(interval);
-            }
-        });
+        heartbeat.start_in_thread(heartbeat_rx)?;
 
-        thread::spawn(move || -> Result<()> {
+        Ok(thread::spawn(move || -> Result<()> {
             let mut reader = packet_reader.lock()?;
 
             loop {
@@ -217,7 +200,7 @@ impl<'n> SYNScanner<'n> {
             }
 
             Ok(())
-        })
+        }))
     }
 }
 
@@ -239,7 +222,7 @@ impl Scanner for SYNScanner<'_> {
         let idle_timeout = self.idle_timeout;
         let source_port = self.source_port;
 
-        let read_handle = self.read_packets(done_rx);
+        let read_handle = self.read_packets(done_rx)?;
 
         // prevent blocking thread so messages can be freely sent to consumer
         let handle = thread::spawn(move || -> Result<()> {
