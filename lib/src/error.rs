@@ -16,7 +16,10 @@ use crate::{
         heartbeat_packet::HeartbeatPacketBuilderError,
         rst_packet::RstPacketBuilderError, syn_packet::SynPacketBuilderError,
     },
-    scanners::ScanMessage,
+    scanners::{
+        ScanMessage, arp_scanner::ARPScannerBuilderError,
+        heartbeat::HeartBeatBuilderError, syn_scanner::SYNScannerBuilderError,
+    },
 };
 
 /// Custom Error type for this library
@@ -49,6 +52,18 @@ pub enum RLanLibError {
     /// Error generated during ARP packet construction
     #[error("failed to build ARP packet: {_0}")]
     ArpPacketBuild(#[from] ArpPacketBuilderError),
+
+    /// Error resulting from failure to build ARP scanner
+    #[error("failed to build arp scanner: {_0}")]
+    ArpScannerBuild(#[from] ARPScannerBuilderError),
+
+    /// Error resulting from failure to build SYN scanner
+    #[error("failed to build syn scanner: {_0}")]
+    SynScannerBuild(#[from] SYNScannerBuilderError),
+
+    /// Error resulting from failure to build Heartbeat
+    #[error("failed to build heartbeat: {_0}")]
+    HeartBeatBuild(#[from] HeartBeatBuilderError),
 
     /// Error generated during RST packet construction
     #[error("failed to build RST packet: {_0}")]

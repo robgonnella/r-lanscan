@@ -1,5 +1,6 @@
 //! Provides Scanner implementation for ARP scanning
 
+use derive_builder::Builder;
 use log::*;
 use pnet::packet::{Packet, arp, ethernet};
 use std::{
@@ -21,63 +22,35 @@ use crate::{
 use super::{ScanMessage, Scanner, heartbeat::HeartBeat};
 
 /// Data structure representing an ARP scanner
+#[derive(Builder)]
+#[builder(setter(into))]
 pub struct ARPScanner<'net> {
+    /// Network interface to use for scanning
     interface: &'net NetworkInterface,
+    /// Packet reader for receiving ARP replies
     packet_reader: Arc<Mutex<dyn Reader>>,
+    /// Packet sender for transmitting ARP requests
     packet_sender: Arc<Mutex<dyn Sender>>,
+    /// IP targets to scan
     targets: Arc<IPTargets>,
+    /// Source port for packet listener and incoming packet identification
     source_port: u16,
+    /// Whether to include vendor lookups for discovered devices
     include_vendor: bool,
+    /// Whether to include hostname lookups for discovered devices
     include_host_names: bool,
+    /// Duration to wait for responses after scanning completes
     idle_timeout: Duration,
+    /// Channel for sending scan results and status messages
     notifier: sync::mpsc::Sender<ScanMessage>,
 }
 
-/// Data structure holding parameters needed to create instance of ARPScanner
-pub struct ARPScannerArgs<'net> {
-    /// The network interface to use when scanning
-    pub interface: &'net NetworkInterface,
-    /// A packet Reader implementation (can use default provided in packet
-    /// crate)
-    pub packet_reader: Arc<Mutex<dyn Reader>>,
-    /// A packet Sender implementation (can use default provided in packet
-    /// crate)
-    pub packet_sender: Arc<Mutex<dyn Sender>>,
-    /// [`IPTargets`] to scan
-    pub targets: Arc<IPTargets>,
-    /// An open source port to listen for incoming packets (can use network
-    /// packet to find open port)
-    pub source_port: u16,
-    /// Whether or not to include vendor look-ups for detected devices
-    pub include_vendor: bool,
-    /// Whether or not to include hostname look-ups for detected devices
-    pub include_host_names: bool,
-    /// The amount of time to wait for incoming packets after scanning all
-    /// targets
-    pub idle_timeout: Duration,
-    /// Channel to send messages regarding devices being scanned, and detected
-    /// devices
-    pub notifier: sync::mpsc::Sender<ScanMessage>,
-}
-
-impl<'net> ARPScanner<'net> {
-    /// Returns an instance of ARPScanner
-    pub fn new(args: ARPScannerArgs<'net>) -> Self {
-        Self {
-            interface: args.interface,
-            packet_reader: args.packet_reader,
-            packet_sender: args.packet_sender,
-            targets: args.targets,
-            source_port: args.source_port,
-            include_vendor: args.include_vendor,
-            include_host_names: args.include_host_names,
-            idle_timeout: args.idle_timeout,
-            notifier: args.notifier,
-        }
+impl<'n> ARPScanner<'n> {
+    /// Returns builder for ARPScanner
+    pub fn builder() -> ARPScannerBuilder<'n> {
+        ARPScannerBuilder::default()
     }
-}
 
-impl ARPScanner<'_> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(
@@ -99,19 +72,20 @@ impl ARPScanner<'_> {
         // received as we'll be blocked on waiting for one to come it. To fix
         // this we send periodic "heartbeat" packets so we can continue to
         // check for "done" signals
-        thread::spawn(move || {
+        thread::spawn(move || -> Result<()> {
             debug!("starting arp heartbeat thread");
-            let heartbeat = HeartBeat::new(
-                source_mac,
-                source_ipv4,
-                source_port,
-                packet_sender,
-            );
+            let heartbeat = HeartBeat::builder()
+                .source_mac(source_mac)
+                .source_ipv4(source_ipv4)
+                .source_port(source_port)
+                .packet_sender(packet_sender)
+                .build()?;
+
             let interval = Duration::from_secs(1);
             loop {
                 if heartbeat_rx.try_recv().is_ok() {
                     debug!("stopping arp heartbeat");
-                    break;
+                    return Ok(());
                 }
                 debug!("sending arp heartbeat");
                 heartbeat.beat();
@@ -193,7 +167,7 @@ impl ARPScanner<'_> {
 
 // Implements the Scanner trait for ARPScanner
 impl Scanner for ARPScanner<'_> {
-    fn scan(&self) -> JoinHandle<Result<()>> {
+    fn scan(&self) -> Result<JoinHandle<Result<()>>> {
         debug!("performing ARP scan on targets: {:?}", self.targets);
         debug!("include_vendor: {}", self.include_vendor);
         debug!("include_host_names: {}", self.include_host_names);
@@ -209,7 +183,7 @@ impl Scanner for ARPScanner<'_> {
         let read_handle = self.read_packets(done_rx);
 
         // prevent blocking thread so messages can be freely sent to consumer
-        thread::spawn(move || -> Result<()> {
+        let scan_handle = thread::spawn(move || -> Result<()> {
             let process_target = |target_ipv4: net::Ipv4Addr| {
                 // throttle packet sending to prevent packet loss
                 thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
@@ -263,7 +237,9 @@ impl Scanner for ARPScanner<'_> {
             }
 
             read_result
-        })
+        });
+
+        Ok(scan_handle)
     }
 }
 

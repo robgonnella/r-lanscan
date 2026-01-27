@@ -42,8 +42,11 @@ use r_lanlib::{network, packet, scanners::*};
 
 // Discover devices on your network
 let interface = network::get_default_interface()?;
-let scanner = ARPScanner::new(/* ... */);
-let devices = scanner.scan()?;
+let scanner = ARPScanner::builder()
+    .interface(&interface)
+    // ... configure options
+    .build()?;
+let handle = scanner.scan()?;
 ```
 
 **Key Features:**

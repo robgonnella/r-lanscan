@@ -24,23 +24,26 @@ const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 #[test]
 fn new() {
     let interface = network::get_default_interface().unwrap();
-    let sender = Arc::new(Mutex::new(MockPacketSender::new()));
-    let receiver = Arc::new(Mutex::new(MockPacketReader::new()));
+    let sender: Arc<Mutex<dyn Sender>> =
+        Arc::new(Mutex::new(MockPacketSender::new()));
+    let receiver: Arc<Mutex<dyn Reader>> =
+        Arc::new(Mutex::new(MockPacketReader::new()));
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]).unwrap();
     let (tx, _) = channel();
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: receiver,
-        packet_sender: sender,
-        targets,
-        source_port: 54321,
-        include_vendor: true,
-        include_host_names: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
     assert!(scanner.include_host_names);
     assert!(scanner.include_vendor);
@@ -77,25 +80,27 @@ fn sends_and_reads_packets() {
 
     sender.expect_send().returning(|_| Ok(()));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec![device_ip.to_string()]).unwrap();
     let (tx, rx) = channel();
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        source_port: 54321,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
 
-    let handle = scanner.scan();
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
+
+    let handle = scanner.scan().unwrap();
 
     let mut detected_device = Device {
         hostname: "".to_string(),
@@ -161,24 +166,24 @@ fn ignores_unrelated_packets() {
 
     sender.expect_send().returning(|_| Ok(()));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
-
     let (tx, rx) = channel();
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        source_port: 54321,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
     let (done_tx, done_rx) = channel();
 
@@ -221,32 +226,34 @@ fn reports_error_on_packet_reader_lock() {
 
     sender.expect_send().returning(|_| Ok(()));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_receiver_clone = Arc::clone(&arc_receiver);
-    let arc_sender = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, _rx) = channel();
+    let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+
+    let receiver_clone = Arc::clone(&arc_receiver);
 
     // Spawn a thread that will panic while holding the lock
     let handle = thread::spawn(move || {
-        let _guard = arc_receiver_clone.lock().unwrap(); // Acquire the lock
+        let _guard = receiver_clone.lock().unwrap(); // Acquire the lock
         panic!("Simulated panic"); // Simulate a panic
     });
 
     let _ = handle.join();
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        source_port: 54321,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(arc_receiver)
+        .packet_sender(arc_sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
     let (_done_tx, done_rx) = channel();
 
@@ -269,23 +276,25 @@ fn reports_error_on_packet_read_error() {
 
     sender.expect_send().returning(|_| Ok(()));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_sender = Arc::new(Mutex::new(sender));
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, _rx) = channel();
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        source_port: 54321,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
     let (_done_tx, done_rx) = channel();
 
@@ -305,8 +314,8 @@ fn reports_error_on_notifier_send_errors() {
     receiver.expect_next_packet().returning(|| Ok(&[1]));
     sender.expect_send().returning(|_| Ok(()));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_sender = Arc::new(Mutex::new(sender));
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
@@ -314,19 +323,20 @@ fn reports_error_on_notifier_send_errors() {
     // this will cause an error when scanner tries to notify
     drop(rx);
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        source_port: 54321,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
-    let handle = scanner.scan();
+    let handle = scanner.scan().unwrap();
 
     let result = handle.join().unwrap();
 
@@ -341,34 +351,35 @@ fn reports_error_on_packet_sender_lock_errors() {
 
     receiver.expect_next_packet().returning(|| Ok(&[1]));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_sender = Arc::new(Mutex::new(sender));
-    let arc_sender_clone = Arc::clone(&arc_sender);
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let sender_clone = Arc::clone(&sender);
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     // Spawn a thread that will panic while holding the lock
     let handle = thread::spawn(move || {
-        let _guard = arc_sender_clone.lock().unwrap(); // Acquire the lock
+        let _guard = sender_clone.lock().unwrap(); // Acquire the lock
         panic!("Simulated panic"); // Simulate a panic
     });
 
     let _ = handle.join();
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        source_port: 54321,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
-    let handle = scanner.scan();
+    let handle = scanner.scan().unwrap();
 
     loop {
         if let Ok(ScanMessage::Done) = rx.recv() {
@@ -392,25 +403,26 @@ fn reports_error_on_packet_send_errors() {
         .expect_send()
         .returning(|_| Err(RLanLibError::Wire("oh no a send error".into())));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_sender = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        source_port: 54321,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
-    let handle = scanner.scan();
+    let handle = scanner.scan().unwrap();
 
     loop {
         if let Ok(ScanMessage::Done) = rx.recv() {
@@ -435,25 +447,26 @@ fn reports_errors_from_read_handle() {
 
     sender.expect_send().returning(|_| Ok(()));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_sender = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        source_port: 54321,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(true)
+        .include_host_names(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
-    let handle = scanner.scan();
+    let handle = scanner.scan().unwrap();
 
     loop {
         if let Ok(ScanMessage::Done) = rx.recv() {

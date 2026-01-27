@@ -2,8 +2,7 @@ use pnet::util::MacAddr;
 use r_lanlib::{
     network, packet,
     scanners::{
-        Device, PortSet, ScanMessage, Scanner,
-        syn_scanner::{SYNScanner, SYNScannerArgs},
+        Device, PortSet, ScanMessage, Scanner, syn_scanner::SYNScanner,
     },
     targets::ports::PortTargets,
 };
@@ -61,20 +60,21 @@ fn main() {
     let source_port: u16 = 54321;
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let scanner = SYNScanner::new(SYNScannerArgs {
-        interface: &interface,
-        packet_reader: wire.0,
-        packet_sender: wire.1,
-        targets: devices,
-        ports: port_targets,
-        source_port,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = SYNScanner::builder()
+        .interface(&interface)
+        .packet_reader(wire.0)
+        .packet_sender(wire.1)
+        .targets(devices)
+        .ports(port_targets)
+        .source_port(source_port)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
     let mut results: Vec<Device> = Vec::new();
 
-    let handle = scanner.scan();
+    let handle = scanner.scan().unwrap();
 
     loop {
         let msg = rx.recv().expect("failed to poll for messages");

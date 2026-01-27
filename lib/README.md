@@ -34,10 +34,7 @@ cargo add r-lanlib
 use std::{sync::mpsc, time::Duration};
 use r_lanlib::{
     network, packet,
-    scanners::{
-        arp_scanner::{ARPScanner, ARPScannerArgs},
-        Device, ScanMessage, Scanner,
-    },
+    scanners::{arp_scanner::ARPScanner, Device, ScanMessage, Scanner},
     targets::ips::IPTargets,
 };
 
@@ -50,26 +47,28 @@ let wire = packet::wire::default(&interface)
     .expect("Failed to create packet wire");
 
 // Define IP targets (scan entire subnet)
-let ip_targets = IPTargets::new(vec![interface.cidr.clone()]);
+let ip_targets = IPTargets::new(vec![interface.cidr.clone()])
+    .expect("Failed to parse IP targets");
 
 // Create communication channel
 let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-// Configure scanner
-let scanner = ARPScanner::new(ARPScannerArgs {
-    interface: &interface,
-    packet_reader: wire.0,
-    packet_sender: wire.1,
-    targets: ip_targets,
-    source_port: 54321,
-    include_vendor: true,
-    include_host_names: true,
-    idle_timeout: Duration::from_millis(10000),
-    notifier: tx,
-});
+// Configure scanner using builder pattern
+let scanner = ARPScanner::builder()
+    .interface(&interface)
+    .packet_reader(wire.0)
+    .packet_sender(wire.1)
+    .targets(ip_targets)
+    .source_port(54321u16)
+    .include_vendor(true)
+    .include_host_names(true)
+    .idle_timeout(Duration::from_millis(10000))
+    .notifier(tx)
+    .build()
+    .expect("Failed to build scanner");
 
 // Start scanning (runs in background thread)
-let handle = scanner.scan();
+let handle = scanner.scan().expect("Failed to start scan");
 
 // Process results in real-time
 let mut devices = Vec::new();
@@ -83,6 +82,7 @@ loop {
         ScanMessage::Info(scanning) => {
             println!("Scanning: {}", scanning.ip);
         }
+        _ => {}
     }
 }
 
@@ -94,10 +94,7 @@ println!("Discovered {} devices", devices.len());
 
 ```rust
 use r_lanlib::{
-    scanners::{
-        syn_scanner::{SYNScanner, SYNScannerArgs},
-        Device, PortSet, Scanner,
-    },
+    scanners::{syn_scanner::SYNScanner, Device, PortSet, Scanner},
     targets::ports::PortTargets,
 };
 
@@ -119,22 +116,24 @@ let port_targets = PortTargets::new(vec![
     "80".to_string(),      // HTTP
     "443".to_string(),     // HTTPS
     "8000-9000".to_string(), // Port range
-]);
+])
+.expect("Failed to parse port targets");
 
-let scanner = SYNScanner::new(SYNScannerArgs {
-    interface: &interface,
-    packet_reader: wire.0,
-    packet_sender: wire.1,
-    targets: devices,
-    ports: port_targets,
-    source_port: 54321,
-    idle_timeout: Duration::from_millis(10000),
-    notifier: tx,
-});
+let scanner = SYNScanner::builder()
+    .interface(&interface)
+    .packet_reader(wire.0)
+    .packet_sender(wire.1)
+    .targets(devices)
+    .ports(port_targets)
+    .source_port(54321u16)
+    .idle_timeout(Duration::from_millis(10000))
+    .notifier(tx)
+    .build()
+    .expect("Failed to build scanner");
 
 // Process SYN scan results
 let mut results = Vec::new();
-let handle = scanner.scan();
+let handle = scanner.scan().expect("Failed to start scan");
 
 loop {
     match rx.recv().expect("Failed to receive message") {
@@ -153,26 +152,24 @@ loop {
 ### Full Scanning (ARP + SYN)
 
 ```rust
-use r_lanlib::scanners::{
-    full_scanner::{FullScanner, FullScannerArgs},
-    Scanner,
-};
+use r_lanlib::scanners::{full_scanner::FullScanner, Scanner};
 
-let scanner = FullScanner::new(FullScannerArgs {
-    interface: &interface,
-    packet_reader: wire.0,
-    packet_sender: wire.1,
-    targets: ip_targets,
-    ports: port_targets,
-    include_vendor: true,
-    include_host_names: true,
-    idle_timeout: Duration::from_millis(10000),
-    notifier: tx,
-    source_port: 54321,
-});
+let scanner = FullScanner::builder()
+    .interface(&interface)
+    .packet_reader(wire.0)
+    .packet_sender(wire.1)
+    .targets(ip_targets)
+    .ports(port_targets)
+    .vendor(true)
+    .host(true)
+    .idle_timeout(Duration::from_millis(10000))
+    .notifier(tx)
+    .source_port(54321u16)
+    .build()
+    .expect("Failed to build scanner");
 
 // This will perform ARP discovery first, then SYN scan on found devices
-let handle = scanner.scan();
+let handle = scanner.scan().expect("Failed to start scan");
 ```
 
 ## API Reference

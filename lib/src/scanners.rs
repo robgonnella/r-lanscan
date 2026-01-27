@@ -20,6 +20,11 @@ use std::thread::JoinHandle;
 
 use crate::error::Result;
 
+pub mod arp_scanner;
+pub mod full_scanner;
+pub mod heartbeat;
+pub mod syn_scanner;
+
 /// The default idle timeout for a scanner
 pub const IDLE_TIMEOUT: u16 = 10000;
 
@@ -184,10 +189,5 @@ pub enum ScanMessage {
 /// Trait used by all scanners
 pub trait Scanner: Sync + Send {
     /// Performs network scanning
-    fn scan(&self) -> JoinHandle<Result<()>>;
+    fn scan(&self) -> Result<JoinHandle<Result<()>>>;
 }
-
-pub mod arp_scanner;
-pub mod full_scanner;
-mod heartbeat;
-pub mod syn_scanner;

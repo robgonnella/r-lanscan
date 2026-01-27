@@ -70,10 +70,11 @@ fn test_process_arp() {
     let (conf_path, interface, store) = setup();
     let mut mock_packet_reader = MockPacketReader::new();
     let mut mock_packet_sender = MockPacketSender::new();
-    let source_port = 54321;
+    let source_port = 54321_u16;
     let (tx, rx) = channel();
 
     mock_packet_sender.expect_send().returning(|_| Ok(()));
+
     mock_packet_reader
         .expect_next_packet()
         .returning(|| Ok(&[1]));
@@ -90,21 +91,26 @@ fn test_process_arp() {
     tx.send(ScanMessage::ARPScanDevice(device.clone())).unwrap();
     tx.send(ScanMessage::Done).unwrap();
 
-    let res = process_arp(
-        ARPScannerArgs {
-            interface: &interface,
-            packet_reader: Arc::new(Mutex::new(mock_packet_reader)),
-            packet_sender: Arc::new(Mutex::new(mock_packet_sender)),
-            targets: IPTargets::new(vec![interface.cidr.clone()]).unwrap(),
-            include_host_names: true,
-            include_vendor: true,
-            source_port,
-            idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-            notifier: tx,
-        },
-        rx,
-        Arc::clone(&store) as Arc<dyn Dispatcher>,
-    );
+    let packet_reader: Arc<Mutex<dyn Reader>> =
+        Arc::new(Mutex::new(mock_packet_reader));
+    let packet_sender: Arc<Mutex<dyn Sender>> =
+        Arc::new(Mutex::new(mock_packet_sender));
+
+    let arp_scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(packet_reader)
+        .packet_sender(packet_sender)
+        .targets(IPTargets::new(vec![interface.cidr.clone()]).unwrap())
+        .include_host_names(true)
+        .include_vendor(true)
+        .source_port(source_port)
+        .idle_timeout(time::Duration::from_millis(IDLE_TIMEOUT.into()))
+        .notifier(tx)
+        .build()
+        .unwrap();
+
+    let res =
+        process_arp(arp_scanner, rx, Arc::clone(&store) as Arc<dyn Dispatcher>);
 
     assert!(res.is_ok());
 
@@ -131,7 +137,7 @@ fn test_process_syn() {
     let (conf_path, interface, store) = setup();
     let mut mock_packet_reader = MockPacketReader::new();
     let mut mock_packet_sender = MockPacketSender::new();
-    let source_port = 54321;
+    let source_port = 54321_u16;
     let (tx, rx) = channel();
 
     mock_packet_sender.expect_send().returning(|_| Ok(()));
@@ -171,20 +177,24 @@ fn test_process_syn() {
 
     store.dispatch(Action::AddDevice(device_with_ports.clone()));
 
-    let res = process_syn(
-        SYNScannerArgs {
-            interface: &interface,
-            packet_reader: Arc::new(Mutex::new(mock_packet_reader)),
-            packet_sender: Arc::new(Mutex::new(mock_packet_sender)),
-            targets: vec![device],
-            ports: PortTargets::new(vec!["80".to_string()]).unwrap(),
-            source_port,
-            idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-            notifier: tx,
-        },
-        rx,
-        Arc::clone(&store),
-    );
+    let packet_reader: Arc<Mutex<dyn Reader>> =
+        Arc::new(Mutex::new(mock_packet_reader));
+    let packet_sender: Arc<Mutex<dyn Sender>> =
+        Arc::new(Mutex::new(mock_packet_sender));
+
+    let syn_scanner = SYNScanner::builder()
+        .interface(&interface)
+        .packet_reader(packet_reader)
+        .packet_sender(packet_sender)
+        .targets(vec![device])
+        .ports(PortTargets::new(vec!["80".to_string()]).unwrap())
+        .source_port(source_port)
+        .idle_timeout(time::Duration::from_millis(IDLE_TIMEOUT.into()))
+        .notifier(tx)
+        .build()
+        .unwrap();
+
+    let res = process_syn(syn_scanner, rx, Arc::clone(&store));
 
     assert!(res.is_ok());
 

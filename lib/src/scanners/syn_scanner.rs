@@ -1,5 +1,6 @@
 //! Provides Scanner implementation for SYN scanning
 
+use derive_builder::Builder;
 use log::*;
 use pnet::packet::{Packet, ethernet, ip, ipv4, tcp};
 use std::{
@@ -51,60 +52,34 @@ static SERVICES: LazyLock<HashMap<u16, &str>> = LazyLock::new(|| {
     ])
 });
 
-/// Data structure representing an ARP scanner
+/// Data structure representing a SYN scanner
+#[derive(Builder)]
+#[builder(setter(into))]
 pub struct SYNScanner<'net> {
+    /// Network interface to use for scanning
     interface: &'net NetworkInterface,
+    /// Packet reader for receiving SYN-ACK responses
     packet_reader: Arc<Mutex<dyn Reader>>,
+    /// Packet sender for transmitting SYN packets
     packet_sender: Arc<Mutex<dyn Sender>>,
+    /// Devices to scan for open ports
     targets: Vec<Device>,
+    /// Port targets to scan on each device
     ports: Arc<PortTargets>,
+    /// Source port for packet listener and incoming packet identification
     source_port: u16,
+    /// Duration to wait for responses after scanning completes
     idle_timeout: Duration,
+    /// Channel for sending scan results and status messages
     notifier: mpsc::Sender<ScanMessage>,
 }
 
-/// Data structure holding parameters needed to create instance of SYNScanner
-pub struct SYNScannerArgs<'net> {
-    /// The network interface to use when scanning
-    pub interface: &'net NetworkInterface,
-    /// A packet Reader implementation (can use default provided in packet
-    /// crate)
-    pub packet_reader: Arc<Mutex<dyn Reader>>,
-    /// A packet Sender implementation (can use default provided in packet
-    /// crate)
-    pub packet_sender: Arc<Mutex<dyn Sender>>,
-    /// [`Device`] list to scan
-    pub targets: Vec<Device>,
-    /// [`PortTargets`] to scan for each detected device
-    pub ports: Arc<PortTargets>,
-    /// An open source port to listen for incoming packets (can use network
-    /// packet to find open port)
-    pub source_port: u16,
-    /// The amount of time to wait for incoming packets after scanning all
-    /// targets
-    pub idle_timeout: Duration,
-    /// Channel to send messages regarding devices being scanned, and detected
-    /// devices
-    pub notifier: mpsc::Sender<ScanMessage>,
-}
-
-impl<'net> SYNScanner<'net> {
-    /// Returns a new instance of SYNScanner using provided info
-    pub fn new(args: SYNScannerArgs<'net>) -> Self {
-        Self {
-            interface: args.interface,
-            packet_reader: args.packet_reader,
-            packet_sender: args.packet_sender,
-            targets: args.targets,
-            ports: args.ports,
-            source_port: args.source_port,
-            idle_timeout: args.idle_timeout,
-            notifier: args.notifier,
-        }
+impl<'n> SYNScanner<'n> {
+    /// Returns a builder for SYNScanner
+    pub fn builder() -> SYNScannerBuilder<'n> {
+        SYNScannerBuilder::default()
     }
-}
 
-impl SYNScanner<'_> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(
@@ -128,19 +103,20 @@ impl SYNScanner<'_> {
         // received as we'll be blocked on waiting for one to come it. To fix
         // this we send periodic "heartbeat" packets so we can continue to
         // check for "done" signals
-        thread::spawn(move || {
+        thread::spawn(move || -> Result<()> {
             debug!("starting syn heartbeat thread");
-            let heartbeat = HeartBeat::new(
-                source_mac,
-                source_ipv4,
-                source_port,
-                heartbeat_packet_sender,
-            );
+            let heartbeat = HeartBeat::builder()
+                .source_mac(source_mac)
+                .source_ipv4(source_ipv4)
+                .source_port(source_port)
+                .packet_sender(heartbeat_packet_sender)
+                .build()?;
+
             let interval = Duration::from_secs(1);
             loop {
                 if heartbeat_rx.try_recv().is_ok() {
                     debug!("stopping syn heartbeat");
-                    break;
+                    return Ok(());
                 }
                 debug!("sending syn heartbeat");
                 heartbeat.beat();
@@ -247,7 +223,7 @@ impl SYNScanner<'_> {
 
 // Implements the Scanner trait for SYNScanner
 impl Scanner for SYNScanner<'_> {
-    fn scan(&self) -> JoinHandle<Result<()>> {
+    fn scan(&self) -> Result<JoinHandle<Result<()>>> {
         debug!("performing SYN scan on targets: {:?}", self.targets);
 
         debug!("starting syn packet reader");
@@ -266,7 +242,7 @@ impl Scanner for SYNScanner<'_> {
         let read_handle = self.read_packets(done_rx);
 
         // prevent blocking thread so messages can be freely sent to consumer
-        thread::spawn(move || -> Result<()> {
+        let handle = thread::spawn(move || -> Result<()> {
             let mut scan_error: Option<RLanLibError> = None;
 
             let process_port = |port: u16| -> Result<()> {
@@ -332,7 +308,9 @@ impl Scanner for SYNScanner<'_> {
             }
 
             read_result
-        })
+        });
+
+        Ok(handle)
     }
 }
 
