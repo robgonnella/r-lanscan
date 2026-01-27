@@ -7,11 +7,14 @@ use ratatui::{
     Terminal,
     crossterm::{
         event::{
-            self, DisableMouseCapture, EnableMouseCapture, Event as CrossTermEvent, KeyCode,
-            KeyModifiers,
+            self, DisableMouseCapture, EnableMouseCapture,
+            Event as CrossTermEvent, KeyCode, KeyModifiers,
         },
         execute,
-        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+        terminal::{
+            EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
+            enable_raw_mode,
+        },
     },
     layout::Rect,
     prelude::Backend,
@@ -44,7 +47,12 @@ pub struct Renderer<B: Backend + std::io::Write> {
 
 impl<B: Backend + std::io::Write> Renderer<B> {
     /// Creates a new renderer with the given terminal, theme, store, and IPC.
-    pub fn new(terminal: Terminal<B>, theme: Theme, store: Arc<Store>, ipc: RendererIpc) -> Self {
+    pub fn new(
+        terminal: Terminal<B>,
+        theme: Theme,
+        store: Arc<Store>,
+        ipc: RendererIpc,
+    ) -> Self {
         Self {
             terminal: RefCell::new(terminal),
             store: Arc::clone(&store),
@@ -55,20 +63,13 @@ impl<B: Backend + std::io::Write> Renderer<B> {
 
     /// Initializes the terminal and starts the render loop. Returns when the
     /// user quits.
-    pub fn launch(&self) -> Result<()> {
-        enable_raw_mode().wrap_err("failed to enter raw mode")?;
-        // Note we must use io::stdout() directly here. Using
-        // self.terminal.borrow_mut().backend_mut() will result in immediate
-        // exit. I believe this is maybe due to backend being dropped after the
-        // call to execute?
-        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)
-            .wrap_err("failed to enter alternate screen")?;
-        self.render()?;
-        self.exit()?;
-        Ok(())
+    pub fn start_render_loop(&self) -> Result<()> {
+        self.enable_terminal_raw_mode()?;
+        self.start_loop()?;
+        self.exit()
     }
 
-    fn render(&self) -> Result<()> {
+    fn start_loop(&self) -> Result<()> {
         loop {
             let state = self.store.get_state()?;
 
@@ -130,6 +131,17 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 }
             }
         }
+    }
+
+    fn enable_terminal_raw_mode(&self) -> Result<()> {
+        enable_raw_mode().wrap_err("failed to enter raw mode")?;
+        // Note we must use io::stdout() directly here. Using
+        // self.terminal.borrow_mut().backend_mut() will result in immediate
+        // exit. I believe this is due to mutable borrow of backend being
+        // quickly dropped after the call to execute?
+        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)
+            .wrap_err("failed to enter alternate screen")?;
+        Ok(())
     }
 
     fn pause(&self) -> Result<()> {

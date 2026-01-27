@@ -11,7 +11,8 @@ pub mod wire;
 use crate::error::Result;
 
 /// Default timing for throttling packet sends to prevent packet loss
-pub const DEFAULT_PACKET_SEND_TIMING: time::Duration = time::Duration::from_micros(50);
+pub const DEFAULT_PACKET_SEND_TIMING: time::Duration =
+    time::Duration::from_micros(50);
 
 /// Trait describing a packet reader
 pub trait Reader: Send + Sync {

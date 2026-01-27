@@ -23,7 +23,12 @@ fn renders_scrollbar_component() {
                 ipc: Box::new(sender),
             };
 
-            scroll.render(frame.area(), frame.buffer_mut(), &mut scroll_state, &ctx);
+            scroll.render(
+                frame.area(),
+                frame.buffer_mut(),
+                &mut scroll_state,
+                &ctx,
+            );
         })
         .unwrap();
     assert_snapshot!(terminal.backend());

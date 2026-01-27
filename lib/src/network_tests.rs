@@ -36,7 +36,9 @@ fn returns_an_available_port_on_system() {
 fn get_ip_and_cidr_from_interface() {
     let iface = pnet::datalink::interfaces()
         .into_iter()
-        .find(|e| e.is_up() && !e.is_loopback() && e.ips.iter().any(|i| i.is_ipv4()))
+        .find(|e| {
+            e.is_up() && !e.is_loopback() && e.ips.iter().any(|i| i.is_ipv4())
+        })
         .unwrap();
     let (ip, cidr) = get_interface_ipv4_and_cidr(&iface).unwrap();
     assert!(!ip.is_empty());

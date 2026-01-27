@@ -148,7 +148,10 @@ impl Theme {
 
     /// Returns the tailwind palette for this theme, using basic colors if
     /// true color is not supported.
-    pub fn to_palette(self, true_color_enabled: bool) -> &'static tailwind::Palette {
+    pub fn to_palette(
+        self,
+        true_color_enabled: bool,
+    ) -> &'static tailwind::Palette {
         if true_color_enabled {
             match self {
                 Theme::Blue => &tailwind::BLUE,

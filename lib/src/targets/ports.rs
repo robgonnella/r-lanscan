@@ -30,24 +30,27 @@ use crate::error::{RLanLibError, Result};
 /// ```
 pub struct PortTargets(Vec<String>, usize);
 
-fn loop_ports<F: FnMut(u16) -> Result<()>>(list: &[String], mut cb: F) -> Result<()> {
+fn loop_ports<F: FnMut(u16) -> Result<()>>(
+    list: &[String],
+    mut cb: F,
+) -> Result<()> {
     for target in list.iter() {
         if target.contains("-") {
             let parts: Vec<&str> = target.split("-").collect();
-            let begin = parts[0]
-                .parse::<u16>()
-                .map_err(|e| RLanLibError::from_port_parse_int_err(&target.to_string(), e))?;
-            let end = parts[1]
-                .parse::<u16>()
-                .map_err(|e| RLanLibError::from_port_parse_int_err(&target.to_string(), e))?;
+            let begin = parts[0].parse::<u16>().map_err(|e| {
+                RLanLibError::from_port_parse_int_err(&target.to_string(), e)
+            })?;
+            let end = parts[1].parse::<u16>().map_err(|e| {
+                RLanLibError::from_port_parse_int_err(&target.to_string(), e)
+            })?;
 
             for port in begin..=end {
                 cb(port)?;
             }
         } else {
-            let port = target
-                .parse::<u16>()
-                .map_err(|e| RLanLibError::from_port_parse_int_err(&target.to_string(), e))?;
+            let port = target.parse::<u16>().map_err(|e| {
+                RLanLibError::from_port_parse_int_err(&target.to_string(), e)
+            })?;
 
             cb(port)?;
         }

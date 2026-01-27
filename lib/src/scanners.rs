@@ -89,7 +89,10 @@ impl From<HashSet<Port>> for PortSet {
     }
 }
 
-fn serialize_to_string<S, T>(val: &T, s: S) -> std::result::Result<S::Ok, S::Error>
+fn serialize_to_string<S, T>(
+    val: &T,
+    s: S,
+) -> std::result::Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
     T: std::fmt::Display,

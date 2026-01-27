@@ -126,7 +126,9 @@ impl CustomWidgetRef for DevicesView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        let view_rects = Layout::vertical([Constraint::Length(1), Constraint::Min(5)]).split(area);
+        let view_rects =
+            Layout::vertical([Constraint::Length(1), Constraint::Min(5)])
+                .split(area);
 
         self.render_table(view_rects[1], buf, ctx);
     }

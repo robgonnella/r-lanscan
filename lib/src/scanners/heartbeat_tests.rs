@@ -11,7 +11,8 @@ fn new() {
     let source_ip = Ipv4Addr::from_str("192.168.1.1").unwrap();
     let source_mac = MacAddr::default();
     let source_port = 54321;
-    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(MockPacketSender::new()));
+    let sender: Arc<Mutex<dyn Sender>> =
+        Arc::new(Mutex::new(MockPacketSender::new()));
 
     let heart_beat = HeartBeat::new(source_mac, source_ip, source_port, sender);
 

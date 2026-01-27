@@ -27,7 +27,9 @@ use std::{
 use crate::{
     config::Config,
     error,
-    ui::store::{Dispatcher, Store, action::Action, derived::get_detected_arp_devices},
+    ui::store::{
+        Dispatcher, Store, action::Action, derived::get_detected_arp_devices,
+    },
 };
 
 /// Runs an ARP scan and dispatches discovered devices to the store.
@@ -120,7 +122,10 @@ pub fn process_syn(
                         store.dispatch(Action::AddDevice(d.clone()));
                     }
                     None => {
-                        log::warn!("received syn result for unknown device: {:?}", device);
+                        log::warn!(
+                            "received syn result for unknown device: {:?}",
+                            device
+                        );
                     }
                 }
             }
@@ -148,9 +153,7 @@ pub fn monitor_network(
     log::info!("starting network monitor");
 
     loop {
-        let res = exit.try_recv();
-
-        if res.is_ok() {
+        if exit.try_recv().is_ok() {
             return Ok(());
         }
 

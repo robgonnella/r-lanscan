@@ -146,8 +146,10 @@ fn sends_and_reads_packets() {
 #[test]
 #[allow(warnings)]
 fn ignores_unrelated_packets() {
-    static mut SYN_PACKET1: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
-    static mut SYN_PACKET2: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
+    static mut SYN_PACKET1: [u8; PKT_TOTAL_SYN_SIZE] =
+        [0u8; PKT_TOTAL_SYN_SIZE];
+    static mut SYN_PACKET2: [u8; PKT_TOTAL_SYN_SIZE] =
+        [0u8; PKT_TOTAL_SYN_SIZE];
     static mut ARP_PACKET: [u8; PKT_TOTAL_ARP_SIZE] = [0u8; PKT_TOTAL_ARP_SIZE];
 
     let interface = network::get_default_interface().unwrap();
@@ -450,9 +452,9 @@ fn reports_error_on_rst_packet_send_errors() {
         .expect_next_packet()
         .return_once(|| Ok(unsafe { &PACKET }));
 
-    sender
-        .expect_send()
-        .returning(|_| Err(RLanLibError::Wire("oh no packet send error".into())));
+    sender.expect_send().returning(|_| {
+        Err(RLanLibError::Wire("oh no packet send error".into()))
+    });
 
     let arc_receiver = Arc::new(Mutex::new(receiver));
     let arc_sender = Arc::new(Mutex::new(sender));

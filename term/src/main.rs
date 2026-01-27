@@ -105,8 +105,8 @@ fn initialize_logger(args: &Args) -> Result<()> {
 
 #[doc(hidden)]
 fn get_project_config_path() -> Result<String> {
-    let project_dir =
-        ProjectDirs::from("", "", "r-lanterm").ok_or(eyre!("failed to get project directory"))?;
+    let project_dir = ProjectDirs::from("", "", "r-lanterm")
+        .ok_or(eyre!("failed to get project directory"))?;
     let config_dir = project_dir.config_dir();
     fs::create_dir_all(config_dir)?;
     let config_file_path = config_dir
@@ -118,9 +118,13 @@ fn get_project_config_path() -> Result<String> {
 }
 
 #[doc(hidden)]
-fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>)> {
+fn init(
+    args: &Args,
+    interface: &NetworkInterface,
+) -> Result<(Config, Arc<Store>)> {
     let user = whoami::username()?;
-    let home = dirs::home_dir().wrap_err(eyre!("failed to get user's home directory"))?;
+    let home = dirs::home_dir()
+        .wrap_err(eyre!("failed to get user's home directory"))?;
     let identity = format!("{}/.ssh/id_rsa", home.to_string_lossy());
 
     let config_path = get_project_config_path()?;
@@ -149,7 +153,11 @@ fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Arc<Store>
                 id: fakeit::animal::animal().to_lowercase(),
                 cidr: interface.cidr.clone(),
                 ports: args.ports.clone(),
-                ..Config::new(user.clone(), identity.clone(), interface.cidr.clone())
+                ..Config::new(
+                    user.clone(),
+                    identity.clone(),
+                    interface.cidr.clone(),
+                )
             }
         });
 
@@ -226,34 +234,44 @@ fn main() -> Result<()> {
     let (renderer_tx, renderer_rx) = channel();
     let (main_tx, main_rx) = channel();
 
-    let renderer_ipc = RendererIpc::new(
-        Box::new(RendererSender::new(main_tx)),
-        Box::new(RendererReceiver::new(renderer_rx)),
-    );
+    let renderer_store = Arc::clone(&store);
+
+    // start tui renderer thread
+    let renderer_handle = thread::spawn(move || {
+        let stdout = io::stdout();
+        let backend = CrosstermBackend::new(stdout);
+        let terminal = Terminal::new(backend)?;
+        let renderer_ipc = RendererIpc::new(
+            Box::new(RendererSender::new(main_tx)),
+            Box::new(RendererReceiver::new(renderer_rx)),
+        );
+        let app_renderer = renderer::Renderer::new(
+            terminal,
+            theme,
+            renderer_store,
+            renderer_ipc,
+        );
+        app_renderer.start_render_loop()
+    });
 
     let main_ipc = MainIpc::new(
         Box::new(MainSender::new(renderer_tx)),
         Box::new(MainReceiver::new(main_rx)),
     );
 
-    let stdout = io::stdout();
-    let backend = CrosstermBackend::new(stdout);
-    let terminal = Terminal::new(backend)?;
-
-    let app_renderer = renderer::Renderer::new(terminal, theme, Arc::clone(&store), renderer_ipc);
-
     let handler = main_event_handler::MainEventHandler::new(
-        Arc::clone(&store),
+        store,
         Box::new(Shell::new()),
         main_ipc,
     );
-    let event_handle = thread::spawn(move || handler.process_events());
 
-    app_renderer.launch()?;
-    event_handle
+    // block and process incoming ipc events
+    handler.process_events()?;
+
+    // wait for renderer thread to exit
+    renderer_handle
         .join()
-        .map_err(error::report_from_thread_panic)??;
-    Ok(())
+        .map_err(error::report_from_thread_panic)?
 }
 
 #[cfg(test)]

@@ -22,10 +22,12 @@ use ratatui::{
 use std::{cell::RefCell, sync::Arc};
 
 use super::traits::{
-    CustomStatefulWidget, CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View,
+    CustomStatefulWidget, CustomWidget, CustomWidgetContext, CustomWidgetRef,
+    EventHandler, View,
 };
 
-const THEMES: [Theme; 4] = [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
+const THEMES: [Theme; 4] =
+    [Theme::Blue, Theme::Emerald, Theme::Indigo, Theme::Red];
 
 /// Tracks which input field currently has focus.
 #[derive(Debug, Clone)]
@@ -116,7 +118,8 @@ impl ConfigView {
             .parse::<u16>()
             .unwrap_or(22);
         config.default_ssh_port = port;
-        config.default_ssh_identity = self.ssh_identity_state.borrow().value.clone();
+        config.default_ssh_identity =
+            self.ssh_identity_state.borrow().value.clone();
         config.ports = self
             .scan_ports_state
             .borrow()
@@ -144,7 +147,8 @@ impl ConfigView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        let field = Field::new("Network".to_string(), ctx.state.config.cidr.clone());
+        let field =
+            Field::new("Network".to_string(), ctx.state.config.cidr.clone());
         field.render(area, buf);
     }
 
@@ -152,8 +156,12 @@ impl ConfigView {
         match *self.focus.borrow() {
             Focus::SSHUser => self.ssh_user_state.borrow_mut().value.push(char),
             Focus::SSHPort => self.ssh_port_state.borrow_mut().value.push(char),
-            Focus::SSHIdentity => self.ssh_identity_state.borrow_mut().value.push(char),
-            Focus::ScanPorts => self.scan_ports_state.borrow_mut().value.push(char),
+            Focus::SSHIdentity => {
+                self.ssh_identity_state.borrow_mut().value.push(char)
+            }
+            Focus::ScanPorts => {
+                self.scan_ports_state.borrow_mut().value.push(char)
+            }
             _ => {}
         };
     }
@@ -305,7 +313,12 @@ impl ConfigView {
         ctx: &CustomWidgetContext,
     ) {
         let port_list = Input::new("Scanning Ports");
-        port_list.render(area, buf, &mut self.scan_ports_state.borrow_mut(), ctx);
+        port_list.render(
+            area,
+            buf,
+            &mut self.scan_ports_state.borrow_mut(),
+            ctx,
+        );
     }
 
     fn render_ssh(
@@ -325,19 +338,33 @@ impl ConfigView {
         .split(area);
 
         if !*self.editing.borrow() {
-            self.ssh_user_state.borrow_mut().value = state.config.default_ssh_user.clone();
-            self.ssh_port_state.borrow_mut().value = state.config.default_ssh_port.to_string();
-            self.ssh_identity_state.borrow_mut().value = state.config.default_ssh_identity.clone();
+            self.ssh_user_state.borrow_mut().value =
+                state.config.default_ssh_user.clone();
+            self.ssh_port_state.borrow_mut().value =
+                state.config.default_ssh_port.to_string();
+            self.ssh_identity_state.borrow_mut().value =
+                state.config.default_ssh_identity.clone();
             self.theme_state.borrow_mut().value = state.config.theme.clone();
-            self.scan_ports_state.borrow_mut().value = state.config.ports.join(",");
+            self.scan_ports_state.borrow_mut().value =
+                state.config.ports.join(",");
         }
 
         let ssh_user = Input::new("Default SSH User");
         let ssh_port = Input::new("Default SSH Port");
         let ssh_ident = Input::new("Default SSH Identity");
 
-        ssh_user.render(rects[0], buf, &mut self.ssh_user_state.borrow_mut(), ctx);
-        ssh_port.render(rects[2], buf, &mut self.ssh_port_state.borrow_mut(), ctx);
+        ssh_user.render(
+            rects[0],
+            buf,
+            &mut self.ssh_user_state.borrow_mut(),
+            ctx,
+        );
+        ssh_port.render(
+            rects[2],
+            buf,
+            &mut self.ssh_port_state.borrow_mut(),
+            ctx,
+        );
         ssh_ident.render(
             rects[4],
             buf,
@@ -393,7 +420,8 @@ impl CustomWidgetRef for ConfigView {
         ])
         .split(area);
 
-        let label_rects = Layout::horizontal([Constraint::Length(20)]).split(view_rects[0]);
+        let label_rects =
+            Layout::horizontal([Constraint::Length(20)]).split(view_rects[0]);
 
         self.render_label(label_rects[0], buf, ctx);
         self.render_network(view_rects[2], buf, ctx);
@@ -440,13 +468,17 @@ impl EventHandler for ConfigView {
                             }
                         }
                         KeyCode::Right => {
-                            if *self.editing.borrow() && self.theme_state.borrow().editing {
+                            if *self.editing.borrow()
+                                && self.theme_state.borrow().editing
+                            {
                                 self.next_color();
                                 handled = true;
                             }
                         }
                         KeyCode::Left => {
-                            if *self.editing.borrow() && self.theme_state.borrow().editing {
+                            if *self.editing.borrow()
+                                && self.theme_state.borrow().editing
+                            {
                                 self.previous_color();
                                 handled = true;
                             }
@@ -461,13 +493,17 @@ impl EventHandler for ConfigView {
                             }
                         }
                         KeyCode::Backspace => {
-                            if *self.editing.borrow() && !self.theme_state.borrow().editing {
+                            if *self.editing.borrow()
+                                && !self.theme_state.borrow().editing
+                            {
                                 self.pop_input_char();
                                 handled = true;
                             }
                         }
                         KeyCode::Char(c) => {
-                            if *self.editing.borrow() && !self.theme_state.borrow().editing {
+                            if *self.editing.borrow()
+                                && !self.theme_state.borrow().editing
+                            {
                                 // handle value update for focused element
                                 self.push_input_char(c);
                                 handled = true;

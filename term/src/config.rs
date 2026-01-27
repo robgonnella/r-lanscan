@@ -80,20 +80,25 @@ impl ConfigManagerBuilder {
     pub fn build(&self) -> Result<ConfigManager> {
         let mut manager = self._build()?;
 
-        let f: Result<std::fs::File, std::io::Error> = std::fs::File::open(&manager.path);
+        let f: Result<std::fs::File, std::io::Error> =
+            std::fs::File::open(&manager.path);
 
         match f {
             Ok(file) => {
                 manager.configs = match serde_yaml::from_reader(file) {
                     Ok(c) => c,
                     Err(e) => {
-                        log::warn!("Failed to parse config file, using defaults: {}", e);
+                        log::warn!(
+                            "Failed to parse config file, using defaults: {}",
+                            e
+                        );
                         let default_conf = Config::new(
                             manager.default_user.clone(),
                             manager.default_identity.clone(),
                             manager.default_cidr.clone(),
                         );
-                        let mut configs: HashMap<String, Config> = HashMap::new();
+                        let mut configs: HashMap<String, Config> =
+                            HashMap::new();
                         configs.insert(default_conf.id.clone(), default_conf);
                         configs
                     }

@@ -7,13 +7,15 @@ use ratatui::{
     style::{Modifier, Style, Stylize},
     text::Text,
     widgets::{
-        Cell, HighlightSpacing, Row, ScrollbarState, StatefulWidget, Table as RatatuiTable,
-        TableState,
+        Cell, HighlightSpacing, Row, ScrollbarState, StatefulWidget,
+        Table as RatatuiTable, TableState,
     },
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext, CustomWidgetRef};
+use crate::ui::views::traits::{
+    CustomStatefulWidget, CustomWidgetContext, CustomWidgetRef,
+};
 
 use super::scrollbar::ScrollBar;
 
@@ -122,7 +124,8 @@ impl Table {
 
         self.table_state.borrow_mut().select(Some(i));
 
-        let new_scroll_state = self.scroll_state.borrow().position(i * self.item_height);
+        let new_scroll_state =
+            self.scroll_state.borrow().position(i * self.item_height);
 
         self.scroll_state = RefCell::new(new_scroll_state);
 
@@ -139,7 +142,8 @@ impl CustomWidgetRef for Table {
     ) {
         // main table view + right aligned scrollbar
         let table_rects =
-            Layout::horizontal([Constraint::Min(5), Constraint::Length(3)]).split(area);
+            Layout::horizontal([Constraint::Min(5), Constraint::Length(3)])
+                .split(area);
 
         if table_rects[0].width < 1 || table_rects[0].height < 1 {
             return;
@@ -178,7 +182,9 @@ impl CustomWidgetRef for Table {
             }
 
             item.into_iter()
-                .map(|content| Cell::from(Text::from(format!("{line_breaks}{content}"))))
+                .map(|content| {
+                    Cell::from(Text::from(format!("{line_breaks}{content}")))
+                })
                 .collect::<Row>()
                 .style(
                     Style::new()

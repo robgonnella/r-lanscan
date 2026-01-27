@@ -218,7 +218,8 @@ fn performs_arp_scan() {
     });
 
     arp.expect_scan().returning(|| {
-        let handle: JoinHandle<r_lanlib::error::Result<()>> = thread::spawn(|| Ok(()));
+        let handle: JoinHandle<r_lanlib::error::Result<()>> =
+            thread::spawn(|| Ok(()));
         handle
     });
 
@@ -261,7 +262,8 @@ fn performs_syn_scan() {
     });
 
     syn.expect_scan().returning(|| {
-        let handle: JoinHandle<r_lanlib::error::Result<()>> = thread::spawn(|| Ok(()));
+        let handle: JoinHandle<r_lanlib::error::Result<()>> =
+            thread::spawn(|| Ok(()));
         handle
     });
 

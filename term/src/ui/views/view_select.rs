@@ -21,7 +21,11 @@ pub struct ViewSelect {
 
 impl ViewSelect {
     /// Creates a new view selector with the given view options.
-    pub fn new(view_ids: Vec<ViewID>, padding: usize, dispatcher: Arc<dyn Dispatcher>) -> Self {
+    pub fn new(
+        view_ids: Vec<ViewID>,
+        padding: usize,
+        dispatcher: Arc<dyn Dispatcher>,
+    ) -> Self {
         let mut spacer = String::from("");
 
         if padding > 0 {

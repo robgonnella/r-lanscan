@@ -175,7 +175,8 @@ fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
     } else {
         let mut arp_table = prettytable::Table::new();
 
-        arp_table.add_row(prettytable::row!["IP", "HOSTNAME", "MAC", "VENDOR",]);
+        arp_table
+            .add_row(prettytable::row!["IP", "HOSTNAME", "MAC", "VENDOR",]);
 
         for d in devices.iter() {
             let ip_field = if d.is_current_host {
@@ -183,7 +184,9 @@ fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
             } else {
                 d.ip.to_string()
             };
-            arp_table.add_row(prettytable::row![ip_field, d.hostname, d.mac, d.vendor]);
+            arp_table.add_row(prettytable::row![
+                ip_field, d.hostname, d.mac, d.vendor
+            ]);
         }
 
         arp_table.printstd();
@@ -222,7 +225,10 @@ fn process_syn(
                 match found_device {
                     Some(d) => d.open_ports.0.extend(device.open_ports.0),
                     None => {
-                        warn!("received syn result for unknown device: {:?}", device);
+                        warn!(
+                            "received syn result for unknown device: {:?}",
+                            device
+                        );
                     }
                 }
             }
@@ -236,7 +242,10 @@ fn process_syn(
 }
 
 #[doc(hidden)]
-fn print_syn(args: &Args, device_map: &HashMap<Ipv4Addr, Device>) -> Result<()> {
+fn print_syn(
+    args: &Args,
+    device_map: &HashMap<Ipv4Addr, Device>,
+) -> Result<()> {
     info!("syn results:");
 
     let devices: Vec<_> = device_map.values().cloned().sorted().collect();
@@ -314,10 +323,12 @@ fn main() -> Result<()> {
     }
 
     let interface = match &args.interface {
-        Some(name) => network::get_interface(name)
-            .ok_or_else(|| eyre!("Could not find network interface: {}", name))?,
-        None => network::get_default_interface()
-            .ok_or_else(|| eyre!("Could not detect default network interface"))?,
+        Some(name) => network::get_interface(name).ok_or_else(|| {
+            eyre!("Could not find network interface: {}", name)
+        })?,
+        None => network::get_default_interface().ok_or_else(|| {
+            eyre!("Could not detect default network interface")
+        })?,
     };
 
     args.interface = Some(interface.name.clone());

@@ -13,7 +13,10 @@ use std::{
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{self, Reader, Sender, rst_packet::RstPacketBuilder, syn_packet::SynPacketBuilder},
+    packet::{
+        self, Reader, Sender, rst_packet::RstPacketBuilder,
+        syn_packet::SynPacketBuilder,
+    },
     scanners::{PortSet, Scanning, heartbeat::HeartBeat},
     targets::ports::PortTargets,
 };
@@ -104,7 +107,10 @@ impl<'net> SYNScanner<'net> {
 impl SYNScanner<'_> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self, done_rx: mpsc::Receiver<()>) -> JoinHandle<Result<()>> {
+    fn read_packets(
+        &self,
+        done_rx: mpsc::Receiver<()>,
+    ) -> JoinHandle<Result<()>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let heartbeat_packet_sender = Arc::clone(&self.packet_sender);
         let rst_packet_sender = Arc::clone(&self.packet_sender);
@@ -181,7 +187,8 @@ impl SYNScanner<'_> {
                 let matches_destination = destination_port == source_port;
                 let flags: u8 = tcp_packet.get_flags();
                 let sequence = tcp_packet.get_sequence();
-                let is_syn_ack = flags == tcp::TcpFlags::SYN + tcp::TcpFlags::ACK;
+                let is_syn_ack =
+                    flags == tcp::TcpFlags::SYN + tcp::TcpFlags::ACK;
 
                 if !matches_destination || !is_syn_ack {
                     continue;

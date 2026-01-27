@@ -28,7 +28,11 @@ pub struct MainEventHandler {
 impl MainEventHandler {
     /// Creates a new event handler with the given store, shell executor, and
     /// IPC channels.
-    pub fn new(store: Arc<Store>, executor: Box<dyn ShellExecutor>, ipc: MainIpc) -> Self {
+    pub fn new(
+        store: Arc<Store>,
+        executor: Box<dyn ShellExecutor>,
+        ipc: MainIpc,
+    ) -> Self {
         Self {
             store,
             executor,
@@ -72,7 +76,11 @@ impl MainEventHandler {
         }
     }
 
-    fn handle_ssh(&self, device: &Device, device_config: &DeviceConfig) -> Result<()> {
+    fn handle_ssh(
+        &self,
+        device: &Device,
+        device_config: &DeviceConfig,
+    ) -> Result<()> {
         self.pause_ui()?;
         let res = self.executor.ssh(device, device_config);
         self.ipc.tx.send(RendererMessage::ResumeUI)?;
@@ -83,7 +91,8 @@ impl MainEventHandler {
                         let mut stderr_output = String::new();
                         let mut stderr_reader = BufReader::new(stderr);
                         stderr_reader.read_to_string(&mut stderr_output)?;
-                        self.store.dispatch(Action::SetError(Some(stderr_output)));
+                        self.store
+                            .dispatch(Action::SetError(Some(stderr_output)));
                     } else {
                         let err = String::from("ssh command failed");
                         self.store.dispatch(Action::SetError(Some(err)));
@@ -98,12 +107,18 @@ impl MainEventHandler {
         Ok(())
     }
 
-    fn handle_traceroute(&self, cmd: &AppCommand, device: &Device) -> Result<()> {
+    fn handle_traceroute(
+        &self,
+        cmd: &AppCommand,
+        device: &Device,
+    ) -> Result<()> {
         let exec = self.executor.traceroute(device);
         match exec {
             Ok(output) => {
-                self.store
-                    .dispatch(Action::UpdateCommandOutput((cmd.clone(), output)));
+                self.store.dispatch(Action::UpdateCommandOutput((
+                    cmd.clone(),
+                    output,
+                )));
                 self.store.dispatch(Action::SetCommandInProgress(None));
             }
             Err(err) => {
@@ -128,7 +143,8 @@ impl MainEventHandler {
                         let mut stderr_output = String::new();
                         let mut stderr_reader = BufReader::new(stderr);
                         stderr_reader.read_to_string(&mut stderr_output)?;
-                        self.store.dispatch(Action::SetError(Some(stderr_output)));
+                        self.store
+                            .dispatch(Action::SetError(Some(stderr_output)));
                     } else {
                         let err = String::from("lynx command failed");
                         self.store.dispatch(Action::SetError(Some(err)));
@@ -154,8 +170,12 @@ impl MainEventHandler {
             .dispatch(Action::SetCommandInProgress(Some(cmd.clone())));
 
         match &cmd {
-            AppCommand::Ssh(device, device_config) => self.handle_ssh(device, device_config)?,
-            AppCommand::TraceRoute(device) => self.handle_traceroute(&cmd, device)?,
+            AppCommand::Ssh(device, device_config) => {
+                self.handle_ssh(device, device_config)?
+            }
+            AppCommand::TraceRoute(device) => {
+                self.handle_traceroute(&cmd, device)?
+            }
             AppCommand::Browse(args) => self.handle_browse(args)?,
         }
 

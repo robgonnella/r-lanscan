@@ -20,8 +20,10 @@ fn main() {
     if !is_root() {
         panic!("permission denied: must run with root privileges");
     }
-    let interface = network::get_default_interface().expect("cannot find interface");
-    let wire = packet::wire::default(&interface).expect("failed to create wire");
+    let interface =
+        network::get_default_interface().expect("cannot find interface");
+    let wire =
+        packet::wire::default(&interface).expect("failed to create wire");
     let devices = vec![
         Device {
             hostname: "".to_string(),

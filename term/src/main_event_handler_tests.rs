@@ -34,9 +34,14 @@ fn setup(
     let identity = "/home/user/.ssh/id_rsa".to_string();
     let cidr = "192.168.1.1/24".to_string();
     let config = Config::new(user, identity, cidr);
-    let store = Arc::new(Store::new(Arc::new(Mutex::new(conf_manager)), config));
+    let store =
+        Arc::new(Store::new(Arc::new(Mutex::new(conf_manager)), config));
     let main_ipc = MainIpc::new(Box::new(mock_sender), Box::new(mock_receiver));
-    let main_handler = MainEventHandler::new(Arc::clone(&store), Box::new(mock_executor), main_ipc);
+    let main_handler = MainEventHandler::new(
+        Arc::clone(&store),
+        Box::new(mock_executor),
+        main_ipc,
+    );
     SetUpReturn {
         store,
         main_handler,

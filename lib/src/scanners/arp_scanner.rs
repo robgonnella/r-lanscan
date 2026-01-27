@@ -80,7 +80,10 @@ impl<'net> ARPScanner<'net> {
 impl ARPScanner<'_> {
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
-    fn read_packets(&self, done: sync::mpsc::Receiver<()>) -> JoinHandle<Result<()>> {
+    fn read_packets(
+        &self,
+        done: sync::mpsc::Receiver<()>,
+    ) -> JoinHandle<Result<()>> {
         let packet_reader = Arc::clone(&self.packet_reader);
         let packet_sender = Arc::clone(&self.packet_sender);
         let include_host_names = self.include_host_names;
@@ -98,7 +101,12 @@ impl ARPScanner<'_> {
         // check for "done" signals
         thread::spawn(move || {
             debug!("starting arp heartbeat thread");
-            let heartbeat = HeartBeat::new(source_mac, source_ipv4, source_port, packet_sender);
+            let heartbeat = HeartBeat::new(
+                source_mac,
+                source_ipv4,
+                source_port,
+                packet_sender,
+            );
             let interval = Duration::from_secs(1);
             loop {
                 if heartbeat_rx.try_recv().is_ok() {
@@ -165,14 +173,16 @@ impl ARPScanner<'_> {
                         String::new()
                     };
 
-                    let _ = notification_sender.send(ScanMessage::ARPScanDevice(Device {
-                        hostname,
-                        ip: ip4,
-                        mac,
-                        vendor,
-                        is_current_host: ip4 == source_ipv4,
-                        open_ports: PortSet::new(),
-                    }));
+                    let _ = notification_sender.send(
+                        ScanMessage::ARPScanDevice(Device {
+                            hostname,
+                            ip: ip4,
+                            mac,
+                            vendor,
+                            is_current_host: ip4 == source_ipv4,
+                            open_ports: PortSet::new(),
+                        }),
+                    );
                 });
             }
 

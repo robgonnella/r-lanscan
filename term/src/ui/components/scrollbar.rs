@@ -3,7 +3,9 @@
 use ratatui::{
     layout::{Margin, Rect},
     style::Style,
-    widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget},
+    widgets::{
+        Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget,
+    },
 };
 
 use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext};

@@ -38,7 +38,9 @@ impl Sender for PNetSender {
     fn send(&mut self, packet: &[u8]) -> Result<()> {
         let opt = self.sender.send_to(packet, None);
         match opt {
-            Some(res) => Ok(res.map_err(|e| RLanLibError::Wire(e.to_string()))?),
+            Some(res) => {
+                Ok(res.map_err(|e| RLanLibError::Wire(e.to_string()))?)
+            }
             None => Err(RLanLibError::Wire("failed to send packet".into())),
         }
     }
@@ -61,7 +63,9 @@ pub fn default(interface: &NetworkInterface) -> Result<Wire> {
 
     let channel = match pnet::datalink::channel(&interface.into(), cfg) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
-        Ok(_) => Err(RLanLibError::Wire("failed to create packet reader".into())),
+        Ok(_) => {
+            Err(RLanLibError::Wire("failed to create packet reader".into()))
+        }
         Err(e) => Err(RLanLibError::Wire(e.to_string())),
     }?;
 

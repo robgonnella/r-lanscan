@@ -2,7 +2,9 @@
 
 use color_eyre::eyre::Result;
 use r_lanlib::scanners::Device;
-use std::process::{ChildStderr, Command as ShellCommand, ExitStatus, Output, Stdio};
+use std::process::{
+    ChildStderr, Command as ShellCommand, ExitStatus, Output, Stdio,
+};
 
 use crate::{
     config::DeviceConfig,
@@ -63,7 +65,10 @@ impl ShellExecutor for Shell {
         Ok(output)
     }
 
-    fn browse(&self, args: &BrowseArgs) -> Result<(ExitStatus, Option<ChildStderr>)> {
+    fn browse(
+        &self,
+        args: &BrowseArgs,
+    ) -> Result<(ExitStatus, Option<ChildStderr>)> {
         let mut protocol = "http";
         if args.port == 443 {
             protocol = "https"

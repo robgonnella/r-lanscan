@@ -9,7 +9,11 @@ use crate::{
 
 /// Handles keyboard and mouse events, returns true if consumed.
 pub trait EventHandler {
-    fn process_event(&self, evt: &CrossTermEvent, ctx: &CustomWidgetContext) -> bool;
+    fn process_event(
+        &self,
+        evt: &CrossTermEvent,
+        ctx: &CustomWidgetContext,
+    ) -> bool;
 }
 
 /// Context passed to widgets during rendering and event handling.
@@ -27,12 +31,22 @@ pub struct CustomWidgetContext<'a> {
 
 /// Owned widget that consumes self on render.
 pub trait CustomWidget {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer, ctx: &CustomWidgetContext);
+    fn render(
+        self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    );
 }
 
 /// Borrowed widget that can render multiple times.
 pub trait CustomWidgetRef {
-    fn render_ref(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, ctx: &CustomWidgetContext);
+    fn render_ref(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    );
 }
 
 /// Stateful widget with mutable render state.

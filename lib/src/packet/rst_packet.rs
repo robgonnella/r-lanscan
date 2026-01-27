@@ -50,8 +50,8 @@ impl RstPacket {
         // set ip header
         let mut ip_buffer = [0u8; PKT_IP4_SIZE + PKT_TCP_SIZE];
 
-        let mut ip_header =
-            ipv4::MutableIpv4Packet::new(&mut ip_buffer).expect("failed to generate ip header");
+        let mut ip_header = ipv4::MutableIpv4Packet::new(&mut ip_buffer)
+            .expect("failed to generate ip header");
 
         ip_header.set_next_level_protocol(ip::IpNextHeaderProtocols::Tcp);
         ip_header.set_source(self.source_ip);
@@ -66,8 +66,8 @@ impl RstPacket {
         // set tcp header
         let mut tcp_buffer = [0u8; PKT_TCP_SIZE];
 
-        let mut tcp_header =
-            tcp::MutableTcpPacket::new(&mut tcp_buffer).expect("failed to generate tcp header");
+        let mut tcp_header = tcp::MutableTcpPacket::new(&mut tcp_buffer)
+            .expect("failed to generate tcp header");
 
         tcp_header.set_source(self.source_port);
         tcp_header.set_destination(self.dest_port);

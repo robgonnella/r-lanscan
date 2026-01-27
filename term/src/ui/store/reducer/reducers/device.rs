@@ -12,7 +12,10 @@ use crate::{config::DeviceConfig, ui::store::state::State};
 const MAX_ARP_MISS: i8 = 3;
 
 /// Replaces all devices after a full scan, tracking devices that went missing.
-pub fn update_all_devices(state: &mut State, devices: HashMap<Ipv4Addr, Device>) {
+pub fn update_all_devices(
+    state: &mut State,
+    devices: HashMap<Ipv4Addr, Device>,
+) {
     let mut new_arp_history: HashMap<Ipv4Addr, (Device, i8)> = HashMap::new();
 
     state.sorted_device_list = devices.values().cloned().sorted().collect();
@@ -52,7 +55,8 @@ pub fn add_device(state: &mut State, device: Device) {
         state.device_map.insert(device.ip, device);
     }
 
-    state.sorted_device_list = state.device_map.values().cloned().sorted().collect();
+    state.sorted_device_list =
+        state.device_map.values().cloned().sorted().collect();
 }
 
 /// Selects a device by IP, loading its config (or defaults).
@@ -64,7 +68,8 @@ pub fn update_selected_device(state: &mut State, ip: Ipv4Addr) {
             state.config.device_configs.get(&device.ip.to_string())
         {
             device_config.clone()
-        } else if let Some(device_config) = state.config.device_configs.get(&device.mac.to_string())
+        } else if let Some(device_config) =
+            state.config.device_configs.get(&device.mac.to_string())
         {
             device_config.clone()
         } else {

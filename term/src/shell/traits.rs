@@ -31,5 +31,8 @@ pub trait ShellExecutor: Send {
     fn traceroute(&self, device: &Device) -> Result<Output>;
 
     /// Opens a web browser to the device's port (uses lynx or system browser).
-    fn browse(&self, args: &BrowseArgs) -> Result<(ExitStatus, Option<ChildStderr>)>;
+    fn browse(
+        &self,
+        args: &BrowseArgs,
+    ) -> Result<(ExitStatus, Option<ChildStderr>)>;
 }

@@ -13,8 +13,8 @@ use thiserror::Error;
 use crate::{
     packet::{
         Reader, Sender, arp_packet::ArpPacketBuilderError,
-        heartbeat_packet::HeartbeatPacketBuilderError, rst_packet::RstPacketBuilderError,
-        syn_packet::SynPacketBuilderError,
+        heartbeat_packet::HeartbeatPacketBuilderError,
+        rst_packet::RstPacketBuilderError, syn_packet::SynPacketBuilderError,
     },
     scanners::ScanMessage,
 };
@@ -86,13 +86,17 @@ impl From<Box<dyn Any + Send>> for RLanLibError {
     }
 }
 
-impl<'a> From<PoisonError<MutexGuard<'a, dyn Reader + 'static>>> for RLanLibError {
+impl<'a> From<PoisonError<MutexGuard<'a, dyn Reader + 'static>>>
+    for RLanLibError
+{
     fn from(value: PoisonError<MutexGuard<'a, dyn Reader + 'static>>) -> Self {
         Self::PacketReaderLock(value.to_string())
     }
 }
 
-impl<'a> From<PoisonError<MutexGuard<'a, dyn Sender + 'static>>> for RLanLibError {
+impl<'a> From<PoisonError<MutexGuard<'a, dyn Sender + 'static>>>
+    for RLanLibError
+{
     fn from(value: PoisonError<MutexGuard<'a, dyn Sender + 'static>>) -> Self {
         Self::PacketSenderLock(value.to_string())
     }
@@ -100,7 +104,10 @@ impl<'a> From<PoisonError<MutexGuard<'a, dyn Sender + 'static>>> for RLanLibErro
 
 impl RLanLibError {
     /// Converter for std::net::AddrParseError
-    pub fn from_net_addr_parse_error(ip: &str, error: std::net::AddrParseError) -> Self {
+    pub fn from_net_addr_parse_error(
+        ip: &str,
+        error: std::net::AddrParseError,
+    ) -> Self {
         Self::Scan {
             error: error.to_string(),
             ip: Some(ip.to_string()),
@@ -109,7 +116,10 @@ impl RLanLibError {
     }
 
     /// Converter for ipnet::AddrParseError
-    pub fn from_ipnet_addr_parse_error(ip: &str, error: ipnet::AddrParseError) -> Self {
+    pub fn from_ipnet_addr_parse_error(
+        ip: &str,
+        error: ipnet::AddrParseError,
+    ) -> Self {
         Self::Scan {
             error: error.to_string(),
             ip: Some(ip.to_string()),

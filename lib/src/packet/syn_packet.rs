@@ -45,8 +45,8 @@ impl SynPacket {
         // set ip header
         let mut ip_buffer = [0u8; PKT_IP4_SIZE + PKT_TCP_SIZE];
 
-        let mut ip_header =
-            ipv4::MutableIpv4Packet::new(&mut ip_buffer).expect("failed to generate ip header");
+        let mut ip_header = ipv4::MutableIpv4Packet::new(&mut ip_buffer)
+            .expect("failed to generate ip header");
 
         ip_header.set_next_level_protocol(ip::IpNextHeaderProtocols::Tcp);
         ip_header.set_source(self.source_ip);
@@ -61,8 +61,8 @@ impl SynPacket {
         // set tcp header
         let mut tcp_buffer = [0u8; PKT_TCP_SIZE];
 
-        let mut tcp_header =
-            tcp::MutableTcpPacket::new(&mut tcp_buffer).expect("failed to generate tcp header");
+        let mut tcp_header = tcp::MutableTcpPacket::new(&mut tcp_buffer)
+            .expect("failed to generate tcp header");
 
         tcp_header.set_source(self.source_port);
         tcp_header.set_destination(self.dest_port);
@@ -95,8 +95,8 @@ pub fn create_syn_reply(
     to_port: u16,
     packet: &'static mut [u8; PKT_TOTAL_SIZE],
 ) {
-    let mut eth_header =
-        ethernet::MutableEthernetPacket::new(packet).expect("failed to generate ethernet header");
+    let mut eth_header = ethernet::MutableEthernetPacket::new(packet)
+        .expect("failed to generate ethernet header");
     eth_header.set_ethertype(ethernet::EtherTypes::Ipv4);
     eth_header.set_source(from_mac);
     eth_header.set_destination(to_mac);
@@ -104,8 +104,8 @@ pub fn create_syn_reply(
     // set ip header
     let mut ip_buffer = [0u8; PKT_IP4_SIZE + PKT_TCP_SIZE];
 
-    let mut ip_header =
-        ipv4::MutableIpv4Packet::new(&mut ip_buffer).expect("failed to generate ip header");
+    let mut ip_header = ipv4::MutableIpv4Packet::new(&mut ip_buffer)
+        .expect("failed to generate ip header");
 
     ip_header.set_next_level_protocol(ip::IpNextHeaderProtocols::Tcp);
     ip_header.set_source(from_ip);
@@ -120,8 +120,8 @@ pub fn create_syn_reply(
     // set tcp header
     let mut tcp_buffer = [0u8; PKT_TCP_SIZE];
 
-    let mut tcp_header =
-        tcp::MutableTcpPacket::new(&mut tcp_buffer).expect("failed to generate tcp header");
+    let mut tcp_header = tcp::MutableTcpPacket::new(&mut tcp_buffer)
+        .expect("failed to generate tcp header");
 
     tcp_header.set_source(from_port);
     tcp_header.set_destination(to_port);

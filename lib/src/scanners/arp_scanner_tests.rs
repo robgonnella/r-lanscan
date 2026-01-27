@@ -136,7 +136,9 @@ fn ignores_unrelated_packets() {
 
     for i in 0..5 {
         let mac = util::MacAddr::default();
-        let ip = net::Ipv4Addr::from_str(format!("192.168.0.{}", 1 + i).as_str()).unwrap();
+        let ip =
+            net::Ipv4Addr::from_str(format!("192.168.0.{}", 1 + i).as_str())
+                .unwrap();
 
         create_syn_reply(
             mac,

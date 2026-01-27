@@ -37,8 +37,8 @@ impl ArpPacket {
 
         let mut arp_buffer = [0u8; PKT_ARP_SIZE];
 
-        let mut pkt_arp =
-            arp::MutableArpPacket::new(&mut arp_buffer).expect("failed to generate arp packet");
+        let mut pkt_arp = arp::MutableArpPacket::new(&mut arp_buffer)
+            .expect("failed to generate arp packet");
 
         pkt_eth.set_destination(util::MacAddr::broadcast());
         pkt_eth.set_source(self.source_mac);
@@ -71,13 +71,13 @@ pub fn create_arp_reply(
     to_ip: net::Ipv4Addr,
     packet: &'static mut [u8; PKT_TOTAL_SIZE],
 ) {
-    let mut pkt_eth =
-        ethernet::MutableEthernetPacket::new(packet).expect("failed to generate ethernet packet");
+    let mut pkt_eth = ethernet::MutableEthernetPacket::new(packet)
+        .expect("failed to generate ethernet packet");
 
     let mut arp_buffer = [0u8; PKT_ARP_SIZE];
 
-    let mut pkt_arp =
-        arp::MutableArpPacket::new(&mut arp_buffer).expect("failed to generate arp packet");
+    let mut pkt_arp = arp::MutableArpPacket::new(&mut arp_buffer)
+        .expect("failed to generate arp packet");
 
     pkt_eth.set_destination(to_mac);
     pkt_eth.set_source(from_mac);

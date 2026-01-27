@@ -28,7 +28,12 @@ fn renders_input_component_non_edit_mode() {
                 ipc: Box::new(sender),
             };
 
-            input.render(frame.area(), frame.buffer_mut(), &mut input_state, &ctx);
+            input.render(
+                frame.area(),
+                frame.buffer_mut(),
+                &mut input_state,
+                &ctx,
+            );
         })
         .unwrap();
     assert_snapshot!(terminal.backend());
@@ -55,7 +60,12 @@ fn renders_input_component_edit_mode() {
                 ipc: Box::new(sender),
             };
 
-            input.render(frame.area(), frame.buffer_mut(), &mut input_state, &ctx);
+            input.render(
+                frame.area(),
+                frame.buffer_mut(),
+                &mut input_state,
+                &ctx,
+            );
         })
         .unwrap();
     assert_snapshot!(terminal.backend());

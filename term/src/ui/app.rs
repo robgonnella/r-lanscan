@@ -5,13 +5,18 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Style, palette::tailwind},
     text::Line,
-    widgets::{Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget, WidgetRef},
+    widgets::{
+        Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget,
+        WidgetRef,
+    },
 };
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::ui::{
     colors::Theme,
-    components::{footer::InfoFooter, header::Header, popover::get_popover_area},
+    components::{
+        footer::InfoFooter, header::Header, popover::get_popover_area,
+    },
     store::{
         Dispatcher,
         action::Action,
@@ -21,7 +26,10 @@ use crate::ui::{
         config::ConfigView,
         device::DeviceView,
         devices::DevicesView,
-        traits::{CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View},
+        traits::{
+            CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler,
+            View,
+        },
         view_select::ViewSelect,
     },
 };
@@ -58,7 +66,12 @@ impl App {
         }
     }
 
-    fn render_buffer_bg(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+    fn render_buffer_bg(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+    ) {
         let block = Block::new()
             .style(Style::new().bg(state.colors.buffer_bg))
             .padding(DEFAULT_PADDING);
@@ -81,8 +94,8 @@ impl App {
         message: Option<&String>,
         ctx: &CustomWidgetContext,
     ) {
-        let logo =
-            Paragraph::new("\nr-lanterm").style(Style::new().fg(ctx.state.colors.border_color));
+        let logo = Paragraph::new("\nr-lanterm")
+            .style(Style::new().fg(ctx.state.colors.border_color));
         let logo_block: Block<'_> = Block::bordered()
             .border_style(Style::new().fg(ctx.state.colors.border_color))
             .border_type(BorderType::Double)
@@ -141,7 +154,12 @@ impl App {
         }
     }
 
-    fn render_error_popover(&self, area: Rect, buf: &mut ratatui::prelude::Buffer, state: &State) {
+    fn render_error_popover(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+    ) {
         if let Some(msg) = state.error.as_ref() {
             let block = Block::bordered()
                 .border_type(BorderType::Double)
@@ -219,19 +237,33 @@ impl CustomWidgetRef for App {
             // logo & view select
             let top_section_areas = self.get_top_section_areas(page_areas[0]);
             let top_section_areas_clone = Rc::clone(&top_section_areas);
-            self.render_top(top_section_areas, buf, ctx.state.message.as_ref(), ctx);
+            self.render_top(
+                top_section_areas,
+                buf,
+                ctx.state.message.as_ref(),
+                ctx,
+            );
             // view
             self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx);
             // legend for current view
-            self.render_footer(legend, override_legend, page_areas[2], buf, ctx);
+            self.render_footer(
+                legend,
+                override_legend,
+                page_areas[2],
+                buf,
+                ctx,
+            );
 
             // view selection
             if ctx.state.render_view_select {
                 let mut select_area = top_section_areas_clone[2];
-                select_area.height = (self.sub_views.len() * 3).try_into().unwrap_or_default();
+                select_area.height =
+                    (self.sub_views.len() * 3).try_into().unwrap_or_default();
 
                 let select_block = Block::bordered()
-                    .border_style(Style::new().fg(ctx.state.colors.border_color))
+                    .border_style(
+                        Style::new().fg(ctx.state.colors.border_color),
+                    )
                     .border_type(BorderType::Double);
 
                 let select_inner_area = select_block.inner(select_area);
@@ -245,13 +277,21 @@ impl CustomWidgetRef for App {
 
             // popover when there are errors in the store
             // important to render this last so it properly layers on top
-            self.render_error_popover(get_popover_area(area, 50, 40), buf, ctx.state);
+            self.render_error_popover(
+                get_popover_area(area, 50, 40),
+                buf,
+                ctx.state,
+            );
         }
     }
 }
 
 impl EventHandler for App {
-    fn process_event(&self, evt: &CrossTermEvent, ctx: &CustomWidgetContext) -> bool {
+    fn process_event(
+        &self,
+        evt: &CrossTermEvent,
+        ctx: &CustomWidgetContext,
+    ) -> bool {
         let view_id = ctx.state.view_id;
 
         if ctx.state.render_view_select
