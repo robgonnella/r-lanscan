@@ -32,8 +32,8 @@ fn main() {
 
     let scanner = ARPScanner::builder()
         .interface(&interface)
-        .packet_reader(wire.0)
-        .packet_sender(wire.1)
+        .packet_sender(wire.0)
+        .packet_reader(wire.1)
         .targets(ip_targets)
         .source_port(source_port)
         .include_vendor(vendor)

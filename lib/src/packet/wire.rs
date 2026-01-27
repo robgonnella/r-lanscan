@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Represents a packet Reader and packet Sender tuple
-pub type Wire = (Arc<Mutex<dyn Reader>>, Arc<Mutex<dyn Sender>>);
+pub type Wire = (Arc<Mutex<dyn Sender>>, Arc<Mutex<dyn Reader>>);
 
 /// A PNetReader implementation of packet Reader
 pub struct PNetReader {
@@ -66,10 +66,10 @@ pub fn default(interface: &NetworkInterface) -> Result<Wire> {
     }?;
 
     Ok((
+        Arc::new(Mutex::new(PNetSender { sender: channel.0 })),
         Arc::new(Mutex::new(PNetReader {
             receiver: channel.1,
         })),
-        Arc::new(Mutex::new(PNetSender { sender: channel.0 })),
     ))
 }
 

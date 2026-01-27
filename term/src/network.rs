@@ -35,8 +35,8 @@ use crate::{
 /// updating the store with discovered devices.
 pub fn monitor_network(
     exit: Receiver<()>,
-    packet_reader: Arc<Mutex<dyn WireReader>>,
     packet_sender: Arc<Mutex<dyn WireSender>>,
+    packet_reader: Arc<Mutex<dyn WireReader>>,
     config: Config,
     interface: Arc<NetworkInterface>,
     store: Arc<Store>,

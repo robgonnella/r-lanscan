@@ -232,8 +232,8 @@ fn test_monitor_network() {
     let handle = thread::spawn(move || {
         monitor_network(
             exit_rx,
-            Arc::new(Mutex::new(mock_packet_reader)),
             Arc::new(Mutex::new(mock_packet_sender)),
+            Arc::new(Mutex::new(mock_packet_reader)),
             config,
             Arc::new(interface),
             store,
