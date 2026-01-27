@@ -34,9 +34,9 @@ use std::{
     fs, io,
     sync::{
         Arc, Mutex,
-        mpsc::{self, channel},
+        mpsc::{self, Receiver, Sender, channel},
     },
-    thread,
+    thread::{self, JoinHandle},
 };
 
 use ui::store::{Store, action::Action};
@@ -45,6 +45,7 @@ use crate::{
     config::DEFAULT_CONFIG_ID,
     ipc::{
         main::{MainIpc, MainReceiver, MainSender},
+        message::{MainMessage, RendererMessage},
         renderer::{RendererIpc, RendererReceiver, RendererSender},
     },
     shell::Shell,
@@ -118,15 +119,20 @@ fn get_project_config_path() -> Result<String> {
 }
 
 #[doc(hidden)]
-fn init(
-    args: &Args,
-    interface: &NetworkInterface,
-) -> Result<(Config, Arc<Store>)> {
+fn get_user_info() -> Result<(String, String)> {
     let user = whoami::username()?;
     let home = dirs::home_dir()
         .wrap_err(eyre!("failed to get user's home directory"))?;
     let identity = format!("{}/.ssh/id_rsa", home.to_string_lossy());
+    Ok((user, identity))
+}
 
+#[doc(hidden)]
+fn create_config_manager(
+    user: String,
+    identity: String,
+    interface: &NetworkInterface,
+) -> Result<ConfigManager> {
     let config_path = get_project_config_path()?;
 
     let config_manager = ConfigManager::builder()
@@ -136,42 +142,126 @@ fn init(
         .path(config_path)
         .build()?;
 
-    let config_manager = Arc::new(Mutex::new(config_manager));
+    Ok(config_manager)
+}
 
-    let manager = config_manager
-        .lock()
-        .map_err(|e| eyre!("failed to get lock on config_manager: {}", e))?;
-
-    let mut create_config = false;
-
-    let current_config = manager
+#[doc(hidden)]
+fn get_current_config(
+    config_manager: &ConfigManager,
+    interface: &NetworkInterface,
+    ports: Vec<String>,
+    user: String,
+    identity: String,
+) -> (Config, bool) {
+    config_manager
         .get_by_cidr(&interface.cidr)
-        .or_else(|| manager.get_by_id(DEFAULT_CONFIG_ID))
+        .or_else(|| config_manager.get_by_id(DEFAULT_CONFIG_ID))
+        .map(|c| (c, false))
         .unwrap_or_else(|| {
-            create_config = true;
-            Config {
-                id: fakeit::animal::animal().to_lowercase(),
-                cidr: interface.cidr.clone(),
-                ports: args.ports.clone(),
-                ..Config::new(
-                    user.clone(),
-                    identity.clone(),
-                    interface.cidr.clone(),
-                )
-            }
-        });
+            (
+                Config {
+                    id: fakeit::animal::animal().to_lowercase(),
+                    cidr: interface.cidr.clone(),
+                    ports,
+                    ..Config::new(user, identity, interface.cidr.clone())
+                },
+                true,
+            )
+        })
+}
+
+#[doc(hidden)]
+fn start_network_monitoring_thread(
+    config: Config,
+    interface: Arc<NetworkInterface>,
+    store: Arc<Store>,
+) -> Result<()> {
+    let (_, exit_rx) = mpsc::channel();
+    let wire = packet::wire::default(&interface)?;
+
+    // ignore handle here - we will forcefully exit instead of waiting
+    // for scan to finish
+    thread::spawn(move || -> Result<()> {
+        network::monitor_network(
+            exit_rx, wire.0, wire.1, config, interface, store,
+        )
+    });
+
+    Ok(())
+}
+
+#[doc(hidden)]
+fn start_renderer_thread(
+    main_tx: Sender<MainMessage>,
+    renderer_rx: Receiver<RendererMessage>,
+    store: Arc<Store>,
+    theme: Theme,
+) -> JoinHandle<Result<()>> {
+    // let (renderer_tx, renderer_rx) = channel();
+    // let (main_tx, main_rx) = channel();
+
+    // start tui renderer thread
+    thread::spawn(move || {
+        let stdout = io::stdout();
+        let backend = CrosstermBackend::new(stdout);
+        let terminal = Terminal::new(backend)?;
+        let renderer_ipc = RendererIpc::new(
+            Box::new(RendererSender::new(main_tx)),
+            Box::new(RendererReceiver::new(renderer_rx)),
+        );
+        let app_renderer =
+            renderer::Renderer::new(terminal, theme, store, renderer_ipc);
+        app_renderer.start_render_loop()
+    })
+}
+
+#[doc(hidden)]
+fn process_main_thread_events(
+    renderer_tx: Sender<RendererMessage>,
+    main_rx: Receiver<MainMessage>,
+    store: Arc<Store>,
+) -> Result<()> {
+    let main_ipc = MainIpc::new(
+        Box::new(MainSender::new(renderer_tx)),
+        Box::new(MainReceiver::new(main_rx)),
+    );
+
+    let handler = main_event_handler::MainEventHandler::new(
+        store,
+        Box::new(Shell::new()),
+        main_ipc,
+    );
+
+    // block and process incoming ipc events
+    handler.process_events()
+}
+
+#[doc(hidden)]
+fn init(
+    args: &Args,
+    interface: &NetworkInterface,
+) -> Result<(Config, Arc<Store>)> {
+    let (user, identity) = get_user_info()?;
+
+    let config_manager =
+        create_config_manager(user.clone(), identity.clone(), interface)?;
+
+    let (current_config, should_create_config) = get_current_config(
+        &config_manager,
+        interface,
+        args.ports.clone(),
+        user,
+        identity,
+    );
 
     let current_config_id = current_config.id.clone();
 
-    // free up manager lock so dispatches can acquire lock as needed
-    drop(manager);
-
     let store = Arc::new(Store::new(
-        Arc::clone(&config_manager),
+        Arc::new(Mutex::new(config_manager)),
         current_config.clone(),
     ));
 
-    if create_config {
+    if should_create_config {
         store.dispatch(Action::CreateAndSetConfig(current_config.clone()));
     } else {
         store.dispatch(Action::SetConfig(current_config_id));
@@ -201,22 +291,14 @@ fn main() -> Result<()> {
         .ok_or_else(|| eyre!("Could not detect default network interface"))?;
     let (config, store) = init(&args, &interface)?;
     let theme = Theme::from_string(&config.theme);
-    let (_, exit_rx) = mpsc::channel();
-    let wire = packet::wire::default(&interface)?;
-    let net_monitor_store = Arc::clone(&store);
 
     // ignore handle here - we will forcefully exit instead of waiting
     // for scan to finish
-    thread::spawn(move || -> Result<()> {
-        network::monitor_network(
-            exit_rx,
-            wire.0,
-            wire.1,
-            config,
-            Arc::new(interface),
-            net_monitor_store,
-        )
-    });
+    start_network_monitoring_thread(
+        config,
+        Arc::new(interface),
+        Arc::clone(&store),
+    )?;
 
     if args.debug {
         let mut signals = Signals::new([SIGINT])?;
@@ -234,39 +316,12 @@ fn main() -> Result<()> {
     let (renderer_tx, renderer_rx) = channel();
     let (main_tx, main_rx) = channel();
 
-    let renderer_store = Arc::clone(&store);
+    // start separate thread for tui rendering process
+    let renderer_handle =
+        start_renderer_thread(main_tx, renderer_rx, Arc::clone(&store), theme);
 
-    // start tui renderer thread
-    let renderer_handle = thread::spawn(move || {
-        let stdout = io::stdout();
-        let backend = CrosstermBackend::new(stdout);
-        let terminal = Terminal::new(backend)?;
-        let renderer_ipc = RendererIpc::new(
-            Box::new(RendererSender::new(main_tx)),
-            Box::new(RendererReceiver::new(renderer_rx)),
-        );
-        let app_renderer = renderer::Renderer::new(
-            terminal,
-            theme,
-            renderer_store,
-            renderer_ipc,
-        );
-        app_renderer.start_render_loop()
-    });
-
-    let main_ipc = MainIpc::new(
-        Box::new(MainSender::new(renderer_tx)),
-        Box::new(MainReceiver::new(main_rx)),
-    );
-
-    let handler = main_event_handler::MainEventHandler::new(
-        store,
-        Box::new(Shell::new()),
-        main_ipc,
-    );
-
-    // block and process incoming ipc events
-    handler.process_events()?;
+    // loop / block and process incoming ipc messages in main thread
+    process_main_thread_events(renderer_tx, main_rx, Arc::clone(&store))?;
 
     // wait for renderer thread to exit
     renderer_handle

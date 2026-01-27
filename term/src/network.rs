@@ -32,8 +32,73 @@ use crate::{
     },
 };
 
+/// Main network monitoring loop. Continuously runs ARP and SYN scans,
+/// updating the store with discovered devices.
+pub fn monitor_network(
+    exit: Receiver<()>,
+    packet_reader: Arc<Mutex<dyn WireReader>>,
+    packet_sender: Arc<Mutex<dyn WireSender>>,
+    config: Config,
+    interface: Arc<NetworkInterface>,
+    store: Arc<Store>,
+) -> Result<()> {
+    log::info!("starting network monitor");
+
+    loop {
+        if exit.try_recv().is_ok() {
+            return Ok(());
+        }
+
+        let source_port = network::get_available_port()?;
+
+        let (tx, rx) = mpsc::channel::<ScanMessage>();
+
+        let rx = process_arp(
+            ARPScannerArgs {
+                interface: &interface,
+                packet_reader: Arc::clone(&packet_reader),
+                packet_sender: Arc::clone(&packet_sender),
+                targets: IPTargets::new(vec![interface.cidr.clone()])
+                    .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
+                include_host_names: true,
+                include_vendor: true,
+                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
+                source_port,
+                notifier: tx.clone(),
+            },
+            rx,
+            Arc::clone(&store) as Arc<dyn Dispatcher>,
+        )?;
+
+        let state = store.get_state()?;
+        let arp_devices = get_detected_arp_devices(&state);
+
+        let results = process_syn(
+            SYNScannerArgs {
+                interface: &interface,
+                packet_reader: Arc::clone(&packet_reader),
+                packet_sender: Arc::clone(&packet_sender),
+                targets: arp_devices,
+                ports: PortTargets::new(config.ports.clone())
+                    .map_err(|e| eyre!("Invalid port targets: {}", e))?,
+                source_port,
+                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
+                notifier: tx.clone(),
+            },
+            rx,
+            Arc::clone(&store),
+        )?;
+
+        store.dispatch(Action::UpdateAllDevices(results));
+
+        log::debug!("network scan completed");
+
+        thread::sleep(time::Duration::from_secs(15));
+    }
+}
+
 /// Runs an ARP scan and dispatches discovered devices to the store.
-pub fn process_arp(
+fn process_arp(
     args: ARPScannerArgs,
     rx: Receiver<ScanMessage>,
     dispatcher: Arc<dyn Dispatcher>,
@@ -73,7 +138,7 @@ pub fn process_arp(
 }
 
 /// Runs a SYN scan on discovered devices and returns devices with open ports.
-pub fn process_syn(
+fn process_syn(
     args: SYNScannerArgs,
     rx: Receiver<ScanMessage>,
     store: Arc<Store>,
@@ -138,71 +203,6 @@ pub fn process_syn(
     store.dispatch(Action::UpdateMessage(None));
 
     Ok(syn_results)
-}
-
-/// Main network monitoring loop. Continuously runs ARP and SYN scans,
-/// updating the store with discovered devices.
-pub fn monitor_network(
-    exit: Receiver<()>,
-    packet_reader: Arc<Mutex<dyn WireReader>>,
-    packet_sender: Arc<Mutex<dyn WireSender>>,
-    config: Config,
-    interface: Arc<NetworkInterface>,
-    store: Arc<Store>,
-) -> Result<()> {
-    log::info!("starting network monitor");
-
-    loop {
-        if exit.try_recv().is_ok() {
-            return Ok(());
-        }
-
-        let source_port = network::get_available_port()?;
-
-        let (tx, rx) = mpsc::channel::<ScanMessage>();
-
-        let rx = process_arp(
-            ARPScannerArgs {
-                interface: &interface,
-                packet_reader: Arc::clone(&packet_reader),
-                packet_sender: Arc::clone(&packet_sender),
-                targets: IPTargets::new(vec![interface.cidr.clone()])
-                    .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
-                include_host_names: true,
-                include_vendor: true,
-                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-                source_port,
-                notifier: tx.clone(),
-            },
-            rx,
-            Arc::clone(&store) as Arc<dyn Dispatcher>,
-        )?;
-
-        let state = store.get_state()?;
-        let arp_devices = get_detected_arp_devices(&state);
-
-        let results = process_syn(
-            SYNScannerArgs {
-                interface: &interface,
-                packet_reader: Arc::clone(&packet_reader),
-                packet_sender: Arc::clone(&packet_sender),
-                targets: arp_devices,
-                ports: PortTargets::new(config.ports.clone())
-                    .map_err(|e| eyre!("Invalid port targets: {}", e))?,
-                source_port,
-                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-                notifier: tx.clone(),
-            },
-            rx,
-            Arc::clone(&store),
-        )?;
-
-        store.dispatch(Action::UpdateAllDevices(results));
-
-        log::debug!("network scan completed");
-
-        thread::sleep(time::Duration::from_secs(15));
-    }
 }
 
 #[cfg(test)]
