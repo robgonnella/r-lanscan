@@ -333,7 +333,7 @@ fn reports_error_on_packet_reader_lock() {
 
     let (_done_tx, done_rx) = channel();
 
-    let handle = scanner.read_packets(done_rx);
+    let handle = scanner.read_packets(done_rx).unwrap();
 
     let result = handle.join().unwrap();
 
@@ -411,7 +411,7 @@ fn reports_error_on_rst_packet_sender_lock() {
 
     let (_done_tx, done_rx) = channel();
 
-    let handle = scanner.read_packets(done_rx);
+    let handle = scanner.read_packets(done_rx).unwrap();
 
     let result = handle.join().unwrap();
 
@@ -491,7 +491,7 @@ fn reports_error_on_rst_packet_send_errors() {
 
     let (_done_tx, done_rx) = channel();
 
-    let handle = scanner.read_packets(done_rx);
+    let handle = scanner.read_packets(done_rx).unwrap();
 
     let result = handle.join().unwrap();
 
@@ -544,7 +544,7 @@ fn reports_error_on_packet_read_error() {
 
     let (_done_tx, done_rx) = channel();
 
-    let handle = scanner.read_packets(done_rx);
+    let handle = scanner.read_packets(done_rx).unwrap();
 
     let result = handle.join().unwrap();
 

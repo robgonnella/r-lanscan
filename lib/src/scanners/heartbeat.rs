@@ -4,14 +4,18 @@
 //! unable to determine when idle_timeout has been reached
 
 use derive_builder::Builder;
-use log::*;
 use pnet::util::MacAddr;
 use std::{
     net::Ipv4Addr,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
+    thread::{self, JoinHandle},
+    time::Duration,
 };
 
-use crate::packet::{Sender, heartbeat_packet::HeartbeatPacketBuilder};
+use crate::{
+    error::Result,
+    packet::{Sender, heartbeat_packet::HeartbeatPacketBuilder},
+};
 
 /// Sends heartbeat packets to ensure we continuously evaluate packet reader
 /// channels
@@ -33,29 +37,74 @@ impl HeartBeat {
         HeartBeatBuilder::default()
     }
 
-    /// Sends a heartbeat packet with provided source info
-    pub fn beat(&self) {
+    /// Sends a single heartbeat packet
+    pub fn beat(&self) -> Result<()> {
         let heartbeat_packet = HeartbeatPacketBuilder::default()
             .source_ip(self.source_ipv4)
             .source_mac(self.source_mac)
             .source_port(self.source_port)
-            .build();
+            .build()?;
 
-        let packet = if let Ok(heartbeat_packet) = heartbeat_packet {
-            heartbeat_packet.to_raw()
-        } else {
-            let err = heartbeat_packet.unwrap_err();
-            error!("failed to build heartbeat packet: {}", err);
-            return;
-        };
+        let packet = heartbeat_packet.to_raw();
 
-        if let Ok(mut pkt_sender) = self.packet_sender.lock() {
-            if let Err(err) = pkt_sender.send(&packet) {
-                error!("failed to send heartbeat packet: {}", err);
+        let mut sender = self.packet_sender.lock()?;
+        sender.send(&packet)?;
+        Ok(())
+    }
+
+    /// Starts a separate thread to send heartbeat packets on a 1s interval
+    pub fn start_in_thread(
+        &self,
+        done: mpsc::Receiver<()>,
+    ) -> Result<JoinHandle<Result<()>>> {
+        // since reading packets off the wire is a blocking operation, we
+        // won't be able to detect a "done" signal if no packets are being
+        // received as we'll be blocked on waiting for one to come in. To fix
+        // this we send periodic "heartbeat" packets so we can continue to
+        // check for "done" signals
+        let source_mac = self.source_mac;
+        let source_ipv4 = self.source_ipv4;
+        let source_port = self.source_port;
+        let packet_sender = Arc::clone(&self.packet_sender);
+        let heartbeat_packet = HeartbeatPacketBuilder::default()
+            .source_ip(source_ipv4)
+            .source_mac(source_mac)
+            .source_port(source_port)
+            .build()?;
+        let packet = heartbeat_packet.to_raw();
+
+        Ok(thread::spawn(move || -> Result<()> {
+            log::debug!("starting heartbeat thread");
+
+            let mut misses = 0;
+            let mut send_err = None;
+            let interval = Duration::from_secs(1);
+
+            loop {
+                if misses >= 5
+                    && let Some(err) = send_err.take()
+                {
+                    return Err(err);
+                }
+                if done.try_recv().is_ok() {
+                    log::debug!("stopping heartbeat");
+                    return Ok(());
+                }
+                log::debug!("sending heartbeat");
+                {
+                    // scoped to drop lock before end of loop
+                    let mut sender = packet_sender.lock()?;
+                    if let Err(err) = sender.send(&packet) {
+                        misses += 1;
+                        send_err = Some(err);
+                    } else {
+                        misses = 0;
+                        send_err = None;
+                    }
+                }
+                thread::sleep(interval);
             }
-        } else {
-            error!("failed to get lock on packet sender to send heartbeat");
-        }
+        }))
     }
 }
 
