@@ -2,10 +2,7 @@ use std::{env, sync::mpsc, time::Duration};
 
 use r_lanlib::{
     network, packet,
-    scanners::{
-        Device, ScanMessage, Scanner,
-        arp_scanner::{ARPScanner, ARPScannerArgs},
-    },
+    scanners::{Device, ScanMessage, Scanner, arp_scanner::ARPScanner},
     targets::ips::IPTargets,
 };
 
@@ -33,21 +30,22 @@ fn main() {
     let source_port: u16 = 54321;
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let scanner = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: wire.0,
-        packet_sender: wire.1,
-        targets: ip_targets,
-        source_port,
-        include_vendor: vendor,
-        include_host_names: host_names,
-        idle_timeout,
-        notifier: tx,
-    });
+    let scanner = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(wire.0)
+        .packet_sender(wire.1)
+        .targets(ip_targets)
+        .source_port(source_port)
+        .include_vendor(vendor)
+        .include_host_names(host_names)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
 
     let mut results: Vec<Device> = Vec::new();
 
-    let handle = scanner.scan();
+    let handle = scanner.scan().unwrap();
 
     loop {
         let msg = rx.recv().expect("failed to poll for messages");

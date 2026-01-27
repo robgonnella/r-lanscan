@@ -14,7 +14,13 @@ fn new() {
     let sender: Arc<Mutex<dyn Sender>> =
         Arc::new(Mutex::new(MockPacketSender::new()));
 
-    let heart_beat = HeartBeat::new(source_mac, source_ip, source_port, sender);
+    let heart_beat = HeartBeat::builder()
+        .source_mac(source_mac)
+        .source_ipv4(source_ip)
+        .source_port(source_port)
+        .packet_sender(sender)
+        .build()
+        .unwrap();
 
     assert_eq!(heart_beat.source_mac, source_mac);
     assert_eq!(heart_beat.source_ipv4, source_ip);
@@ -45,6 +51,13 @@ fn sends_heartbeat_packets() {
 
     let sender = Arc::new(Mutex::new(packet_sender));
 
-    let heart_beat = HeartBeat::new(source_mac, source_ip, source_port, sender);
+    let heart_beat = HeartBeat::builder()
+        .source_mac(source_mac)
+        .source_ipv4(source_ip)
+        .source_port(source_port)
+        .packet_sender(sender)
+        .build()
+        .unwrap();
+
     heart_beat.beat();
 }

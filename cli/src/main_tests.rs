@@ -1,7 +1,10 @@
 use mockall::mock;
 use mpsc::channel;
 use pnet::util::MacAddr;
-use r_lanlib::scanners::{Port, PortSet, Scanner};
+use r_lanlib::{
+    error::Result,
+    scanners::{Port, PortSet, Scanner},
+};
 use std::{
     net::Ipv4Addr,
     thread::{self, JoinHandle},
@@ -13,14 +16,14 @@ use super::*;
 mock! {
     ArpScanner{}
     impl Scanner for ArpScanner {
-        fn scan(&self) -> JoinHandle<r_lanlib::error::Result<()>>;
+        fn scan(&self) -> Result<JoinHandle<r_lanlib::error::Result<()>>>;
     }
 }
 
 mock! {
     SynScanner{}
     impl Scanner for SynScanner {
-        fn scan(&self) -> JoinHandle<r_lanlib::error::Result<()>>;
+        fn scan(&self) -> Result<JoinHandle<r_lanlib::error::Result<()>>>;
     }
 }
 
@@ -220,7 +223,7 @@ fn performs_arp_scan() {
     arp.expect_scan().returning(|| {
         let handle: JoinHandle<r_lanlib::error::Result<()>> =
             thread::spawn(|| Ok(()));
-        handle
+        Ok(handle)
     });
 
     let result = process_arp(&arp, rx);
@@ -264,7 +267,7 @@ fn performs_syn_scan() {
     syn.expect_scan().returning(|| {
         let handle: JoinHandle<r_lanlib::error::Result<()>> =
             thread::spawn(|| Ok(()));
-        handle
+        Ok(handle)
     });
 
     let result = process_syn(&syn, vec![device.clone()], rx);

@@ -9,8 +9,7 @@ use r_lanlib::{
     packet::{Reader as WireReader, Sender as WireSender},
     scanners::{
         Device, IDLE_TIMEOUT, PortSet, ScanMessage, Scanner,
-        arp_scanner::{ARPScanner, ARPScannerArgs},
-        syn_scanner::{SYNScanner, SYNScannerArgs},
+        arp_scanner::ARPScanner, syn_scanner::SYNScanner,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
@@ -53,19 +52,23 @@ pub fn monitor_network(
 
         let (tx, rx) = mpsc::channel::<ScanMessage>();
 
+        let ip_targets = IPTargets::new(vec![interface.cidr.clone()])
+            .map_err(|e| eyre!("Invalid IP targets: {}", e))?;
+
+        let arp_scanner = ARPScanner::builder()
+            .interface(interface.as_ref())
+            .packet_reader(Arc::clone(&packet_reader))
+            .packet_sender(Arc::clone(&packet_sender))
+            .targets(ip_targets)
+            .include_host_names(true)
+            .include_vendor(true)
+            .idle_timeout(time::Duration::from_millis(IDLE_TIMEOUT.into()))
+            .source_port(source_port)
+            .notifier(tx.clone())
+            .build()?;
+
         let rx = process_arp(
-            ARPScannerArgs {
-                interface: &interface,
-                packet_reader: Arc::clone(&packet_reader),
-                packet_sender: Arc::clone(&packet_sender),
-                targets: IPTargets::new(vec![interface.cidr.clone()])
-                    .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
-                include_host_names: true,
-                include_vendor: true,
-                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-                source_port,
-                notifier: tx.clone(),
-            },
+            arp_scanner,
             rx,
             Arc::clone(&store) as Arc<dyn Dispatcher>,
         )?;
@@ -73,21 +76,21 @@ pub fn monitor_network(
         let state = store.get_state()?;
         let arp_devices = get_detected_arp_devices(&state);
 
-        let results = process_syn(
-            SYNScannerArgs {
-                interface: &interface,
-                packet_reader: Arc::clone(&packet_reader),
-                packet_sender: Arc::clone(&packet_sender),
-                targets: arp_devices,
-                ports: PortTargets::new(config.ports.clone())
-                    .map_err(|e| eyre!("Invalid port targets: {}", e))?,
-                source_port,
-                idle_timeout: time::Duration::from_millis(IDLE_TIMEOUT.into()),
-                notifier: tx.clone(),
-            },
-            rx,
-            Arc::clone(&store),
-        )?;
+        let port_targets = PortTargets::new(config.ports.clone())
+            .map_err(|e| eyre!("Invalid port targets: {}", e))?;
+
+        let syn_scanner = SYNScanner::builder()
+            .interface(interface.as_ref())
+            .packet_reader(Arc::clone(&packet_reader))
+            .packet_sender(Arc::clone(&packet_sender))
+            .targets(arp_devices)
+            .ports(port_targets)
+            .source_port(source_port)
+            .idle_timeout(time::Duration::from_millis(IDLE_TIMEOUT.into()))
+            .notifier(tx.clone())
+            .build()?;
+
+        let results = process_syn(syn_scanner, rx, Arc::clone(&store))?;
 
         store.dispatch(Action::UpdateAllDevices(results));
 
@@ -99,17 +102,15 @@ pub fn monitor_network(
 
 /// Runs an ARP scan and dispatches discovered devices to the store.
 fn process_arp(
-    args: ARPScannerArgs,
+    scanner: ARPScanner,
     rx: Receiver<ScanMessage>,
     dispatcher: Arc<dyn Dispatcher>,
 ) -> Result<Receiver<ScanMessage>> {
-    let scanner = ARPScanner::new(args);
-
     dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing ARP Scan…",
     ))));
 
-    let handle = scanner.scan();
+    let handle = scanner.scan()?;
 
     loop {
         let msg = rx.recv()?;
@@ -139,7 +140,7 @@ fn process_arp(
 
 /// Runs a SYN scan on discovered devices and returns devices with open ports.
 fn process_syn(
-    args: SYNScannerArgs,
+    scanner: SYNScanner,
     rx: Receiver<ScanMessage>,
     store: Arc<Store>,
 ) -> Result<HashMap<Ipv4Addr, Device>> {
@@ -161,14 +162,12 @@ fn process_syn(
         );
     }
 
-    let scanner = SYNScanner::new(args);
-
     log::debug!("starting syn scan");
     store.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing SYN Scan…",
     ))));
 
-    let handle = scanner.scan();
+    let handle = scanner.scan()?;
 
     loop {
         let msg = rx.recv()?;

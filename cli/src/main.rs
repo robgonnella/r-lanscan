@@ -21,9 +21,8 @@ use r_lanlib::{
     network::{self, NetworkInterface},
     packet,
     scanners::{
-        Device, IDLE_TIMEOUT, ScanMessage, Scanner,
-        arp_scanner::{ARPScanner, ARPScannerArgs},
-        syn_scanner::{SYNScanner, SYNScannerArgs},
+        Device, IDLE_TIMEOUT, ScanMessage, Scanner, arp_scanner::ARPScanner,
+        syn_scanner::SYNScanner,
     },
     targets::{ips::IPTargets, ports::PortTargets},
 };
@@ -134,7 +133,7 @@ fn process_arp(
 
     info!("starting arp scan...");
 
-    let handle = scanner.scan();
+    let handle = scanner.scan()?;
 
     loop {
         let msg = rx.recv()?;
@@ -209,7 +208,7 @@ fn process_syn(
 
     info!("starting syn scan...");
 
-    let handle = scanner.scan();
+    let handle = scanner.scan()?;
 
     loop {
         let msg = rx.recv()?;
@@ -343,18 +342,20 @@ fn main() -> Result<()> {
 
     let wire = packet::wire::default(&interface)?;
 
-    let arp = ARPScanner::new(ARPScannerArgs {
-        interface: &interface,
-        packet_reader: Arc::clone(&wire.0),
-        packet_sender: Arc::clone(&wire.1),
-        targets: IPTargets::new(args.targets.clone())
-            .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
-        source_port: args.source_port,
-        include_vendor: args.vendor,
-        include_host_names: args.host_names,
-        idle_timeout: time::Duration::from_millis(args.idle_timeout_ms.into()),
-        notifier: tx.clone(),
-    });
+    let arp = ARPScanner::builder()
+        .interface(&interface)
+        .packet_reader(Arc::clone(&wire.0))
+        .packet_sender(Arc::clone(&wire.1))
+        .targets(
+            IPTargets::new(args.targets.clone())
+                .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
+        )
+        .source_port(args.source_port)
+        .include_vendor(args.vendor)
+        .include_host_names(args.host_names)
+        .idle_timeout(time::Duration::from_millis(args.idle_timeout_ms.into()))
+        .notifier(tx.clone())
+        .build()?;
 
     let (arp_results, rx) = process_arp(&arp, rx)?;
 
@@ -364,17 +365,19 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let syn = SYNScanner::new(SYNScannerArgs {
-        interface: &interface,
-        packet_reader: wire.0,
-        packet_sender: wire.1,
-        targets: arp_results.clone(),
-        ports: PortTargets::new(args.ports.clone())
-            .map_err(|e| eyre!("Invalid port targets: {}", e))?,
-        source_port: args.source_port,
-        idle_timeout: time::Duration::from_millis(args.idle_timeout_ms.into()),
-        notifier: tx,
-    });
+    let syn = SYNScanner::builder()
+        .interface(&interface)
+        .packet_reader(wire.0)
+        .packet_sender(wire.1)
+        .targets(arp_results.clone())
+        .ports(
+            PortTargets::new(args.ports.clone())
+                .map_err(|e| eyre!("Invalid port targets: {}", e))?,
+        )
+        .source_port(args.source_port)
+        .idle_timeout(time::Duration::from_millis(args.idle_timeout_ms.into()))
+        .notifier(tx)
+        .build()?;
 
     let final_results = process_syn(&syn, arp_results, rx)?;
     print_syn(&args, &final_results)?;

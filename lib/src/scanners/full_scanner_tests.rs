@@ -26,25 +26,28 @@ const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 #[test]
 fn new() {
     let interface = network::get_default_interface().unwrap();
-    let sender = Arc::new(Mutex::new(MockPacketSender::new()));
-    let receiver = Arc::new(Mutex::new(MockPacketReader::new()));
+    let sender: Arc<Mutex<dyn Sender>> =
+        Arc::new(Mutex::new(MockPacketSender::new()));
+    let receiver: Arc<Mutex<dyn Reader>> =
+        Arc::new(Mutex::new(MockPacketReader::new()));
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]).unwrap();
     let ports = PortTargets::new(vec!["2000-8000".to_string()]).unwrap();
     let (tx, _) = channel();
 
-    let scanner = FullScanner::new(FullScannerArgs {
-        interface: &interface,
-        packet_reader: receiver,
-        packet_sender: sender,
-        targets,
-        ports,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-        source_port: 54321,
-    });
+    let scanner = FullScanner::builder()
+        .interface(&interface)
+        .packet_reader(receiver)
+        .packet_sender(sender)
+        .targets(targets)
+        .ports(ports)
+        .host(true)
+        .vendor(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .source_port(54321_u16)
+        .build()
+        .unwrap();
 
     assert!(scanner.host);
     assert!(scanner.vendor);
@@ -112,28 +115,29 @@ fn sends_and_reads_packets() {
     });
     sender.expect_send().returning(|_| Ok(()));
 
-    let arc_receiver = Arc::new(Mutex::new(receiver));
-    let arc_sender = Arc::new(Mutex::new(sender));
+    let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
 
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
     let (tx, rx) = channel();
 
-    let scanner = FullScanner::new(FullScannerArgs {
-        interface: &interface,
-        packet_reader: arc_receiver,
-        packet_sender: arc_sender,
-        targets,
-        ports,
-        include_host_names: true,
-        include_vendor: true,
-        idle_timeout,
-        notifier: tx,
-        source_port: 54321,
-    });
+    let scanner = FullScanner::builder()
+        .interface(&interface)
+        .packet_reader(arc_receiver)
+        .packet_sender(arc_sender)
+        .targets(targets)
+        .ports(ports)
+        .host(true)
+        .vendor(true)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .source_port(54321_u16)
+        .build()
+        .unwrap();
 
-    let handle = scanner.scan();
+    let handle = scanner.scan().unwrap();
 
     let mut detected_device = None;
 

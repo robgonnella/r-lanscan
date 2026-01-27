@@ -1,3 +1,9 @@
+//! Provides Heartbeat packet send capabilities to ensure our packet receive
+//! loops are continuously processing and capable of evaluating timeouts etc.
+//! Otherwise we would be stuck / blocked waiting for incoming packets and
+//! unable to determine when idle_timeout has been reached
+
+use derive_builder::Builder;
 use log::*;
 use pnet::util::MacAddr;
 use std::{
@@ -7,28 +13,27 @@ use std::{
 
 use crate::packet::{Sender, heartbeat_packet::HeartbeatPacketBuilder};
 
+/// Sends heartbeat packets to ensure we continuously evaluate packet reader
+/// channels
+#[derive(Builder)]
 pub struct HeartBeat {
+    /// MAC address to use as source in heartbeat packets
     source_mac: MacAddr,
+    /// IPv4 address to use as source in heartbeat packets
     source_ipv4: Ipv4Addr,
+    /// Port to use as source in heartbeat packets
     source_port: u16,
+    /// Packet sender for transmitting heartbeat packets
     packet_sender: Arc<Mutex<dyn Sender>>,
 }
 
 impl HeartBeat {
-    pub fn new(
-        source_mac: MacAddr,
-        source_ipv4: Ipv4Addr,
-        source_port: u16,
-        packet_sender: Arc<Mutex<dyn Sender>>,
-    ) -> Self {
-        Self {
-            source_mac,
-            source_ipv4,
-            source_port,
-            packet_sender,
-        }
+    /// Returns a builder for Heartbeat
+    pub fn builder() -> HeartBeatBuilder {
+        HeartBeatBuilder::default()
     }
 
+    /// Sends a heartbeat packet with provided source info
     pub fn beat(&self) {
         let heartbeat_packet = HeartbeatPacketBuilder::default()
             .source_ip(self.source_ipv4)
