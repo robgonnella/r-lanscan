@@ -10,7 +10,7 @@ use ratatui::{Terminal, backend::TestBackend};
 #[test]
 fn renders_header_component() {
     let header = Header::new("Test".to_string());
-    let mut terminal = Terminal::new(TestBackend::new(80, 3)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 3)).unwrap();
     let state = State::default();
     let sender = MockIpcSender::<MainMessage>::new();
 

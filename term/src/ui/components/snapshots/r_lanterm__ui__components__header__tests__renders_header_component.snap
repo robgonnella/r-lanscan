@@ -2,6 +2,6 @@
 source: term/src/ui/components/./header_tests.rs
 expression: terminal.backend()
 ---
-"Test                                                                            "
-"                                                                                "
-"                                                                                "
+"Test                                                                                                "
+"                                                                                                    "
+"                                                                                                    "

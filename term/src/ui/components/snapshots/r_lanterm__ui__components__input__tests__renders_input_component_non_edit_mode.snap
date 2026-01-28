@@ -2,6 +2,6 @@
 source: term/src/ui/components/./input_tests.rs
 expression: terminal.backend()
 ---
-"Test: value                                                                     "
-"                                                                                "
-"                                                                                "
+"Test: value                                                                                         "
+"                                                                                                    "
+"                                                                                                    "

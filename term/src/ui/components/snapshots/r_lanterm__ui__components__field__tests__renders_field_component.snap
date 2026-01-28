@@ -2,4 +2,4 @@
 source: term/src/ui/components/./field_tests.rs
 expression: terminal.backend()
 ---
-"Test: value                                                                     "
+"Test: value                                                                                         "

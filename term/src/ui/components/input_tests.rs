@@ -16,7 +16,7 @@ fn renders_input_component_non_edit_mode() {
         value: "value".to_string(),
     };
 
-    let mut terminal = Terminal::new(TestBackend::new(80, 3)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 3)).unwrap();
     let state = State::default();
     let sender = MockIpcSender::<MainMessage>::new();
 
@@ -48,7 +48,7 @@ fn renders_input_component_edit_mode() {
         value: "value".to_string(),
     };
 
-    let mut terminal = Terminal::new(TestBackend::new(80, 3)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 3)).unwrap();
     let state = State::default();
     let sender = MockIpcSender::<MainMessage>::new();
 

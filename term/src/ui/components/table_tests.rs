@@ -15,7 +15,7 @@ fn renders_table_component() {
     let table = Table::new(items, headers, col_sizes, 2);
     let state = State::default();
     let sender = MockIpcSender::<MainMessage>::new();
-    let mut terminal = Terminal::new(TestBackend::new(80, 10)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 10)).unwrap();
 
     terminal
         .draw(|frame| {

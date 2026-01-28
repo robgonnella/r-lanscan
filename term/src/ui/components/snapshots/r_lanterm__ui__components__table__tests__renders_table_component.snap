@@ -2,13 +2,13 @@
 source: term/src/ui/components/./table_tests.rs
 expression: terminal.backend()
 ---
-"Items                                                                           "
-"                                                                                "
-"Test                                                                            "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
-"                                                                                "
+"Items                                                                                               "
+"                                                                                                    "
+"Test                                                                                                "
+"                                                                                                    "
+"                                                                                                    "
+"                                                                                                    "
+"                                                                                                    "
+"                                                                                                    "
+"                                                                                                    "
+"                                                                                                    "
