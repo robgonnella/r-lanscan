@@ -121,6 +121,89 @@ impl SYNScanner {
         Ok(())
     }
 
+    fn process_incoming_packet(
+        &self,
+        pkt: &[u8],
+        device_map: &HashMap<Ipv4Addr, Device>,
+    ) -> Result<()> {
+        let Some(eth) = ethernet::EthernetPacket::new(pkt) else {
+            return Ok(());
+        };
+
+        let Some(header) = ipv4::Ipv4Packet::new(eth.payload()) else {
+            return Ok(());
+        };
+
+        let device_ip = header.get_source();
+        let protocol = header.get_next_level_protocol();
+        let payload = header.payload();
+
+        if protocol != ip::IpNextHeaderProtocols::Tcp {
+            return Ok(());
+        }
+
+        let Some(tcp_packet) = tcp::TcpPacket::new(payload) else {
+            return Ok(());
+        };
+
+        let destination_port = tcp_packet.get_destination();
+        let matches_destination = destination_port == self.source_port;
+        let flags: u8 = tcp_packet.get_flags();
+        let sequence = tcp_packet.get_sequence();
+        let is_syn_ack = flags == tcp::TcpFlags::SYN + tcp::TcpFlags::ACK;
+
+        if !matches_destination || !is_syn_ack {
+            return Ok(());
+        }
+
+        let Some(device) = device_map.get(&device_ip) else {
+            return Ok(());
+        };
+
+        let port = tcp_packet.get_source();
+
+        // send rst packet to prevent SYN Flooding
+        // https://en.wikipedia.org/wiki/SYN_flood
+        // https://security.stackexchange.com/questions/128196/whats-the-advantage-of-sending-an-rst-packet-after-getting-a-response-in-a-syn
+        let dest_ipv4 = device.ip;
+        let dest_mac = device.mac;
+
+        let rst_packet = RstPacketBuilder::default()
+            .source_ip(self.interface.ipv4)
+            .source_mac(self.interface.mac)
+            .source_port(self.source_port)
+            .dest_ip(dest_ipv4)
+            .dest_mac(dest_mac)
+            .dest_port(port)
+            .sequence_number(sequence + 1)
+            .build()?;
+
+        let rst_packet = rst_packet.to_raw();
+
+        let mut rst_sender = self.packet_sender.lock()?;
+
+        log::debug!("sending RST packet to {}:{}", device.ip, port);
+
+        rst_sender.send(&rst_packet)?;
+
+        let service = SERVICES
+            .get(&port)
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+
+        let mut ports = PortSet::new();
+        ports.0.insert(Port { id: port, service });
+
+        self.notifier
+            .send(ScanMessage::SYNScanDevice(Device {
+                open_ports: ports,
+                ..device.clone()
+            }))
+            .map_err(RLanLibError::from_channel_send_error)?;
+
+        Ok(())
+    }
+
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(
@@ -160,84 +243,7 @@ impl SYNScanner {
                 }
 
                 let pkt = reader.next_packet()?;
-
-                let Some(eth) = ethernet::EthernetPacket::new(pkt) else {
-                    continue;
-                };
-
-                let Some(header) = ipv4::Ipv4Packet::new(eth.payload()) else {
-                    continue;
-                };
-
-                let device_ip = header.get_source();
-                let protocol = header.get_next_level_protocol();
-                let payload = header.payload();
-
-                if protocol != ip::IpNextHeaderProtocols::Tcp {
-                    continue;
-                }
-
-                let Some(tcp_packet) = tcp::TcpPacket::new(payload) else {
-                    continue;
-                };
-
-                let destination_port = tcp_packet.get_destination();
-                let matches_destination =
-                    destination_port == self_clone.source_port;
-                let flags: u8 = tcp_packet.get_flags();
-                let sequence = tcp_packet.get_sequence();
-                let is_syn_ack =
-                    flags == tcp::TcpFlags::SYN + tcp::TcpFlags::ACK;
-
-                if !matches_destination || !is_syn_ack {
-                    continue;
-                }
-
-                let Some(device) = device_map.get(&device_ip) else {
-                    continue;
-                };
-
-                let port = tcp_packet.get_source();
-
-                // send rst packet to prevent SYN Flooding
-                // https://en.wikipedia.org/wiki/SYN_flood
-                // https://security.stackexchange.com/questions/128196/whats-the-advantage-of-sending-an-rst-packet-after-getting-a-response-in-a-syn
-                let dest_ipv4 = device.ip;
-                let dest_mac = device.mac;
-
-                let rst_packet = RstPacketBuilder::default()
-                    .source_ip(self_clone.interface.ipv4)
-                    .source_mac(self_clone.interface.mac)
-                    .source_port(self_clone.source_port)
-                    .dest_ip(dest_ipv4)
-                    .dest_mac(dest_mac)
-                    .dest_port(port)
-                    .sequence_number(sequence + 1)
-                    .build()?;
-
-                let rst_packet = rst_packet.to_raw();
-
-                let mut rst_sender = self_clone.packet_sender.lock()?;
-
-                log::debug!("sending RST packet to {}:{}", device.ip, port);
-
-                rst_sender.send(&rst_packet)?;
-
-                let service = SERVICES
-                    .get(&port)
-                    .map(|s| s.to_string())
-                    .unwrap_or_default();
-
-                let mut ports = PortSet::new();
-                ports.0.insert(Port { id: port, service });
-
-                self_clone
-                    .notifier
-                    .send(ScanMessage::SYNScanDevice(Device {
-                        open_ports: ports,
-                        ..device.clone()
-                    }))
-                    .map_err(RLanLibError::from_channel_send_error)?;
+                self_clone.process_incoming_packet(pkt, &device_map)?;
             }
 
             heart_handle.join()??;

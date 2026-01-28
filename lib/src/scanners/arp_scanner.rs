@@ -80,6 +80,65 @@ impl ARPScanner {
         Ok(())
     }
 
+    fn process_incoming_packet(
+        &self,
+        pkt: &[u8],
+        pool: &ThreadPool,
+    ) -> Result<()> {
+        let Some(eth) = ethernet::EthernetPacket::new(pkt) else {
+            return Ok(());
+        };
+
+        let Some(header) = arp::ArpPacket::new(eth.payload()) else {
+            return Ok(());
+        };
+
+        // Capture ANY ARP reply as it's an indication that there's a
+        // device on the network
+        if header.get_operation() != arp::ArpOperations::Reply {
+            return Ok(());
+        }
+
+        let ip4 = header.get_sender_proto_addr();
+        let mac = eth.get_source();
+
+        let notification_sender = self.notifier.clone();
+        let interface = Arc::clone(&self.interface);
+        let include_host_names = self.include_host_names;
+        let include_vendor = self.include_vendor;
+
+        // use a thread pool here so we don't slow down packet
+        // processing while limiting concurrent threads
+        pool.execute(move || {
+            let hostname = if include_host_names {
+                log::debug!("looking up hostname for {}", ip4);
+                dns_lookup::lookup_addr(&ip4.into()).unwrap_or_default()
+            } else {
+                String::new()
+            };
+
+            let vendor = if include_vendor {
+                oui_data::lookup(&mac.to_string())
+                    .map(|v| v.organization().to_owned())
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+
+            let _ =
+                notification_sender.send(ScanMessage::ARPScanDevice(Device {
+                    hostname,
+                    ip: ip4,
+                    mac,
+                    vendor,
+                    is_current_host: ip4 == interface.ipv4,
+                    open_ports: PortSet::new(),
+                }));
+        });
+
+        Ok(())
+    }
+
     // Implements packet reading in a separate thread so we can send and
     // receive packets simultaneously
     fn read_packets(
@@ -116,57 +175,7 @@ impl ARPScanner {
 
                 let pkt = reader.next_packet()?;
 
-                let Some(eth) = ethernet::EthernetPacket::new(pkt) else {
-                    continue;
-                };
-
-                let Some(header) = arp::ArpPacket::new(eth.payload()) else {
-                    continue;
-                };
-
-                // Capture ANY ARP reply as it's an indication that there's a
-                // device on the network
-                if header.get_operation() != arp::ArpOperations::Reply {
-                    continue;
-                }
-
-                let ip4 = header.get_sender_proto_addr();
-                let mac = eth.get_source();
-
-                let notification_sender = self_clone.notifier.clone();
-                let interface = Arc::clone(&self_clone.interface);
-                let include_host_names = self_clone.include_host_names;
-                let include_vendor = self_clone.include_vendor;
-
-                // use a thread pool here so we don't slow down packet
-                // processing while limiting concurrent threads
-                lookup_pool.execute(move || {
-                    let hostname = if include_host_names {
-                        log::debug!("looking up hostname for {}", ip4);
-                        dns_lookup::lookup_addr(&ip4.into()).unwrap_or_default()
-                    } else {
-                        String::new()
-                    };
-
-                    let vendor = if include_vendor {
-                        oui_data::lookup(&mac.to_string())
-                            .map(|v| v.organization().to_owned())
-                            .unwrap_or_default()
-                    } else {
-                        String::new()
-                    };
-
-                    let _ = notification_sender.send(
-                        ScanMessage::ARPScanDevice(Device {
-                            hostname,
-                            ip: ip4,
-                            mac,
-                            vendor,
-                            is_current_host: ip4 == interface.ipv4,
-                            open_ports: PortSet::new(),
-                        }),
-                    );
-                });
+                self_clone.process_incoming_packet(pkt, &lookup_pool)?;
             }
 
             Ok(())
