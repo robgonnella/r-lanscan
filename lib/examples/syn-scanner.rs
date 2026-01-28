@@ -6,7 +6,12 @@ use r_lanlib::{
     },
     targets::ports::PortTargets,
 };
-use std::{env, net::Ipv4Addr, sync::mpsc, time::Duration};
+use std::{
+    env,
+    net::Ipv4Addr,
+    sync::{Arc, mpsc},
+    time::Duration,
+};
 
 fn is_root() -> bool {
     match env::var("USER") {
@@ -19,8 +24,9 @@ fn main() {
     if !is_root() {
         panic!("permission denied: must run with root privileges");
     }
-    let interface =
-        network::get_default_interface().expect("cannot find interface");
+    let interface = Arc::new(
+        network::get_default_interface().expect("cannot find interface"),
+    );
     let wire =
         packet::wire::default(&interface).expect("failed to create wire");
     let devices = vec![
@@ -61,7 +67,7 @@ fn main() {
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_sender(wire.0)
         .packet_reader(wire.1)
         .targets(devices)

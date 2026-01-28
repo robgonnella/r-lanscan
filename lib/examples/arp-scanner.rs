@@ -1,4 +1,8 @@
-use std::{env, sync::mpsc, time::Duration};
+use std::{
+    env,
+    sync::{Arc, mpsc},
+    time::Duration,
+};
 
 use r_lanlib::{
     network, packet,
@@ -17,8 +21,9 @@ fn main() {
     if !is_root() {
         panic!("permission denied: must run with root privileges");
     }
-    let interface =
-        network::get_default_interface().expect("cannot find interface");
+    let interface = Arc::new(
+        network::get_default_interface().expect("cannot find interface"),
+    );
     let cidr = interface.cidr.clone();
     let wire =
         packet::wire::default(&interface).expect("failed to create wire");
@@ -31,7 +36,7 @@ fn main() {
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_sender(wire.0)
         .packet_reader(wire.1)
         .targets(ip_targets)

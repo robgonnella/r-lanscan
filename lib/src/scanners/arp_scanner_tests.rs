@@ -23,7 +23,7 @@ const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 
 #[test]
 fn new() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let sender: Arc<Mutex<dyn Sender>> =
         Arc::new(Mutex::new(MockPacketSender::new()));
     let receiver: Arc<Mutex<dyn Reader>> =
@@ -33,7 +33,7 @@ fn new() {
     let (tx, _) = channel();
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)
@@ -55,8 +55,8 @@ fn new() {
 #[allow(warnings)]
 fn sends_and_reads_packets() {
     static mut PACKET: [u8; PKT_TOTAL_ARP_SIZE] = [0u8; PKT_TOTAL_ARP_SIZE];
-    let interface = network::get_default_interface().unwrap();
-    let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
+    let device_ip = Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
     create_arp_reply(
@@ -88,7 +88,7 @@ fn sends_and_reads_packets() {
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)
@@ -135,15 +135,14 @@ fn sends_and_reads_packets() {
 #[allow(warnings)]
 fn ignores_unrelated_packets() {
     static mut PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
     for i in 0..5 {
         let mac = util::MacAddr::default();
-        let ip =
-            net::Ipv4Addr::from_str(format!("192.168.0.{}", 1 + i).as_str())
-                .unwrap();
+        let ip = Ipv4Addr::from_str(format!("192.168.0.{}", 1 + i).as_str())
+            .unwrap();
 
         create_syn_reply(
             mac,
@@ -173,7 +172,7 @@ fn ignores_unrelated_packets() {
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)
@@ -219,7 +218,7 @@ fn ignores_unrelated_packets() {
 
 #[test]
 fn reports_error_on_packet_reader_lock() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
 
     let receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
@@ -243,7 +242,7 @@ fn reports_error_on_packet_reader_lock() {
     let _ = handle.join();
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(targets)
@@ -266,7 +265,7 @@ fn reports_error_on_packet_reader_lock() {
 
 #[test]
 fn reports_error_on_packet_read_error() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
@@ -284,7 +283,7 @@ fn reports_error_on_packet_read_error() {
     let (tx, _rx) = channel();
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)
@@ -307,7 +306,7 @@ fn reports_error_on_packet_read_error() {
 
 #[test]
 fn reports_error_on_notifier_send_errors() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
@@ -324,7 +323,7 @@ fn reports_error_on_notifier_send_errors() {
     drop(rx);
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)
@@ -345,7 +344,7 @@ fn reports_error_on_notifier_send_errors() {
 
 #[test]
 fn reports_error_on_packet_sender_lock_errors() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let mut receiver = MockPacketReader::new();
     let sender = MockPacketSender::new();
 
@@ -367,7 +366,7 @@ fn reports_error_on_packet_sender_lock_errors() {
     let _ = handle.join();
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)
@@ -394,7 +393,7 @@ fn reports_error_on_packet_sender_lock_errors() {
 
 #[test]
 fn reports_error_on_packet_send_errors() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
@@ -410,7 +409,7 @@ fn reports_error_on_packet_send_errors() {
     let (tx, rx) = channel();
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)
@@ -437,7 +436,7 @@ fn reports_error_on_packet_send_errors() {
 
 #[test]
 fn reports_errors_from_read_handle() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
@@ -454,7 +453,7 @@ fn reports_errors_from_read_handle() {
     let (tx, rx) = channel();
 
     let scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)

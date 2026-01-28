@@ -68,6 +68,7 @@ fn tear_down(conf_path: String) {
 #[test]
 fn test_process_arp() {
     let (conf_path, interface, store) = setup();
+    let cidr = interface.cidr.clone();
     let mut mock_packet_reader = MockPacketReader::new();
     let mut mock_packet_sender = MockPacketSender::new();
     let source_port = 54321_u16;
@@ -97,10 +98,10 @@ fn test_process_arp() {
         Arc::new(Mutex::new(mock_packet_sender));
 
     let arp_scanner = ARPScanner::builder()
-        .interface(&interface)
+        .interface(Arc::new(interface))
         .packet_reader(packet_reader)
         .packet_sender(packet_sender)
-        .targets(IPTargets::new(vec![interface.cidr.clone()]).unwrap())
+        .targets(IPTargets::new(vec![cidr]).unwrap())
         .include_host_names(true)
         .include_vendor(true)
         .source_port(source_port)
@@ -183,7 +184,7 @@ fn test_process_syn() {
         Arc::new(Mutex::new(mock_packet_sender));
 
     let syn_scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(Arc::new(interface))
         .packet_reader(packet_reader)
         .packet_sender(packet_sender)
         .targets(vec![device])

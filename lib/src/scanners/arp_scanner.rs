@@ -1,10 +1,9 @@
 //! Provides Scanner implementation for ARP scanning
 
 use derive_builder::Builder;
-use log::*;
 use pnet::packet::{Packet, arp, ethernet};
 use std::{
-    net,
+    net::Ipv4Addr,
     sync::{self, Arc, Mutex},
     thread::{self, JoinHandle},
     time::Duration,
@@ -22,11 +21,11 @@ use crate::{
 use super::{ScanMessage, Scanner, heartbeat::HeartBeat};
 
 /// Data structure representing an ARP scanner
-#[derive(Builder)]
+#[derive(Clone, Builder)]
 #[builder(setter(into))]
-pub struct ARPScanner<'net> {
+pub struct ARPScanner {
     /// Network interface to use for scanning
-    interface: &'net NetworkInterface,
+    interface: Arc<NetworkInterface>,
     /// Packet reader for receiving ARP replies
     packet_reader: Arc<Mutex<dyn Reader>>,
     /// Packet sender for transmitting ARP requests
@@ -45,10 +44,40 @@ pub struct ARPScanner<'net> {
     notifier: sync::mpsc::Sender<ScanMessage>,
 }
 
-impl<'n> ARPScanner<'n> {
+impl ARPScanner {
     /// Returns builder for ARPScanner
-    pub fn builder() -> ARPScannerBuilder<'n> {
+    pub fn builder() -> ARPScannerBuilder {
         ARPScannerBuilder::default()
+    }
+
+    fn process_target(&self, target: Ipv4Addr) -> Result<()> {
+        // throttle packet sending to prevent packet loss
+        thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
+
+        log::debug!("scanning ARP target: {}", target);
+
+        let arp_packet = ArpPacketBuilder::default()
+            .source_ip(self.interface.ipv4)
+            .source_mac(self.interface.mac)
+            .dest_ip(target)
+            .build()?;
+
+        let pkt_buf = arp_packet.to_raw();
+
+        // inform consumer we are scanning this target (ignore error on failure to notify)
+        self.notifier
+            .send(ScanMessage::Info(Scanning {
+                ip: target,
+                port: None,
+            }))
+            .map_err(RLanLibError::from_channel_send_error)?;
+
+        let mut pkt_sender = self.packet_sender.lock()?;
+
+        // Send to the broadcast address
+        pkt_sender.send(&pkt_buf)?;
+
+        Ok(())
     }
 
     // Implements packet reading in a separate thread so we can send and
@@ -57,36 +86,30 @@ impl<'n> ARPScanner<'n> {
         &self,
         done: sync::mpsc::Receiver<()>,
     ) -> Result<JoinHandle<Result<()>>> {
-        let packet_reader = Arc::clone(&self.packet_reader);
-        let packet_sender = Arc::clone(&self.packet_sender);
-        let include_host_names = self.include_host_names;
-        let include_vendor = self.include_vendor;
-        let source_ipv4 = self.interface.ipv4;
-        let source_mac = self.interface.mac;
-        let source_port = self.source_port;
-        let notifier = self.notifier.clone();
         let (heartbeat_tx, heartbeat_rx) = sync::mpsc::channel::<()>();
 
         let heartbeat = HeartBeat::builder()
-            .source_mac(source_mac)
-            .source_ipv4(source_ipv4)
-            .source_port(source_port)
-            .packet_sender(packet_sender)
+            .source_mac(self.interface.mac)
+            .source_ipv4(self.interface.ipv4)
+            .source_port(self.source_port)
+            .packet_sender(Arc::clone(&self.packet_sender))
             .build()?;
 
         heartbeat.start_in_thread(heartbeat_rx)?;
 
+        let self_clone = self.clone();
+
         Ok(thread::spawn(move || -> Result<()> {
-            let mut reader = packet_reader.lock()?;
+            let mut reader = self_clone.packet_reader.lock()?;
             // Use a bounded thread pool for DNS/vendor lookups to prevent
             // spawning thousands of threads on large networks
             let lookup_pool = ThreadPool::new(8);
 
             loop {
                 if done.try_recv().is_ok() {
-                    debug!("exiting arp packet reader");
+                    log::debug!("exiting arp packet reader");
                     if let Err(e) = heartbeat_tx.send(()) {
-                        error!("failed to stop heartbeat: {}", e);
+                        log::error!("failed to stop heartbeat: {}", e);
                     }
                     break;
                 }
@@ -110,13 +133,16 @@ impl<'n> ARPScanner<'n> {
                 let ip4 = header.get_sender_proto_addr();
                 let mac = eth.get_source();
 
-                let notification_sender = notifier.clone();
+                let notification_sender = self_clone.notifier.clone();
+                let interface = Arc::clone(&self_clone.interface);
+                let include_host_names = self_clone.include_host_names;
+                let include_vendor = self_clone.include_vendor;
 
                 // use a thread pool here so we don't slow down packet
                 // processing while limiting concurrent threads
                 lookup_pool.execute(move || {
                     let hostname = if include_host_names {
-                        debug!("looking up hostname for {}", ip4);
+                        log::debug!("looking up hostname for {}", ip4);
                         dns_lookup::lookup_addr(&ip4.into()).unwrap_or_default()
                     } else {
                         String::new()
@@ -136,7 +162,7 @@ impl<'n> ARPScanner<'n> {
                             ip: ip4,
                             mac,
                             vendor,
-                            is_current_host: ip4 == source_ipv4,
+                            is_current_host: ip4 == interface.ipv4,
                             open_ports: PortSet::new(),
                         }),
                     );
@@ -149,63 +175,33 @@ impl<'n> ARPScanner<'n> {
 }
 
 // Implements the Scanner trait for ARPScanner
-impl Scanner for ARPScanner<'_> {
+impl Scanner for ARPScanner {
     fn scan(&self) -> Result<JoinHandle<Result<()>>> {
-        debug!("performing ARP scan on targets: {:?}", self.targets);
-        debug!("include_vendor: {}", self.include_vendor);
-        debug!("include_host_names: {}", self.include_host_names);
-        debug!("starting arp packet reader");
+        log::debug!("performing ARP scan on targets: {:?}", self.targets);
+        log::debug!("include_vendor: {}", self.include_vendor);
+        log::debug!("include_host_names: {}", self.include_host_names);
+        log::debug!("starting arp packet reader");
+
+        let self_clone = self.clone();
         let (done_tx, done_rx) = sync::mpsc::channel::<()>();
-        let notifier = self.notifier.clone();
-        let packet_sender = Arc::clone(&self.packet_sender);
-        let idle_timeout = self.idle_timeout;
-        let source_ipv4 = self.interface.ipv4;
-        let source_mac = self.interface.mac;
-        let targets = Arc::clone(&self.targets);
 
         let read_handle = self.read_packets(done_rx)?;
 
         // prevent blocking thread so messages can be freely sent to consumer
         let scan_handle = thread::spawn(move || -> Result<()> {
-            let process_target = |target_ipv4: net::Ipv4Addr| {
-                // throttle packet sending to prevent packet loss
-                thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
-
-                debug!("scanning ARP target: {}", target_ipv4);
-
-                let arp_packet = ArpPacketBuilder::default()
-                    .source_ip(source_ipv4)
-                    .source_mac(source_mac)
-                    .dest_ip(target_ipv4)
-                    .build()?;
-
-                let pkt_buf = arp_packet.to_raw();
-
-                // inform consumer we are scanning this target (ignore error on failure to notify)
-                notifier
-                    .send(ScanMessage::Info(Scanning {
-                        ip: target_ipv4,
-                        port: None,
-                    }))
-                    .map_err(RLanLibError::from_channel_send_error)?;
-
-                let mut pkt_sender = packet_sender.lock()?;
-
-                // Send to the broadcast address
-                pkt_sender.send(&pkt_buf)?;
-
-                Ok(())
-            };
-
             let mut scan_error: Option<RLanLibError> = None;
 
-            if let Err(err) = targets.lazy_loop(process_target) {
+            if let Err(err) = self_clone
+                .targets
+                .lazy_loop(|t| self_clone.process_target(t))
+            {
                 scan_error = Some(err);
             }
 
-            thread::sleep(idle_timeout);
+            thread::sleep(self_clone.idle_timeout);
 
-            notifier
+            self_clone
+                .notifier
                 .send(ScanMessage::Done)
                 .map_err(RLanLibError::from_channel_send_error)?;
 

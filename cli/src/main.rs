@@ -15,7 +15,6 @@ use clap::Parser;
 use color_eyre::eyre::{Result, eyre};
 use core::time;
 use itertools::Itertools;
-use log::*;
 use r_lanlib::{
     error::Result as LibResult,
     network::{self, NetworkInterface},
@@ -106,22 +105,22 @@ fn initialize_logger(args: &Args) -> Result<()> {
 
 #[doc(hidden)]
 fn print_args(args: &Args, interface: &NetworkInterface) {
-    info!("configuration:");
-    info!("targets:         {:?}", args.targets);
-    info!("ports            {:?}", args.ports);
-    info!("json:            {}", args.json);
-    info!("arpOnly:         {}", args.arp_only);
-    info!("vendor:          {}", args.vendor);
-    info!("host_names:      {}", args.host_names);
-    info!("quiet:           {}", args.quiet);
-    info!("idle_timeout_ms: {}", args.idle_timeout_ms);
-    info!(
+    log::info!("configuration:");
+    log::info!("targets:         {:?}", args.targets);
+    log::info!("ports            {:?}", args.ports);
+    log::info!("json:            {}", args.json);
+    log::info!("arpOnly:         {}", args.arp_only);
+    log::info!("vendor:          {}", args.vendor);
+    log::info!("host_names:      {}", args.host_names);
+    log::info!("quiet:           {}", args.quiet);
+    log::info!("idle_timeout_ms: {}", args.idle_timeout_ms);
+    log::info!(
         "interface:       {}",
         args.interface.as_deref().unwrap_or(&interface.name)
     );
-    info!("cidr:            {}", interface.cidr);
-    info!("user_ip:         {}", interface.ipv4);
-    info!("source_port:     {}", args.source_port);
+    log::info!("cidr:            {}", interface.cidr);
+    log::info!("user_ip:         {}", interface.ipv4);
+    log::info!("source_port:     {}", args.source_port);
 }
 
 #[doc(hidden)]
@@ -131,7 +130,7 @@ fn process_arp(
 ) -> LibResult<(Vec<Device>, Receiver<ScanMessage>)> {
     let mut arp_results: HashSet<Device> = HashSet::new();
 
-    info!("starting arp scan...");
+    log::info!("starting arp scan...");
 
     let handle = scanner.scan()?;
 
@@ -140,11 +139,11 @@ fn process_arp(
 
         match msg {
             ScanMessage::Done => {
-                debug!("scanning complete");
+                log::debug!("scanning complete");
                 break;
             }
             ScanMessage::ARPScanDevice(m) => {
-                debug!("received scanning message: {:?}", m);
+                log::debug!("received scanning message: {:?}", m);
                 arp_results.insert(m.to_owned());
             }
             _ => {}
@@ -161,7 +160,7 @@ fn process_arp(
 
 #[doc(hidden)]
 fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
-    info!("arp results:");
+    log::info!("arp results:");
 
     if args.quiet && !args.arp_only {
         // only print results of SYN scanner
@@ -206,7 +205,7 @@ fn process_syn(
         syn_results.insert(d.ip, d.clone());
     }
 
-    info!("starting syn scan...");
+    log::info!("starting syn scan...");
 
     let handle = scanner.scan()?;
 
@@ -215,16 +214,16 @@ fn process_syn(
 
         match msg {
             ScanMessage::Done => {
-                debug!("scanning complete");
+                log::debug!("scanning complete");
                 break;
             }
             ScanMessage::SYNScanDevice(device) => {
-                debug!("received syn scanning device: {:?}", device);
+                log::debug!("received syn scanning device: {:?}", device);
                 let found_device = syn_results.get_mut(&device.ip);
                 match found_device {
                     Some(d) => d.open_ports.0.extend(device.open_ports.0),
                     None => {
-                        warn!(
+                        log::warn!(
                             "received syn result for unknown device: {:?}",
                             device
                         );
@@ -245,7 +244,7 @@ fn print_syn(
     args: &Args,
     device_map: &HashMap<Ipv4Addr, Device>,
 ) -> Result<()> {
-    info!("syn results:");
+    log::info!("syn results:");
 
     let devices: Vec<_> = device_map.values().cloned().sorted().collect();
 
@@ -342,8 +341,10 @@ fn main() -> Result<()> {
 
     let wire = packet::wire::default(&interface)?;
 
+    let interface = Arc::new(interface);
+
     let arp = ARPScanner::builder()
-        .interface(&interface)
+        .interface(Arc::clone(&interface))
         .packet_sender(Arc::clone(&wire.0))
         .packet_reader(Arc::clone(&wire.1))
         .targets(
@@ -366,7 +367,7 @@ fn main() -> Result<()> {
     }
 
     let syn = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_sender(wire.0)
         .packet_reader(wire.1)
         .targets(arp_results.clone())

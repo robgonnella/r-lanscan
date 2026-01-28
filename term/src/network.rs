@@ -48,15 +48,16 @@ pub fn monitor_network(
             return Ok(());
         }
 
+        let ip_targets =
+            IPTargets::new(vec![Arc::clone(&interface).cidr.clone()])
+                .map_err(|e| eyre!("Invalid IP targets: {}", e))?;
+
         let source_port = network::get_available_port()?;
 
         let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-        let ip_targets = IPTargets::new(vec![interface.cidr.clone()])
-            .map_err(|e| eyre!("Invalid IP targets: {}", e))?;
-
         let arp_scanner = ARPScanner::builder()
-            .interface(interface.as_ref())
+            .interface(Arc::clone(&interface))
             .packet_reader(Arc::clone(&packet_reader))
             .packet_sender(Arc::clone(&packet_sender))
             .targets(ip_targets)
@@ -80,7 +81,7 @@ pub fn monitor_network(
             .map_err(|e| eyre!("Invalid port targets: {}", e))?;
 
         let syn_scanner = SYNScanner::builder()
-            .interface(interface.as_ref())
+            .interface(Arc::clone(&interface))
             .packet_reader(Arc::clone(&packet_reader))
             .packet_sender(Arc::clone(&packet_sender))
             .targets(arp_devices)

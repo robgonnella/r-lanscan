@@ -23,7 +23,7 @@ const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 
 #[test]
 fn new() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let arc_receiver: Arc<Mutex<dyn Reader>> =
         Arc::new(Mutex::new(MockPacketReader::new()));
     let arc_sender: Arc<Mutex<dyn Sender>> =
@@ -34,7 +34,7 @@ fn new() {
     let (tx, _) = channel();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices.clone())
@@ -55,7 +55,7 @@ fn new() {
 fn sends_and_reads_packets() {
     static mut PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
 
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
     let device_port = 2222;
@@ -101,7 +101,7 @@ fn sends_and_reads_packets() {
     let (tx, rx) = channel();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -156,7 +156,7 @@ fn ignores_unrelated_packets() {
         [0u8; PKT_TOTAL_SYN_SIZE];
     static mut ARP_PACKET: [u8; PKT_TOTAL_ARP_SIZE] = [0u8; PKT_TOTAL_ARP_SIZE];
 
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
     let device_ip = net::Ipv4Addr::from_str("192.168.0.2").unwrap();
@@ -239,7 +239,7 @@ fn ignores_unrelated_packets() {
     let (tx, rx) = channel();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -284,7 +284,7 @@ fn ignores_unrelated_packets() {
 
 #[test]
 fn reports_error_on_packet_reader_lock() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
@@ -320,7 +320,7 @@ fn reports_error_on_packet_reader_lock() {
     let _ = handle.join();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -344,7 +344,7 @@ fn reports_error_on_packet_reader_lock() {
 #[allow(warnings)]
 fn reports_error_on_rst_packet_sender_lock() {
     static mut PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
@@ -398,7 +398,7 @@ fn reports_error_on_rst_packet_sender_lock() {
     let _ = handle.join();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -422,7 +422,7 @@ fn reports_error_on_rst_packet_sender_lock() {
 #[allow(warnings)]
 fn reports_error_on_rst_packet_send_errors() {
     static mut PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
@@ -478,7 +478,7 @@ fn reports_error_on_rst_packet_send_errors() {
     let _ = handle.join();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -500,7 +500,7 @@ fn reports_error_on_rst_packet_send_errors() {
 
 #[test]
 fn reports_error_on_packet_read_error() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
@@ -531,7 +531,7 @@ fn reports_error_on_packet_read_error() {
     let (tx, _rx) = channel();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -553,7 +553,7 @@ fn reports_error_on_packet_read_error() {
 
 #[test]
 fn reports_error_on_notifier_send_errors() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
@@ -584,7 +584,7 @@ fn reports_error_on_notifier_send_errors() {
     drop(rx);
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -604,7 +604,7 @@ fn reports_error_on_notifier_send_errors() {
 
 #[test]
 fn reports_error_on_packet_sender_lock_errors() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
@@ -638,7 +638,7 @@ fn reports_error_on_packet_sender_lock_errors() {
     let _ = handle.join();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -664,7 +664,7 @@ fn reports_error_on_packet_sender_lock_errors() {
 
 #[test]
 fn reports_error_on_packet_send_errors() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
@@ -694,7 +694,7 @@ fn reports_error_on_packet_send_errors() {
     let (tx, rx) = channel();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
@@ -720,7 +720,7 @@ fn reports_error_on_packet_send_errors() {
 
 #[test]
 fn reports_errors_from_read_handle() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
 
@@ -751,7 +751,7 @@ fn reports_errors_from_read_handle() {
     let (tx, rx) = channel();
 
     let scanner = SYNScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(devices)
