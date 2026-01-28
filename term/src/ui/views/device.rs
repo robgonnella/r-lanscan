@@ -32,21 +32,34 @@ use super::traits::{
     EventHandler, View,
 };
 
-/// Tracks which input field currently has focus.
+/// Tracks which SSH input field currently has focus.
 #[derive(Debug, Clone)]
-enum Focus {
-    SSHUser,
-    SSHPort,
-    SSHIdentity,
-    BrowserSelect,
-    BrowserPort,
+enum FocusSsh {
+    User,
+    Port,
+    Identity,
 }
+
+/// Tracks which Browser input field currently has focus.
+#[derive(Debug, Clone)]
+enum FocusBrowser {
+    Select,
+    Port,
+}
+
+const FOCUS_SSH_ARRAY: [FocusSsh; 3] =
+    [FocusSsh::User, FocusSsh::Port, FocusSsh::Identity];
+
+const FOCUS_BROWSER_ARRAY: [FocusBrowser; 2] =
+    [FocusBrowser::Select, FocusBrowser::Port];
 
 /// View for displaying device details and executing SSH, traceroute, browse.
 pub struct DeviceView {
     dispatcher: Arc<dyn Dispatcher>,
-    editing: RefCell<bool>,
-    focus: RefCell<Focus>,
+    editing_ssh: RefCell<bool>,
+    editing_browser: RefCell<bool>,
+    ssh_focus: RefCell<i8>,
+    browser_focus: RefCell<i8>,
     ssh_user_state: RefCell<InputState>,
     ssh_port_state: RefCell<InputState>,
     ssh_identity_state: RefCell<InputState>,
@@ -59,8 +72,10 @@ impl DeviceView {
     pub fn new(dispatcher: Arc<dyn Dispatcher>) -> Self {
         Self {
             dispatcher,
-            editing: RefCell::new(false),
-            focus: RefCell::new(Focus::SSHUser),
+            editing_ssh: RefCell::new(false),
+            editing_browser: RefCell::new(false),
+            ssh_focus: RefCell::new(0),
+            browser_focus: RefCell::new(0),
             ssh_user_state: RefCell::new(InputState {
                 editing: false,
                 value: String::from(""),
@@ -90,10 +105,7 @@ impl DeviceView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        if !*self.editing.borrow()
-            || self.browser_select_state.borrow().editing
-            || self.browser_port_state.borrow().editing
-        {
+        if !*self.editing_ssh.borrow() {
             let device_config =
                 get_selected_device_config_from_state(ctx.state);
             self.ssh_user_state.borrow_mut().value =
@@ -283,10 +295,7 @@ impl DeviceView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        if *self.editing.borrow()
-            && (self.browser_select_state.borrow().editing
-                || self.browser_port_state.borrow().editing)
-        {
+        if *self.editing_browser.borrow() {
             let block = Block::bordered()
                 .border_type(BorderType::Double)
                 .border_style(Style::new().fg(ctx.state.colors.border_color))
@@ -329,147 +338,150 @@ impl DeviceView {
         }
     }
 
-    fn push_input_char(&self, char: char) {
-        match *self.focus.borrow() {
-            Focus::BrowserPort => {
-                self.browser_port_state.borrow_mut().value.push(char)
-            }
-            Focus::SSHUser => self.ssh_user_state.borrow_mut().value.push(char),
-            Focus::SSHPort => self.ssh_port_state.borrow_mut().value.push(char),
-            Focus::SSHIdentity => {
+    fn push_ssh_input_char(&self, char: char) {
+        let idx = *self.ssh_focus.borrow();
+        let focus = FOCUS_SSH_ARRAY[idx as usize].clone();
+        match focus {
+            FocusSsh::User => self.ssh_user_state.borrow_mut().value.push(char),
+            FocusSsh::Port => self.ssh_port_state.borrow_mut().value.push(char),
+            FocusSsh::Identity => {
                 self.ssh_identity_state.borrow_mut().value.push(char)
             }
-            _ => {}
         };
     }
 
-    fn pop_input_char(&self) {
-        match *self.focus.borrow() {
-            Focus::BrowserPort => {
-                self.browser_port_state.borrow_mut().value.pop()
-            }
-            Focus::SSHUser => self.ssh_user_state.borrow_mut().value.pop(),
-            Focus::SSHPort => self.ssh_port_state.borrow_mut().value.pop(),
-            Focus::SSHIdentity => {
+    fn push_browser_input_char(&self, char: char) {
+        let idx = *self.browser_focus.borrow();
+        let focus = FOCUS_BROWSER_ARRAY[idx as usize].clone();
+        if matches!(focus, FocusBrowser::Port) {
+            self.browser_port_state.borrow_mut().value.push(char)
+        }
+    }
+
+    fn pop_ssh_input_char(&self) {
+        let idx = *self.ssh_focus.borrow();
+        let focus = FOCUS_SSH_ARRAY[idx as usize].clone();
+
+        match focus {
+            FocusSsh::User => self.ssh_user_state.borrow_mut().value.pop(),
+            FocusSsh::Port => self.ssh_port_state.borrow_mut().value.pop(),
+            FocusSsh::Identity => {
                 self.ssh_identity_state.borrow_mut().value.pop()
+            }
+        };
+    }
+
+    fn pop_browser_input_char(&self) {
+        let idx = *self.browser_focus.borrow();
+        let focus = FOCUS_BROWSER_ARRAY[idx as usize].clone();
+
+        match focus {
+            FocusBrowser::Port => {
+                self.browser_port_state.borrow_mut().value.pop()
             }
             _ => None,
         };
     }
 
+    fn push_input_char(&self, char: char) {
+        if *self.editing_browser.borrow() {
+            self.push_browser_input_char(char);
+        }
+
+        if *self.editing_ssh.borrow() {
+            self.push_ssh_input_char(char);
+        }
+    }
+
+    fn pop_input_char(&self) {
+        if *self.editing_browser.borrow() {
+            self.pop_browser_input_char();
+        }
+
+        if *self.editing_ssh.borrow() {
+            self.pop_ssh_input_char();
+        }
+    }
+
+    fn update_focus_settings(&self) {
+        let editing_ssh = *self.editing_ssh.borrow();
+        let current_ssh = *self.ssh_focus.borrow();
+
+        for (idx, focus) in FOCUS_SSH_ARRAY.iter().enumerate() {
+            let editing = editing_ssh && idx == current_ssh as usize;
+            match focus {
+                FocusSsh::Identity => {
+                    self.ssh_identity_state.borrow_mut().editing = editing;
+                }
+                FocusSsh::Port => {
+                    self.ssh_port_state.borrow_mut().editing = editing;
+                }
+                FocusSsh::User => {
+                    self.ssh_user_state.borrow_mut().editing = editing;
+                }
+            }
+        }
+
+        let editing_browser = *self.editing_browser.borrow();
+        let current_browser = *self.browser_focus.borrow();
+
+        for (idx, focus) in FOCUS_BROWSER_ARRAY.iter().enumerate() {
+            let editing = editing_browser && idx == current_browser as usize;
+            match focus {
+                FocusBrowser::Port => {
+                    self.browser_port_state.borrow_mut().editing = editing;
+                }
+                FocusBrowser::Select => {
+                    self.browser_select_state.borrow_mut().editing = editing;
+                }
+            }
+        }
+    }
+
     fn reset_input_state(&self) {
         self.browser_select_state.borrow_mut().editing = false;
         self.browser_port_state.borrow_mut().editing = false;
+        *self.browser_focus.borrow_mut() = 0;
+        *self.editing_browser.borrow_mut() = false;
         self.ssh_user_state.borrow_mut().editing = false;
         self.ssh_port_state.borrow_mut().editing = false;
         self.ssh_identity_state.borrow_mut().editing = false;
-        *self.focus.borrow_mut() = Focus::SSHUser;
-        *self.editing.borrow_mut() = false;
+        *self.ssh_focus.borrow_mut() = 0;
+        *self.editing_ssh.borrow_mut() = false;
     }
 
-    fn focus_next(&self) {
-        let next_focus = match *self.focus.borrow() {
-            Focus::BrowserSelect => {
-                if *self.editing.borrow() {
-                    self.browser_select_state.borrow_mut().editing = false;
-                    self.browser_port_state.borrow_mut().editing = true;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::BrowserPort
-            }
-            Focus::BrowserPort => {
-                if *self.editing.borrow() {
-                    self.browser_select_state.borrow_mut().editing = false;
-                    self.browser_port_state.borrow_mut().editing = true;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::BrowserPort
-            }
-            Focus::SSHUser => {
-                if *self.editing.borrow() {
-                    self.ssh_user_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = true;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                }
-                Focus::SSHPort
-            }
-            Focus::SSHPort => {
-                if *self.editing.borrow() {
-                    self.ssh_user_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = true;
-                }
-                Focus::SSHIdentity
-            }
-            Focus::SSHIdentity => {
-                if *self.editing.borrow() {
-                    self.ssh_user_state.borrow_mut().editing = true;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                }
-                Focus::SSHUser
-            }
-        };
-
-        *self.focus.borrow_mut() = next_focus;
+    fn focus_next_ssh(&self) {
+        let new_idx =
+            (*self.ssh_focus.borrow() + 1) % FOCUS_SSH_ARRAY.len() as i8;
+        *self.ssh_focus.borrow_mut() = new_idx;
+        self.update_focus_settings();
     }
 
-    fn focus_previous(&self) {
-        let next_focus = match *self.focus.borrow() {
-            Focus::BrowserSelect => {
-                if *self.editing.borrow() {
-                    self.browser_select_state.borrow_mut().editing = true;
-                    self.browser_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::BrowserSelect
-            }
-            Focus::BrowserPort => {
-                if *self.editing.borrow() {
-                    self.browser_select_state.borrow_mut().editing = true;
-                    self.browser_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::BrowserSelect
-            }
-            Focus::SSHIdentity => {
-                if *self.editing.borrow() {
-                    self.browser_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = true;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::SSHPort
-            }
-            Focus::SSHPort => {
-                if *self.editing.borrow() {
-                    self.browser_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = true;
-                }
-                Focus::SSHUser
-            }
-            Focus::SSHUser => {
-                if *self.editing.borrow() {
-                    self.browser_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = true;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::SSHIdentity
-            }
-        };
+    fn focus_previous_ssh(&self) {
+        let mut new_idx = *self.ssh_focus.borrow() - 1;
+        if new_idx < 0 {
+            new_idx = FOCUS_SSH_ARRAY.len() as i8 - 1
+        }
+        new_idx %= FOCUS_SSH_ARRAY.len() as i8;
+        *self.ssh_focus.borrow_mut() = new_idx;
+        self.update_focus_settings();
+    }
 
-        *self.focus.borrow_mut() = next_focus;
+    fn focus_next_browser(&self) {
+        let new_idx = (*self.browser_focus.borrow() + 1)
+            % FOCUS_BROWSER_ARRAY.len() as i8;
+        *self.browser_focus.borrow_mut() = new_idx;
+        self.update_focus_settings();
+    }
+
+    fn focus_previous_browser(&self) {
+        let mut new_idx = *self.browser_focus.borrow() - 1;
+        if new_idx < 0 {
+            new_idx = FOCUS_BROWSER_ARRAY.len() as i8 - 1
+        }
+        new_idx %= FOCUS_BROWSER_ARRAY.len() as i8;
+        *self.browser_focus.borrow_mut() = new_idx;
+        self.update_focus_settings();
     }
 
     fn is_tracing(&self, state: &State) -> bool {
@@ -479,6 +491,26 @@ impl DeviceView {
             false
         }
     }
+
+    fn focus_next(&self) {
+        if *self.editing_browser.borrow() {
+            self.focus_next_browser();
+        }
+
+        if *self.editing_ssh.borrow() {
+            self.focus_next_ssh();
+        }
+    }
+
+    fn focus_previous(&self) {
+        if *self.editing_browser.borrow() {
+            self.focus_previous_browser();
+        }
+
+        if *self.editing_ssh.borrow() {
+            self.focus_previous_ssh();
+        }
+    }
 }
 
 impl View for DeviceView {
@@ -486,7 +518,7 @@ impl View for DeviceView {
         ViewID::Device
     }
     fn legend(&self, state: &State) -> &str {
-        if *self.editing.borrow() {
+        if *self.editing_browser.borrow() || *self.editing_ssh.borrow() {
             "(esc) exit configuration | (enter) save configuration"
         } else if self.is_tracing(state) {
             "tracing..."
@@ -551,7 +583,9 @@ impl EventHandler for DeviceView {
             CrossTermEvent::Resize(_x, _y) => {}
             CrossTermEvent::Key(key) => match key.code {
                 KeyCode::Esc => {
-                    if *self.editing.borrow() {
+                    if *self.editing_browser.borrow()
+                        || *self.editing_ssh.borrow()
+                    {
                         self.reset_input_state();
                         handled = true;
                     } else if !self.is_tracing(ctx.state) {
@@ -562,96 +596,93 @@ impl EventHandler for DeviceView {
                     }
                 }
                 KeyCode::Right => {
-                    if *self.editing.borrow()
-                        && self.browser_select_state.borrow().editing
-                    {
+                    if *self.editing_browser.borrow() {
                         self.next_browser();
                         handled = true;
                     }
                 }
                 KeyCode::Left => {
-                    if *self.editing.borrow()
-                        && self.browser_select_state.borrow().editing
-                    {
+                    if *self.editing_browser.borrow() {
                         self.next_browser();
                         handled = true;
                     }
                 }
                 KeyCode::Tab => {
-                    if *self.editing.borrow() {
+                    if *self.editing_browser.borrow()
+                        || *self.editing_ssh.borrow()
+                    {
                         self.focus_next();
                         handled = true;
                     }
                 }
                 KeyCode::BackTab => {
-                    if *self.editing.borrow() {
+                    if *self.editing_browser.borrow()
+                        || *self.editing_ssh.borrow()
+                    {
                         self.focus_previous();
                         handled = true;
                     }
                 }
                 KeyCode::Enter => {
-                    if *self.editing.borrow() {
-                        if self.browser_select_state.borrow().editing
-                            || self.browser_port_state.borrow().editing
+                    if *self.editing_browser.borrow() {
+                        let port_str =
+                            self.browser_port_state.borrow().value.clone();
+                        if let Ok(port) = port_str.parse::<u16>()
+                            && let Some(selected) =
+                                ctx.state.selected_device.as_ref()
                         {
-                            let port_str =
-                                self.browser_port_state.borrow().value.clone();
-                            if let Ok(port) = port_str.parse::<u16>()
-                                && let Some(selected) =
-                                    ctx.state.selected_device.as_ref()
-                            {
-                                let _ = ctx.ipc.send(MainMessage::ExecCommand(
-                                    Command::Browse(BrowseArgs {
-                                        device: selected.clone(),
-                                        port,
-                                        use_lynx: self
-                                            .browser_select_state
-                                            .borrow()
-                                            .value
-                                            == "lynx",
-                                    }),
-                                ));
-                                self.reset_input_state();
-                                handled = true;
-                            }
-                        } else if let Some(device) =
-                            ctx.state.selected_device.as_ref()
-                        {
-                            // save config
-                            let mut device_config =
-                                get_selected_device_config_from_state(
-                                    ctx.state,
-                                );
-                            device_config.ssh_user =
-                                self.ssh_user_state.borrow().value.clone();
-                            let port = self
-                                .ssh_port_state
-                                .borrow()
-                                .value
-                                .clone()
-                                .parse::<u16>();
-                            device_config.ssh_port = port.unwrap_or(22);
-                            device_config.ssh_identity_file =
-                                self.ssh_identity_state.borrow().value.clone();
-                            self.dispatcher.dispatch(
-                                Action::UpdateDeviceConfig(device_config),
-                            );
-                            self.dispatcher.dispatch(
-                                Action::UpdateSelectedDevice(device.ip),
-                            );
+                            let _ = ctx.ipc.send(MainMessage::ExecCommand(
+                                Command::Browse(BrowseArgs {
+                                    device: selected.clone(),
+                                    port,
+                                    use_lynx: self
+                                        .browser_select_state
+                                        .borrow()
+                                        .value
+                                        == "lynx",
+                                }),
+                            ));
                             self.reset_input_state();
                             handled = true;
                         }
+                    } else if *self.editing_ssh.borrow()
+                        && let Some(device) = ctx.state.selected_device.as_ref()
+                    {
+                        // save config
+                        let mut device_config =
+                            get_selected_device_config_from_state(ctx.state);
+                        device_config.ssh_user =
+                            self.ssh_user_state.borrow().value.clone();
+                        let port = self
+                            .ssh_port_state
+                            .borrow()
+                            .value
+                            .clone()
+                            .parse::<u16>();
+                        device_config.ssh_port = port.unwrap_or(22);
+                        device_config.ssh_identity_file =
+                            self.ssh_identity_state.borrow().value.clone();
+                        self.dispatcher.dispatch(Action::UpdateDeviceConfig(
+                            device_config,
+                        ));
+                        self.dispatcher
+                            .dispatch(Action::UpdateSelectedDevice(device.ip));
+                        self.reset_input_state();
+                        handled = true;
                     }
                 }
                 KeyCode::Backspace => {
-                    if *self.editing.borrow() {
+                    if *self.editing_browser.borrow()
+                        || *self.editing_ssh.borrow()
+                    {
                         self.pop_input_char();
                         handled = true;
                     }
                 }
                 KeyCode::Char(c) => {
-                    if *self.editing.borrow() {
+                    if *self.editing_browser.borrow()
+                        || *self.editing_ssh.borrow()
+                    {
                         // handle value update for focused element
                         self.push_input_char(c);
                         handled = true;
@@ -659,9 +690,9 @@ impl EventHandler for DeviceView {
                         handled = true
                     } else if c == 'c' {
                         // enter edit mode
-                        *self.focus.borrow_mut() = Focus::SSHUser;
+                        *self.ssh_focus.borrow_mut() = 0;
                         self.ssh_user_state.borrow_mut().editing = true;
-                        *self.editing.borrow_mut() = true;
+                        *self.editing_ssh.borrow_mut() = true;
                         handled = true;
                     } else if c == 's'
                         && let Some(selected) =
@@ -689,12 +720,12 @@ impl EventHandler for DeviceView {
                             handled = true;
                         }
                     } else if c == 'b' {
-                        *self.focus.borrow_mut() = Focus::BrowserPort;
+                        *self.browser_focus.borrow_mut() = 0;
                         let mut browser_state =
                             self.browser_select_state.borrow_mut();
                         browser_state.editing = true;
                         browser_state.value = "default".to_string();
-                        *self.editing.borrow_mut() = true;
+                        *self.editing_browser.borrow_mut() = true;
                         handled = true;
                     }
                 }
