@@ -18,6 +18,8 @@ way to discover, monitor, and connect to devices on your local network.
 - **Persistent Configuration**: Save global and device-specific SSH
   configurations
 - **Customizable Themes**: Multiple color themes (Blue, Emerald, Indigo, Red)
+- **Activity Logs**: Built-in logs view for monitoring scan activity and
+  debugging
 - **Port Scanning**: Configurable port ranges for comprehensive network
   analysis
 - **Vendor Detection**: MAC address vendor lookup for device identification
@@ -130,6 +132,12 @@ The application provides several interactive views:
 - **Purpose**: Manage global and device-specific settings
 - **Options**: SSH credentials, port ranges, themes
 
+#### 4. Logs View
+
+- **Purpose**: View real-time application logs and scan activity
+- **Features**: Scrollable log history, displays scan events and status messages
+- **Navigation**: Use arrow keys or `j`/`k` to scroll, mouse wheel supported
+
 ### Navigation and Controls
 
 #### Global Controls
@@ -144,6 +152,7 @@ The application provides several interactive views:
 - **`j` / `↓`** - Move down in device list
 - **`k` / `↑`** - Move up in device list
 - **`Enter`** - View selected device details
+- **Mouse wheel** - Scroll through device list
 
 #### Device Detail View
 
@@ -162,6 +171,12 @@ The application provides several interactive views:
 - **`Esc`** - Exit configuration mode
 - **`← / →`** - Navigate theme colors (when in theme field)
 - **`Backspace`** - Delete character in input fields
+
+#### Logs View
+
+- **`j` / `↓`** - Scroll down
+- **`k` / `↑`** - Scroll up
+- **Mouse wheel** - Scroll through logs
 
 ## Configuration
 
