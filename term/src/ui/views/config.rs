@@ -39,12 +39,20 @@ enum Focus {
     ScanPorts,
 }
 
+const FOCUS_ARRAY: [Focus; 5] = [
+    Focus::SSHUser,
+    Focus::SSHPort,
+    Focus::SSHIdentity,
+    Focus::Theme,
+    Focus::ScanPorts,
+];
+
 /// View for editing global application settings.
 pub struct ConfigView {
     dispatcher: Arc<dyn Dispatcher>,
     theme_index: RefCell<usize>,
     editing: RefCell<bool>,
-    focus: RefCell<Focus>,
+    focus: RefCell<i8>,
     ssh_user_state: RefCell<InputState>,
     ssh_port_state: RefCell<InputState>,
     ssh_identity_state: RefCell<InputState>,
@@ -65,7 +73,7 @@ impl ConfigView {
             dispatcher,
             theme_index: RefCell::new(idx),
             editing: RefCell::new(false),
-            focus: RefCell::new(Focus::SSHUser),
+            focus: RefCell::new(0),
             ssh_user_state: RefCell::new(InputState {
                 editing: false,
                 value: String::from(""),
@@ -153,7 +161,8 @@ impl ConfigView {
     }
 
     fn push_input_char(&self, char: char) {
-        match *self.focus.borrow() {
+        let focus = FOCUS_ARRAY[*self.focus.borrow() as usize].clone();
+        match focus {
             Focus::SSHUser => self.ssh_user_state.borrow_mut().value.push(char),
             Focus::SSHPort => self.ssh_port_state.borrow_mut().value.push(char),
             Focus::SSHIdentity => {
@@ -167,7 +176,9 @@ impl ConfigView {
     }
 
     fn pop_input_char(&self) {
-        match *self.focus.borrow() {
+        let focus = FOCUS_ARRAY[*self.focus.borrow() as usize].clone();
+
+        match focus {
             Focus::SSHUser => {
                 self.ssh_user_state.borrow_mut().value.pop();
             }
@@ -184,6 +195,32 @@ impl ConfigView {
         };
     }
 
+    fn update_focus_settings(&self) {
+        let is_editing = *self.editing.borrow();
+        let current = *self.focus.borrow();
+
+        for (idx, focus) in FOCUS_ARRAY.iter().enumerate() {
+            let editing = is_editing && idx == current as usize;
+            match focus {
+                Focus::SSHIdentity => {
+                    self.ssh_identity_state.borrow_mut().editing = editing;
+                }
+                Focus::SSHPort => {
+                    self.ssh_port_state.borrow_mut().editing = editing;
+                }
+                Focus::SSHUser => {
+                    self.ssh_user_state.borrow_mut().editing = editing;
+                }
+                Focus::ScanPorts => {
+                    self.scan_ports_state.borrow_mut().editing = editing;
+                }
+                Focus::Theme => {
+                    self.theme_state.borrow_mut().editing = editing;
+                }
+            }
+        }
+    }
+
     fn reset_input_state(&self) {
         self.ssh_user_state.borrow_mut().editing = false;
         self.ssh_port_state.borrow_mut().editing = false;
@@ -193,117 +230,19 @@ impl ConfigView {
     }
 
     fn focus_next(&self) {
-        let next_focus = match *self.focus.borrow() {
-            Focus::SSHUser => {
-                if *self.editing.borrow() {
-                    self.ssh_user_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = true;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.theme_state.borrow_mut().editing = false;
-                    self.scan_ports_state.borrow_mut().editing = false;
-                }
-                Focus::SSHPort
-            }
-            Focus::SSHPort => {
-                if *self.editing.borrow() {
-                    self.ssh_user_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = true;
-                    self.theme_state.borrow_mut().editing = false;
-                    self.scan_ports_state.borrow_mut().editing = false;
-                }
-                Focus::SSHIdentity
-            }
-            Focus::SSHIdentity => {
-                if *self.editing.borrow() {
-                    self.ssh_user_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.theme_state.borrow_mut().editing = true;
-                    self.scan_ports_state.borrow_mut().editing = false;
-                }
-                Focus::Theme
-            }
-            Focus::Theme => {
-                if *self.editing.borrow() {
-                    self.ssh_user_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.theme_state.borrow_mut().editing = false;
-                    self.scan_ports_state.borrow_mut().editing = true;
-                }
-                Focus::ScanPorts
-            }
-            Focus::ScanPorts => {
-                if *self.editing.borrow() {
-                    self.ssh_user_state.borrow_mut().editing = true;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.theme_state.borrow_mut().editing = false;
-                    self.scan_ports_state.borrow_mut().editing = false;
-                }
-                Focus::SSHUser
-            }
-        };
-
-        *self.focus.borrow_mut() = next_focus;
+        let new_idx = (*self.focus.borrow() + 1) % FOCUS_ARRAY.len() as i8;
+        *self.focus.borrow_mut() = new_idx;
+        self.update_focus_settings();
     }
 
     fn focus_previous(&self) {
-        let next_focus = match *self.focus.borrow() {
-            Focus::ScanPorts => {
-                if *self.editing.borrow() {
-                    self.scan_ports_state.borrow_mut().editing = false;
-                    self.theme_state.borrow_mut().editing = true;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::Theme
-            }
-            Focus::Theme => {
-                if *self.editing.borrow() {
-                    self.scan_ports_state.borrow_mut().editing = false;
-                    self.theme_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = true;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::SSHIdentity
-            }
-            Focus::SSHIdentity => {
-                if *self.editing.borrow() {
-                    self.scan_ports_state.borrow_mut().editing = false;
-                    self.theme_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = true;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::SSHPort
-            }
-            Focus::SSHPort => {
-                if *self.editing.borrow() {
-                    self.scan_ports_state.borrow_mut().editing = false;
-                    self.theme_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = true;
-                }
-                Focus::SSHUser
-            }
-            Focus::SSHUser => {
-                if *self.editing.borrow() {
-                    self.scan_ports_state.borrow_mut().editing = true;
-                    self.theme_state.borrow_mut().editing = false;
-                    self.ssh_identity_state.borrow_mut().editing = false;
-                    self.ssh_port_state.borrow_mut().editing = false;
-                    self.ssh_user_state.borrow_mut().editing = false;
-                }
-                Focus::SSHIdentity
-            }
-        };
-
-        *self.focus.borrow_mut() = next_focus;
+        let mut new_idx = *self.focus.borrow() - 1;
+        if new_idx < 0 {
+            new_idx = FOCUS_ARRAY.len() as i8 - 1;
+        }
+        new_idx %= FOCUS_ARRAY.len() as i8;
+        *self.focus.borrow_mut() = new_idx;
+        self.update_focus_settings();
     }
 
     fn render_ports(
@@ -450,7 +389,7 @@ impl EventHandler for ConfigView {
                         KeyCode::Esc => {
                             if *self.editing.borrow() {
                                 self.reset_input_state();
-                                *self.focus.borrow_mut() = Focus::SSHUser;
+                                *self.focus.borrow_mut() = 0;
                                 *self.editing.borrow_mut() = false;
                                 handled = true;
                             }
@@ -487,7 +426,7 @@ impl EventHandler for ConfigView {
                             if *self.editing.borrow() {
                                 self.set_config(ctx.state);
                                 self.reset_input_state();
-                                *self.focus.borrow_mut() = Focus::SSHUser;
+                                *self.focus.borrow_mut() = 0;
                                 *self.editing.borrow_mut() = false;
                                 handled = true;
                             }
