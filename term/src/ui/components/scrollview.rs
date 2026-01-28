@@ -49,6 +49,6 @@ impl CustomStatefulWidget for ScrollView {
     }
 }
 
-// #[cfg(test)]
-// #[path = "./table_tests.rs"]
-// mod tests;
+#[cfg(test)]
+#[path = "./scrollview_tests.rs"]
+mod tests;
