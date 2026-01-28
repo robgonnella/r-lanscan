@@ -2,7 +2,6 @@
 
 use color_eyre::eyre::{Context, Result};
 use core::time;
-use log::*;
 use ratatui::{
     Terminal,
     crossterm::{
@@ -121,7 +120,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                         KeyCode::Char('c') => {
                             // do not allow overriding ctrl-c
                             if key.modifiers == KeyModifiers::CONTROL {
-                                info!("APP RECEIVED CONTROL-C SEQUENCE");
+                                log::info!("APP RECEIVED CONTROL-C SEQUENCE");
                                 self.ipc.tx.send(MainMessage::Quit)?;
                                 return Ok(());
                             }

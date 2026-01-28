@@ -1,7 +1,6 @@
 //! Provides Scanner implementation for Full scanning (ARP + SYN)
 
 use derive_builder::Builder;
-use log::*;
 use std::{
     sync::{Arc, Mutex, mpsc},
     thread::JoinHandle,
@@ -23,9 +22,9 @@ use super::{
 /// Data structure representing a Full scanner (ARP + SYN)
 #[derive(Builder)]
 #[builder(setter(into))]
-pub struct FullScanner<'net> {
+pub struct FullScanner {
     /// Network interface to use for scanning
-    interface: &'net NetworkInterface,
+    interface: Arc<NetworkInterface>,
     /// Packet reader for receiving responses
     packet_reader: Arc<Mutex<dyn Reader>>,
     /// Packet sender for transmitting packets
@@ -46,9 +45,9 @@ pub struct FullScanner<'net> {
     source_port: u16,
 }
 
-impl<'n> FullScanner<'n> {
+impl FullScanner {
     /// Returns a builder for FullScanner
-    pub fn builder() -> FullScannerBuilder<'n> {
+    pub fn builder() -> FullScannerBuilder {
         FullScannerBuilder::default()
     }
 
@@ -58,7 +57,7 @@ impl<'n> FullScanner<'n> {
         let mut syn_targets: Vec<Device> = Vec::new();
 
         let arp = ARPScanner::builder()
-            .interface(self.interface)
+            .interface(Arc::clone(&self.interface))
             .packet_reader(Arc::clone(&self.packet_reader))
             .packet_sender(Arc::clone(&self.packet_sender))
             .targets(Arc::clone(&self.targets))
@@ -75,7 +74,7 @@ impl<'n> FullScanner<'n> {
             if let Ok(msg) = rx.recv() {
                 match msg {
                     ScanMessage::Done => {
-                        debug!("arp sending complete");
+                        log::debug!("arp sending complete");
                         break;
                     }
                     ScanMessage::ARPScanDevice(device) => {
@@ -91,12 +90,12 @@ impl<'n> FullScanner<'n> {
 }
 
 // Implements the Scanner trait for FullScanner
-impl Scanner for FullScanner<'_> {
+impl Scanner for FullScanner {
     fn scan(&self) -> Result<JoinHandle<Result<()>>> {
         let syn_targets = self.get_syn_targets_from_arp_scan()?;
 
         let syn = SYNScanner::builder()
-            .interface(self.interface)
+            .interface(Arc::clone(&self.interface))
             .packet_reader(Arc::clone(&self.packet_reader))
             .packet_sender(Arc::clone(&self.packet_sender))
             .targets(syn_targets)

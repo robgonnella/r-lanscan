@@ -1,7 +1,6 @@
 //! Provides Scanner implementation for SYN scanning
 
 use derive_builder::Builder;
-use log::*;
 use pnet::packet::{Packet, ethernet, ip, ipv4, tcp};
 use std::{
     collections::HashMap,
@@ -53,11 +52,11 @@ static SERVICES: LazyLock<HashMap<u16, &str>> = LazyLock::new(|| {
 });
 
 /// Data structure representing a SYN scanner
-#[derive(Builder)]
+#[derive(Clone, Builder)]
 #[builder(setter(into))]
-pub struct SYNScanner<'net> {
+pub struct SYNScanner {
     /// Network interface to use for scanning
-    interface: &'net NetworkInterface,
+    interface: Arc<NetworkInterface>,
     /// Packet reader for receiving SYN-ACK responses
     packet_reader: Arc<Mutex<dyn Reader>>,
     /// Packet sender for transmitting SYN packets
@@ -74,10 +73,52 @@ pub struct SYNScanner<'net> {
     notifier: mpsc::Sender<ScanMessage>,
 }
 
-impl<'n> SYNScanner<'n> {
+impl SYNScanner {
     /// Returns a builder for SYNScanner
-    pub fn builder() -> SYNScannerBuilder<'n> {
+    pub fn builder() -> SYNScannerBuilder {
         SYNScannerBuilder::default()
+    }
+
+    fn process_port(&self, port: u16) -> Result<()> {
+        for device in self.targets.iter() {
+            // throttle packet sending to prevent packet loss
+            thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
+
+            log::debug!("scanning SYN target: {}:{}", device.ip, port);
+
+            let dest_ipv4 = device.ip;
+            let dest_mac = device.mac;
+
+            let syn_packet = SynPacketBuilder::default()
+                .source_ip(self.interface.ipv4)
+                .source_mac(self.interface.mac)
+                .source_port(self.source_port)
+                .dest_ip(dest_ipv4)
+                .dest_mac(dest_mac)
+                .dest_port(port)
+                .build()?;
+
+            let pkt_buf = syn_packet.to_raw();
+
+            // send info message to consumer
+            self.notifier
+                .send(ScanMessage::Info(Scanning {
+                    ip: device.ip,
+                    port: Some(port),
+                }))
+                .map_err(RLanLibError::from_channel_send_error)?;
+
+            let mut sender = self.packet_sender.lock()?;
+
+            // scan device @ port
+            sender.send(&pkt_buf).map_err(|e| RLanLibError::Scan {
+                ip: Some(device.ip.to_string()),
+                port: Some(port.to_string()),
+                error: e.to_string(),
+            })?;
+        }
+
+        Ok(())
     }
 
     // Implements packet reading in a separate thread so we can send and
@@ -86,35 +127,33 @@ impl<'n> SYNScanner<'n> {
         &self,
         done_rx: mpsc::Receiver<()>,
     ) -> Result<JoinHandle<Result<()>>> {
-        let packet_reader = Arc::clone(&self.packet_reader);
-        let heartbeat_packet_sender = Arc::clone(&self.packet_sender);
-        let rst_packet_sender = Arc::clone(&self.packet_sender);
-        // Build a HashMap for O(1) device lookups instead of O(n) linear search
-        let device_map: HashMap<Ipv4Addr, Device> =
-            self.targets.iter().map(|d| (d.ip, d.clone())).collect();
-        let notifier = self.notifier.clone();
-        let source_ipv4 = self.interface.ipv4;
-        let source_mac = self.interface.mac;
-        let source_port = self.source_port;
+        let self_clone = self.clone();
         let (heartbeat_tx, heartbeat_rx) = sync::mpsc::channel::<()>();
 
         let heartbeat = HeartBeat::builder()
-            .source_mac(source_mac)
-            .source_ipv4(source_ipv4)
-            .source_port(source_port)
-            .packet_sender(heartbeat_packet_sender)
+            .source_mac(self.interface.mac)
+            .source_ipv4(self.interface.ipv4)
+            .source_port(self.source_port)
+            .packet_sender(Arc::clone(&self.packet_sender))
             .build()?;
 
-        heartbeat.start_in_thread(heartbeat_rx)?;
+        let heart_handle = heartbeat.start_in_thread(heartbeat_rx)?;
 
         Ok(thread::spawn(move || -> Result<()> {
-            let mut reader = packet_reader.lock()?;
+            let mut reader = self_clone.packet_reader.lock()?;
+
+            // Build a HashMap for O(1) device lookups instead of O(n) linear search
+            let device_map: HashMap<Ipv4Addr, Device> = self_clone
+                .targets
+                .iter()
+                .map(|d| (d.ip, d.clone()))
+                .collect();
 
             loop {
                 if done_rx.try_recv().is_ok() {
-                    debug!("exiting syn packet reader");
+                    log::debug!("exiting syn packet reader");
                     if let Err(e) = heartbeat_tx.send(()) {
-                        error!("failed to stop heartbeat: {}", e);
+                        log::error!("failed to stop heartbeat: {}", e);
                     }
 
                     break;
@@ -143,7 +182,8 @@ impl<'n> SYNScanner<'n> {
                 };
 
                 let destination_port = tcp_packet.get_destination();
-                let matches_destination = destination_port == source_port;
+                let matches_destination =
+                    destination_port == self_clone.source_port;
                 let flags: u8 = tcp_packet.get_flags();
                 let sequence = tcp_packet.get_sequence();
                 let is_syn_ack =
@@ -166,9 +206,9 @@ impl<'n> SYNScanner<'n> {
                 let dest_mac = device.mac;
 
                 let rst_packet = RstPacketBuilder::default()
-                    .source_ip(source_ipv4)
-                    .source_mac(source_mac)
-                    .source_port(source_port)
+                    .source_ip(self_clone.interface.ipv4)
+                    .source_mac(self_clone.interface.mac)
+                    .source_port(self_clone.source_port)
                     .dest_ip(dest_ipv4)
                     .dest_mac(dest_mac)
                     .dest_port(port)
@@ -177,9 +217,9 @@ impl<'n> SYNScanner<'n> {
 
                 let rst_packet = rst_packet.to_raw();
 
-                let mut rst_sender = rst_packet_sender.lock()?;
+                let mut rst_sender = self_clone.packet_sender.lock()?;
 
-                debug!("sending RST packet to {}:{}", device.ip, port);
+                log::debug!("sending RST packet to {}:{}", device.ip, port);
 
                 rst_sender.send(&rst_packet)?;
 
@@ -191,7 +231,8 @@ impl<'n> SYNScanner<'n> {
                 let mut ports = PortSet::new();
                 ports.0.insert(Port { id: port, service });
 
-                notifier
+                self_clone
+                    .notifier
                     .send(ScanMessage::SYNScanDevice(Device {
                         open_ports: ports,
                         ..device.clone()
@@ -199,28 +240,22 @@ impl<'n> SYNScanner<'n> {
                     .map_err(RLanLibError::from_channel_send_error)?;
             }
 
+            heart_handle.join()??;
+
             Ok(())
         }))
     }
 }
 
 // Implements the Scanner trait for SYNScanner
-impl Scanner for SYNScanner<'_> {
+impl Scanner for SYNScanner {
     fn scan(&self) -> Result<JoinHandle<Result<()>>> {
-        debug!("performing SYN scan on targets: {:?}", self.targets);
+        log::debug!("performing SYN scan on targets: {:?}", self.targets);
 
-        debug!("starting syn packet reader");
-
+        let self_clone = self.clone();
         let (done_tx, done_rx) = mpsc::channel::<()>();
-        let notifier = self.notifier.clone();
-        let packet_sender = Arc::clone(&self.packet_sender);
-        let targets = self.targets.clone();
-        let interface = self.interface;
-        let source_ipv4 = interface.ipv4;
-        let source_mac = self.interface.mac;
-        let ports = Arc::clone(&self.ports);
-        let idle_timeout = self.idle_timeout;
-        let source_port = self.source_port;
+
+        log::debug!("starting syn packet reader");
 
         let read_handle = self.read_packets(done_rx)?;
 
@@ -228,55 +263,16 @@ impl Scanner for SYNScanner<'_> {
         let handle = thread::spawn(move || -> Result<()> {
             let mut scan_error: Option<RLanLibError> = None;
 
-            let process_port = |port: u16| -> Result<()> {
-                for device in targets.iter() {
-                    // throttle packet sending to prevent packet loss
-                    thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
-
-                    debug!("scanning SYN target: {}:{}", device.ip, port);
-
-                    let dest_ipv4 = device.ip;
-                    let dest_mac = device.mac;
-
-                    let syn_packet = SynPacketBuilder::default()
-                        .source_ip(source_ipv4)
-                        .source_mac(source_mac)
-                        .source_port(source_port)
-                        .dest_ip(dest_ipv4)
-                        .dest_mac(dest_mac)
-                        .dest_port(port)
-                        .build()?;
-
-                    let pkt_buf = syn_packet.to_raw();
-
-                    // send info message to consumer
-                    notifier
-                        .send(ScanMessage::Info(Scanning {
-                            ip: device.ip,
-                            port: Some(port),
-                        }))
-                        .map_err(RLanLibError::from_channel_send_error)?;
-
-                    let mut sender = packet_sender.lock()?;
-
-                    // scan device @ port
-                    sender.send(&pkt_buf).map_err(|e| RLanLibError::Scan {
-                        ip: Some(device.ip.to_string()),
-                        port: Some(port.to_string()),
-                        error: e.to_string(),
-                    })?;
-                }
-
-                Ok(())
-            };
-
-            if let Err(err) = ports.lazy_loop(process_port) {
+            if let Err(err) =
+                self_clone.ports.lazy_loop(|p| self_clone.process_port(p))
+            {
                 scan_error = Some(err);
             }
 
-            thread::sleep(idle_timeout);
+            thread::sleep(self_clone.idle_timeout);
 
-            notifier
+            self_clone
+                .notifier
                 .send(ScanMessage::Done)
                 .map_err(RLanLibError::from_channel_send_error)?;
 

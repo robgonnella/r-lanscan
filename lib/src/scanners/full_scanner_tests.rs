@@ -25,7 +25,7 @@ const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 
 #[test]
 fn new() {
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let sender: Arc<Mutex<dyn Sender>> =
         Arc::new(Mutex::new(MockPacketSender::new()));
     let receiver: Arc<Mutex<dyn Reader>> =
@@ -36,7 +36,7 @@ fn new() {
     let (tx, _) = channel();
 
     let scanner = FullScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(receiver)
         .packet_sender(sender)
         .targets(targets)
@@ -61,7 +61,7 @@ fn sends_and_reads_packets() {
     static mut ARP_PACKET: [u8; PKT_TOTAL_ARP_SIZE] = [0u8; PKT_TOTAL_ARP_SIZE];
     static mut SYN_PACKET: [u8; PKT_TOTAL_SYN_SIZE] = [0u8; PKT_TOTAL_SYN_SIZE];
 
-    let interface = network::get_default_interface().unwrap();
+    let interface = Arc::new(network::get_default_interface().unwrap());
     let device_ip = net::Ipv4Addr::from_str("192.168.1.2").unwrap();
     let device_mac = util::MacAddr::default();
     let device_port = 2222;
@@ -124,7 +124,7 @@ fn sends_and_reads_packets() {
     let (tx, rx) = channel();
 
     let scanner = FullScanner::builder()
-        .interface(&interface)
+        .interface(interface)
         .packet_reader(arc_receiver)
         .packet_sender(arc_sender)
         .targets(targets)
