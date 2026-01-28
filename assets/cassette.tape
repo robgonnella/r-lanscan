@@ -1,5 +1,5 @@
 # Set up a 1200x600 terminal with 46px font.
-Set FontSize 26
+Set FontSize 20
 Set Width 1920
 Set Height 1080
 Set PlaybackSpeed 0.5
@@ -12,6 +12,9 @@ Sleep 500ms
 Type "-workspace-term"
 Enter
 Sleep 5s
+
+Set TypingSpeed 500ms
+
 Type "jj"
 Sleep 1s
 Enter
@@ -34,13 +37,13 @@ Sleep 500ms
 Enter
 Sleep 2s
 Type "s"
-Sleep 500ms
+Sleep 2s
 Type "yes"
 Enter
 Sleep 1s
 Type "ls -la"
 Enter
-Sleep 2s
+Sleep 3s
 Type "exit"
 Sleep 500ms
 Enter
