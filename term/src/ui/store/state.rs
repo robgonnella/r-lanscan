@@ -14,6 +14,9 @@ use crate::{
 #[cfg(test)]
 use crate::ui::colors::Theme;
 
+/// Maximum log lines to store in state
+pub const MAX_LOGS: usize = 100;
+
 /// Tracks how many scans a device has been missing from.
 pub type MissedCount = i8;
 
@@ -23,6 +26,7 @@ pub enum ViewID {
     Device,
     Devices,
     Config,
+    Logs,
     ViewSelect,
 }
 
@@ -38,6 +42,7 @@ pub struct State {
     pub true_color_enabled: bool,
     pub ui_paused: bool,
     pub error: Option<String>,
+    pub logs: Vec<String>,
     pub render_view_select: bool,
     pub view_id: ViewID,
     pub config: Config,
@@ -70,6 +75,7 @@ impl State {
             true_color_enabled,
             ui_paused: false,
             error: None,
+            logs: Vec::with_capacity(MAX_LOGS),
             render_view_select: false,
             view_id: ViewID::Devices,
             config,

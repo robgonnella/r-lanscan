@@ -24,7 +24,7 @@ impl CustomStatefulWidget for ScrollBar {
     type State = ScrollbarState;
 
     fn render(
-        self,
+        &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         state: &mut Self::State,

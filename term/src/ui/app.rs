@@ -25,6 +25,7 @@ use crate::ui::{
         config::ConfigView,
         device::DeviceView,
         devices::DevicesView,
+        logs::LogsView,
         traits::{
             CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler,
             View,
@@ -48,8 +49,9 @@ impl App {
         let config = Box::new(ConfigView::new(Arc::clone(&dispatcher), theme));
         let device = Box::new(DeviceView::new(Arc::clone(&dispatcher)));
         let devices = Box::new(DevicesView::new(Arc::clone(&dispatcher)));
+        let logs = Box::new(LogsView::new());
         let view_select = Box::new(ViewSelect::new(
-            vec![ViewID::Devices, ViewID::Config],
+            vec![ViewID::Devices, ViewID::Config, ViewID::Logs],
             2,
             Arc::clone(&dispatcher),
         ));
@@ -57,6 +59,7 @@ impl App {
         sub_views.insert(config.id(), config);
         sub_views.insert(device.id(), device);
         sub_views.insert(devices.id(), devices);
+        sub_views.insert(logs.id(), logs);
         sub_views.insert(view_select.id(), view_select);
 
         Self {

@@ -123,7 +123,9 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                         KeyCode::Char('c') => {
                             // do not allow overriding ctrl-c
                             if key.modifiers == KeyModifiers::CONTROL {
-                                log::info!("APP RECEIVED CONTROL-C SEQUENCE");
+                                self.store.dispatch(Action::Log(
+                                    "APP RECEIVED CONTROL-C SEQUENCE".into(),
+                                ));
                                 self.ipc.tx.send(MainMessage::Quit)?;
                                 return Ok(());
                             }
