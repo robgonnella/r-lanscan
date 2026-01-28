@@ -22,7 +22,7 @@ use super::scrollbar::ScrollBar;
 /// Default height for table rows.
 pub const DEFAULT_ITEM_HEIGHT: usize = 3;
 /// Maximum column width before truncation.
-pub const COLUMN_MAX_WIDTH: u16 = 50;
+pub const COLUMN_MAX_WIDTH: u16 = u16::MAX;
 const ELLIPSIS: &str = "…";
 
 /// Scrollable table with optional headers, row selection, and scrollbar.
@@ -90,7 +90,7 @@ impl Table {
         self.table_state.borrow().selected()
     }
 
-    /// Moves selection to the next row (wraps around).
+    /// Moves selection to the next row.
     pub fn next(&mut self) -> usize {
         let i = match self.table_state.borrow().selected() {
             // don't wrap
@@ -116,7 +116,7 @@ impl Table {
         i
     }
 
-    /// Moves selection to the previous row (wraps around).
+    /// Moves selection to the previous row.
     pub fn previous(&mut self) -> usize {
         let i = match self.table_state.borrow().selected() {
             // prevent wrap with saturating_sub

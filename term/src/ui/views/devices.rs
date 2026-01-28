@@ -3,7 +3,7 @@
 use itertools::Itertools;
 use r_lanlib::scanners::Device;
 use ratatui::{
-    crossterm::event::{Event, KeyCode, KeyEventKind},
+    crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind},
     layout::{Constraint, Layout, Rect},
 };
 use std::{cell::RefCell, sync::Arc};
@@ -145,7 +145,21 @@ impl EventHandler for DevicesView {
         match evt {
             Event::FocusGained => {}
             Event::FocusLost => {}
-            Event::Mouse(_m) => {}
+            Event::Mouse(m) => {
+                if m.kind == MouseEventKind::ScrollDown {
+                    if !ctx.state.device_map.is_empty() {
+                        self.next();
+                    }
+                    handled = true;
+                }
+
+                if m.kind == MouseEventKind::ScrollUp {
+                    if !ctx.state.device_map.is_empty() {
+                        self.previous();
+                    }
+                    handled = true;
+                }
+            }
             Event::Paste(_s) => {}
             Event::Resize(_x, _y) => {}
             Event::Key(key) => {
