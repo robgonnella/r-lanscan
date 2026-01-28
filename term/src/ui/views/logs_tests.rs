@@ -1,24 +1,21 @@
 use insta::assert_snapshot;
 use nanoid::nanoid;
-use pnet::util::MacAddr;
-use r_lanlib::scanners::{Device, Port};
 use ratatui::{Terminal, backend::TestBackend};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs,
-    net::Ipv4Addr,
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
 
 use crate::{
     config::{Config, ConfigManager},
     ipc::{message::MainMessage, traits::MockIpcSender},
-    ui::store::Store,
+    ui::store::{Dispatcher, Store, action::Action},
 };
 
 use super::*;
 
-fn setup() -> (ViewSelect, Arc<Store>, String) {
+fn setup() -> (LogsView, Arc<Store>, String) {
     fs::create_dir_all("generated").unwrap();
     let tmp_path = format!("generated/{}.yml", nanoid!());
     let user = "user".to_string();
@@ -43,41 +40,11 @@ fn setup() -> (ViewSelect, Arc<Store>, String) {
         theme: "Blue".to_string(),
     };
     let store = Arc::new(Store::new(conf_manager, config.clone()));
-    store.dispatch(Action::CreateAndSetConfig(config));
 
-    let mut open_ports: HashSet<Port> = HashSet::new();
-    open_ports.insert(Port {
-        id: 80,
-        service: "http".to_string(),
-    });
+    store.dispatch(Action::Log("test log 1".into()));
+    store.dispatch(Action::Log("test log 2".into()));
 
-    let device_1 = Device {
-        hostname: "hostname".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 1),
-        mac: MacAddr::default(),
-        is_current_host: false,
-        open_ports: open_ports.clone().into(),
-        vendor: "mac".to_string(),
-    };
-
-    let device_2 = Device {
-        hostname: "dev2_hostname".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 2),
-        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: true,
-        open_ports: open_ports.into(),
-        vendor: "linux".to_string(),
-    };
-
-    store.dispatch(Action::AddDevice(device_1.clone()));
-    store.dispatch(Action::AddDevice(device_2.clone()));
-
-    let view_ids = vec![ViewID::Devices, ViewID::Config, ViewID::Logs];
-    (
-        ViewSelect::new(view_ids, 2, Arc::clone(&store) as Arc<dyn Dispatcher>),
-        store,
-        tmp_path,
-    )
+    (LogsView::new(), store, tmp_path)
 }
 
 fn tear_down(conf_path: String) {
@@ -85,8 +52,8 @@ fn tear_down(conf_path: String) {
 }
 
 #[test]
-fn test_view_select_view() {
-    let (view_select, store, conf_path) = setup();
+fn test_logs_view() {
+    let (logs_view, store, conf_path) = setup();
     let mut terminal = Terminal::new(TestBackend::new(80, 15)).unwrap();
     let state = store.get_state().unwrap();
     let sender = MockIpcSender::<MainMessage>::new();
@@ -99,7 +66,7 @@ fn test_view_select_view() {
                 ipc: Box::new(sender),
             };
 
-            view_select.render_ref(frame.area(), frame.buffer_mut(), &ctx);
+            logs_view.render_ref(frame.area(), frame.buffer_mut(), &ctx);
         })
         .unwrap();
 

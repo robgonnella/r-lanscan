@@ -1,0 +1,19 @@
+---
+source: term/src/ui/views/./logs_tests.rs
+expression: terminal.backend()
+---
+"Logs                                                                            "
+"                                                                                "
+"test log 1                                                                      "
+"test log 2                                                                      "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "

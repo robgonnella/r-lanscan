@@ -93,7 +93,14 @@ impl Table {
     /// Moves selection to the next row (wraps around).
     pub fn next(&mut self) -> usize {
         let i = match self.table_state.borrow().selected() {
-            Some(i) => (i + 1) % self.items.len(),
+            // don't wrap
+            Some(i) => {
+                if i + 1 > self.items.len() - 1 {
+                    self.items.len() - 1
+                } else {
+                    i + 1
+                }
+            }
             None => 0,
         };
 
@@ -112,13 +119,8 @@ impl Table {
     /// Moves selection to the previous row (wraps around).
     pub fn previous(&mut self) -> usize {
         let i = match self.table_state.borrow().selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
-                }
-            }
+            // prevent wrap with saturating_sub
+            Some(i) => i.saturating_sub(1),
             None => 0,
         };
 

@@ -41,7 +41,7 @@ pub fn monitor_network(
     interface: Arc<NetworkInterface>,
     store: Arc<Store>,
 ) -> Result<()> {
-    log::info!("starting network monitor");
+    store.dispatch(Action::Log("starting network monitor".into()));
 
     loop {
         if exit.try_recv().is_ok() {
@@ -95,7 +95,7 @@ pub fn monitor_network(
 
         store.dispatch(Action::UpdateAllDevices(results));
 
-        log::debug!("network scan completed");
+        store.dispatch(Action::Log("network scan completed".into()));
 
         thread::sleep(time::Duration::from_secs(15));
     }
@@ -118,24 +118,29 @@ fn process_arp(
 
         match msg {
             ScanMessage::Done => {
-                log::debug!("scanning complete");
+                dispatcher
+                    .dispatch(Action::Log("arp scanning complete".into()));
                 break;
             }
             ScanMessage::ARPScanDevice(d) => {
-                log::debug!("received scanning message: {:?}", d);
+                dispatcher.dispatch(Action::Log(format!(
+                    "received arp scanning message: {:?}",
+                    d
+                )));
                 dispatcher.dispatch(Action::AddDevice(d));
             }
             _ => {}
         }
     }
 
-    log::debug!("waiting for arp handle to finish");
+    dispatcher.dispatch(Action::Log("waiting for arp handle to finish".into()));
 
     handle.join().map_err(error::report_from_thread_panic)??;
 
     dispatcher.dispatch(Action::UpdateMessage(None));
 
-    log::debug!("finished arp scan");
+    dispatcher.dispatch(Action::Log("finished arp scan".into()));
+
     Ok(rx)
 }
 
@@ -163,7 +168,8 @@ fn process_syn(
         );
     }
 
-    log::debug!("starting syn scan");
+    store.dispatch(Action::Log("starting syn scan".into()));
+
     store.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing SYN Scan…",
     ))));
@@ -175,11 +181,15 @@ fn process_syn(
 
         match msg {
             ScanMessage::Done => {
-                log::debug!("scanning complete");
+                store.dispatch(Action::Log("syn scanning complete".into()));
                 break;
             }
             ScanMessage::SYNScanDevice(device) => {
-                log::debug!("received syn scanning device: {:?}", device);
+                store.dispatch(Action::Log(format!(
+                    "received syn scanning device: {:?}",
+                    device
+                )));
+
                 let result = syn_results.get_mut(&device.ip);
                 match result {
                     Some(d) => {
@@ -187,10 +197,10 @@ fn process_syn(
                         store.dispatch(Action::AddDevice(d.clone()));
                     }
                     None => {
-                        log::warn!(
+                        store.dispatch(Action::Log(format!(
                             "received syn result for unknown device: {:?}",
                             device
-                        );
+                        )));
                     }
                 }
             }

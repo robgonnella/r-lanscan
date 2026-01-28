@@ -9,7 +9,10 @@ use color_eyre::eyre::{Result, eyre};
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::{colors::Theme, store::action::Action},
+    ui::{
+        colors::Theme,
+        store::{action::Action, state::MAX_LOGS},
+    },
 };
 
 pub mod action;
@@ -48,6 +51,7 @@ impl Store {
                 true_color_enabled,
                 ui_paused: false,
                 error: None,
+                logs: Vec::with_capacity(MAX_LOGS),
                 render_view_select: false,
                 view_id: state::ViewID::Devices,
                 config: current_config,

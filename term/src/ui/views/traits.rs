@@ -54,7 +54,7 @@ pub trait CustomStatefulWidget {
     type State;
 
     fn render(
-        self,
+        &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         state: &mut Self::State,

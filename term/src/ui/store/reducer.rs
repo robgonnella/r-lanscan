@@ -27,6 +27,13 @@ impl Reducer {
                 reducers::ui::set_ui_paused(state, value)
             }
             Action::SetError(err) => reducers::ui::set_error(state, err),
+            Action::Log(log) => {
+                log::debug!("{log}");
+                if state.logs.len() == state.logs.capacity() {
+                    state.logs.remove(0);
+                }
+                state.logs.push(log);
+            }
             Action::ToggleViewSelect => reducers::ui::toggle_view_select(state),
             Action::UpdateView(id) => reducers::ui::update_view(state, id),
             Action::UpdateMessage(message) => {
