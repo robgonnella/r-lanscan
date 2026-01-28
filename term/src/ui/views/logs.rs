@@ -1,4 +1,4 @@
-//! Configuration view for editing SSH defaults, theme, and scan ports.
+//! Scrollable view for displaying application logs.
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind},
     layout::{Constraint, Layout, Rect},
@@ -49,17 +49,20 @@ impl LogsView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        let text = ctx.state.logs.join("\n\n");
+        let text = ctx
+            .state
+            .logs
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n\n");
 
-        let mut scroll_state = self
-            .scroll_state
-            .borrow_mut()
+        let mut scroll_state = self.scroll_state.borrow_mut();
+        *scroll_state = scroll_state
             .content_length(ctx.state.logs.len() * DEFAULT_ITEM_HEIGHT)
             .viewport_content_length(area.height.into());
 
-        *self.scroll_state.borrow_mut() = scroll_state;
-
-        let view = ScrollView::new(text);
+        let view = ScrollView::new(&text);
 
         view.render(area, buf, &mut scroll_state, ctx);
     }

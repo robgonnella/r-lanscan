@@ -10,18 +10,18 @@ use crate::ui::views::traits::{CustomStatefulWidget, CustomWidgetContext};
 use super::scrollbar::ScrollBar;
 
 /// Scrollable text view
-pub struct ScrollView {
-    text: String,
+pub struct ScrollView<'a> {
+    text: &'a str,
 }
 
-impl ScrollView {
+impl<'a> ScrollView<'a> {
     /// Creates a new scroll-view using given lines of text
-    pub fn new(text: String) -> Self {
+    pub fn new(text: &'a str) -> Self {
         Self { text }
     }
 }
 
-impl CustomStatefulWidget for ScrollView {
+impl CustomStatefulWidget for ScrollView<'_> {
     type State = ScrollbarState;
 
     fn render(
@@ -38,7 +38,7 @@ impl CustomStatefulWidget for ScrollView {
 
         let position = state.get_position() as u16;
 
-        let p = Paragraph::new(self.text.clone())
+        let p = Paragraph::new(self.text)
             .wrap(Wrap { trim: true })
             .scroll((position, 0));
 
