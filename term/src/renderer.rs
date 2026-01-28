@@ -1,6 +1,6 @@
 //! Main application loop and terminal management.
 
-use color_eyre::eyre::{Context, Result};
+use color_eyre::eyre::{Context, Result, eyre};
 use core::time;
 use ratatui::{
     Terminal,
@@ -94,10 +94,13 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 ipc: self.ipc.tx.clone(),
             };
 
-            self.terminal.borrow_mut().draw(|f| {
-                ctx.app_area = f.area();
-                self.app.render_ref(f.area(), f.buffer_mut(), &ctx)
-            })?;
+            self.terminal
+                .borrow_mut()
+                .draw(|f| {
+                    ctx.app_area = f.area();
+                    self.app.render_ref(f.area(), f.buffer_mut(), &ctx)
+                })
+                .map_err(|e| eyre!("failed to render: {}", e))?;
 
             // Use poll here so we don't block the thread, this will allow
             // rendering of incoming device data from network as it's received
@@ -157,8 +160,12 @@ impl<B: Backend + std::io::Write> Renderer<B> {
             EnterAlternateScreen,
             EnableMouseCapture
         )?;
-        terminal.hide_cursor()?;
-        terminal.clear()?;
+        terminal
+            .hide_cursor()
+            .map_err(|e| eyre!("failed to hide terminal cursor: {}", e))?;
+        terminal
+            .clear()
+            .map_err(|e| eyre!("failed to clear terminal: {}", e))?;
         self.store.dispatch(Action::SetUIPaused(false));
         Ok(())
     }
@@ -171,7 +178,9 @@ impl<B: Backend + std::io::Write> Renderer<B> {
             LeaveAlternateScreen,
             DisableMouseCapture
         )?;
-        terminal.show_cursor()?;
+        terminal
+            .show_cursor()
+            .map_err(|e| eyre!("failed to show terminal cursor: {}", e))?;
         Ok(())
     }
 }

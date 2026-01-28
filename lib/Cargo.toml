@@ -34,12 +34,12 @@ log = "^0.4"
 serde = { version = "^1.0", features = ["derive"] }
 pnet = "^0.35"
 oui-data = "^0.2"
-dns-lookup = "^2.0"
+dns-lookup = "^3.0"
 openssl = { version = "0.10.75", features = ["vendored"] }
-thiserror = "2.0.17"
+thiserror = "2.0.18"
 threadpool = "1.8.1"
 itertools = "0.14.0"
 derive_builder = "0.20.2"
 
 [dev-dependencies]
-mockall = "^0.13.1"
+mockall = "^0.14.0"

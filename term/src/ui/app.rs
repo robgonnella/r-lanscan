@@ -7,7 +7,6 @@ use ratatui::{
     text::Line,
     widgets::{
         Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget,
-        WidgetRef,
     },
 };
 use std::{collections::HashMap, rc::Rc, sync::Arc};
@@ -103,7 +102,7 @@ impl App {
         let logo_inner_area = logo_block.inner(sections[0]);
 
         logo_block.render(sections[0], buf);
-        logo.render_ref(logo_inner_area, buf);
+        logo.render(logo_inner_area, buf);
 
         if let Some(message) = message {
             let message_block = Block::default().padding(Padding::uniform(2));
@@ -122,7 +121,7 @@ impl App {
         let current_view_inner_area = current_view_block.inner(sections[2]);
 
         current_view_block.render(sections[2], buf);
-        current_view.render_ref(current_view_inner_area, buf);
+        current_view.render(current_view_inner_area, buf);
     }
 
     fn render_middle_view(
