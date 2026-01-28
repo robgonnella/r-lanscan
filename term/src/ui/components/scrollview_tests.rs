@@ -14,7 +14,7 @@ fn renders_scrollview_component() {
     for i in 1..99 {
         text = format!("{text}\n\n{}: {line}", i + 1);
     }
-    let view = ScrollView::new(text);
+    let view = ScrollView::new(&text);
     let state = State::default();
     let sender = MockIpcSender::<MainMessage>::new();
     let mut terminal = Terminal::new(TestBackend::new(80, 100)).unwrap();

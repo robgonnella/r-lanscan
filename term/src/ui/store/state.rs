@@ -1,7 +1,11 @@
 //! Application state definitions.
 
 use core::fmt;
-use std::{collections::HashMap, net::Ipv4Addr, process::Output};
+use std::{
+    collections::{HashMap, VecDeque},
+    net::Ipv4Addr,
+    process::Output,
+};
 
 use r_lanlib::scanners::Device;
 
@@ -42,7 +46,7 @@ pub struct State {
     pub true_color_enabled: bool,
     pub ui_paused: bool,
     pub error: Option<String>,
-    pub logs: Vec<String>,
+    pub logs: VecDeque<String>,
     pub render_view_select: bool,
     pub view_id: ViewID,
     pub config: Config,
@@ -75,7 +79,7 @@ impl State {
             true_color_enabled,
             ui_paused: false,
             error: None,
-            logs: Vec::with_capacity(MAX_LOGS),
+            logs: VecDeque::with_capacity(MAX_LOGS),
             render_view_select: false,
             view_id: ViewID::Devices,
             config,

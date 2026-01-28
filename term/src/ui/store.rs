@@ -1,7 +1,7 @@
 //! Redux-like state container for the terminal UI.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     sync::{Arc, Mutex},
 };
 
@@ -51,7 +51,7 @@ impl Store {
                 true_color_enabled,
                 ui_paused: false,
                 error: None,
-                logs: Vec::with_capacity(MAX_LOGS),
+                logs: VecDeque::with_capacity(MAX_LOGS),
                 render_view_select: false,
                 view_id: state::ViewID::Devices,
                 config: current_config,
