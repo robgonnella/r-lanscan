@@ -11,7 +11,7 @@ use ratatui::{Terminal, backend::TestBackend};
 fn renders_scrollbar_component() {
     let scroll = ScrollBar::new();
     let mut scroll_state = ScrollbarState::new(10);
-    let mut terminal = Terminal::new(TestBackend::new(80, 3)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 3)).unwrap();
     let state = State::default();
     let sender = MockIpcSender::<MainMessage>::new();
 

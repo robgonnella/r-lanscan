@@ -86,7 +86,7 @@ fn tear_down(conf_path: String) {
 #[test]
 fn test_devices_view() {
     let (devs_view, store, conf_path) = setup();
-    let mut terminal = Terminal::new(TestBackend::new(80, 15)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 15)).unwrap();
     let state = store.get_state().unwrap();
     let sender = MockIpcSender::<MainMessage>::new();
 

@@ -17,7 +17,7 @@ fn renders_scrollview_component() {
     let view = ScrollView::new(&text);
     let state = State::default();
     let sender = MockIpcSender::<MainMessage>::new();
-    let mut terminal = Terminal::new(TestBackend::new(80, 100)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 100)).unwrap();
 
     terminal
         .draw(|frame| {

@@ -21,18 +21,8 @@ pub struct ViewSelect {
 
 impl ViewSelect {
     /// Creates a new view selector with the given view options.
-    pub fn new(
-        view_ids: Vec<ViewID>,
-        padding: usize,
-        dispatcher: Arc<dyn Dispatcher>,
-    ) -> Self {
-        let mut spacer = String::from("");
-
-        if padding > 0 {
-            for _ in 0..padding {
-                spacer += " ";
-            }
-        }
+    pub fn new(view_ids: Vec<ViewID>, dispatcher: Arc<dyn Dispatcher>) -> Self {
+        let spacer = String::from("  ");
 
         let table_items = view_ids
             .clone()
@@ -40,12 +30,8 @@ impl ViewSelect {
             .map(|v| vec![format!("{}{}", spacer, v.to_string())])
             .collect_vec();
 
-        let mut table_select = Table::new(
-            table_items,
-            None,
-            vec![15; view_ids.len()],
-            table::DEFAULT_ITEM_HEIGHT,
-        );
+        let mut table_select =
+            Table::new(table_items, None, vec![25], table::DEFAULT_ITEM_HEIGHT);
 
         table_select.next();
 

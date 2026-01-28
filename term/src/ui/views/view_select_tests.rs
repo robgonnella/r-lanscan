@@ -74,7 +74,7 @@ fn setup() -> (ViewSelect, Arc<Store>, String) {
 
     let view_ids = vec![ViewID::Devices, ViewID::Config, ViewID::Logs];
     (
-        ViewSelect::new(view_ids, 2, Arc::clone(&store) as Arc<dyn Dispatcher>),
+        ViewSelect::new(view_ids, Arc::clone(&store) as Arc<dyn Dispatcher>),
         store,
         tmp_path,
     )
@@ -87,7 +87,7 @@ fn tear_down(conf_path: String) {
 #[test]
 fn test_view_select_view() {
     let (view_select, store, conf_path) = setup();
-    let mut terminal = Terminal::new(TestBackend::new(80, 15)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 15)).unwrap();
     let state = store.get_state().unwrap();
     let sender = MockIpcSender::<MainMessage>::new();
 

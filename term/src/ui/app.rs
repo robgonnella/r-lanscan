@@ -52,7 +52,6 @@ impl App {
         let logs = Box::new(LogsView::new());
         let view_select = Box::new(ViewSelect::new(
             vec![ViewID::Devices, ViewID::Config, ViewID::Logs],
-            2,
             Arc::clone(&dispatcher),
         ));
 
@@ -82,9 +81,9 @@ impl App {
 
     fn get_top_section_areas(&self, area: Rect) -> Rc<[Rect]> {
         Layout::horizontal([
-            Constraint::Percentage(20),
+            Constraint::Length(25),
             Constraint::Percentage(100),
-            Constraint::Percentage(20),
+            Constraint::Length(25),
         ])
         .split(area)
     }

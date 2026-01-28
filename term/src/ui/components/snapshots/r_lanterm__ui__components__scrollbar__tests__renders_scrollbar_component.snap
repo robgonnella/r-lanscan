@@ -2,6 +2,6 @@
 source: term/src/ui/components/./scrollbar_tests.rs
 expression: terminal.backend()
 ---
-"                                                                                "
-"                                                                              █ "
-"                                                                                "
+"                                                                                                    "
+"                                                                                                  █ "
+"                                                                                                    "

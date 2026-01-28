@@ -92,6 +92,13 @@ Enter
 Sleep 1s
 Type "k"
 Sleep 1.5s
+Type "v"
+Sleep 1s
+Type "jj"
+Sleep 1s
+Enter
+Sleep 3s
+Type@1s "jjjjj"
 Type "q"
 Sleep 2s
 Output assets/r-lanterm.gif

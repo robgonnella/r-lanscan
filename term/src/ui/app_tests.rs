@@ -81,7 +81,7 @@ fn tear_down(conf_path: String) {
 #[test]
 fn test_main_view() {
     let (main_view, store, conf_path) = setup();
-    let mut terminal = Terminal::new(TestBackend::new(80, 15)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(100, 15)).unwrap();
     let state = store.get_state().unwrap();
     let channel = std::sync::mpsc::channel();
     let sender = RendererSender::new(channel.0);
