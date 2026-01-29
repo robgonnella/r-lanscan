@@ -1,3 +1,47 @@
+# [0.5.0](https://github.com/robgonnella/r-lanscan/releases/tag/v0.5.0) - 2026-01-26
+
+### 🚀 Features
+
+- _(term)_ enable mouse scrolling for devices view [_(fcdbd13)_](https://github.com/robgonnella/r-lanscan/commit/fcdbd134ea5bcff9ad30e8de6ceb2a2a867a193f)
+
+- _(term)_ adds initial view for logs in r-lanterm [_(00a18f5)_](https://github.com/robgonnella/r-lanscan/commit/00a18f5e704e572e960dde7c57bb9cb447a44139)
+
+- implements builder pattern for scanners [_(6102da2)_](https://github.com/robgonnella/r-lanscan/commit/6102da2bfffd88348f333a2783989098fff095a2)
+
+### 🐛 Bug Fixes
+
+- improves UI header and regenerates snapshots [_(d00023a)_](https://github.com/robgonnella/r-lanscan/commit/d00023ac23befbb62ad45a2e8ad78893e5884243)
+
+- _(term)_ improves focus logic while editing [_(4f934d0)_](https://github.com/robgonnella/r-lanscan/commit/4f934d0024292b92d5ba22b178fe2b44b5ed9a2d)
+
+- uses the more cannonical (tx, rx) order for wire (sender, reader) [_(5bacaa8)_](https://github.com/robgonnella/r-lanscan/commit/5bacaa8b2d4b312d42fdf674051c950f22884672)
+
+- _(term)_ fixes small bug in tui [_(ed8ea17)_](https://github.com/robgonnella/r-lanscan/commit/ed8ea173c9f821fd3b30749596751757f900e028)
+
+### 🚜 Refactor
+
+- _(lib)_ minor refactor to processing incoming packets [_(210671f)_](https://github.com/robgonnella/r-lanscan/commit/210671ff17cf1c98de8c8417ec698400d49cc20b)
+
+- uses "self.clone" to access scanner props in threads [_(3491ab4)_](https://github.com/robgonnella/r-lanscan/commit/3491ab410495959945e4bd5155dbcb5b9d1571c1)
+
+- _(lib)_ improves setup and handling of heartbeats [_(03546fe)_](https://github.com/robgonnella/r-lanscan/commit/03546fecece01a23ef32606edc25af304cb34bf0)
+
+- _(term)_ minor cleanup in term/main.rs [_(5f8b3e0)_](https://github.com/robgonnella/r-lanscan/commit/5f8b3e0609ae1bcf482c54527dfa5cc85e3b3b22)
+
+- _(term)_ more improvments to ipc structure and event handling [_(ad24595)_](https://github.com/robgonnella/r-lanscan/commit/ad2459525939fe87a0a7eb806cb8f2f9453607a1)
+
+- _(term)_ more improvements to renderer instantiation [_(3e77903)_](https://github.com/robgonnella/r-lanscan/commit/3e77903db92509b7363e03b427a56e518cb7a1b5)
+
+- _(term)_ removes unused field in renderer [_(e8c4835)_](https://github.com/robgonnella/r-lanscan/commit/e8c4835ef6d1bc770cd8c3224d9ef488cda94d90)
+
+- _(term)_ improves separation of concerns [_(e9348c0)_](https://github.com/robgonnella/r-lanscan/commit/e9348c0b256687b9f97ea047cada1266895ab14c)
+
+- _(term)_ renames event modules and separates shell executor [_(21202f9)_](https://github.com/robgonnella/r-lanscan/commit/21202f9c36ccd0d19f0234134ef335ed16854890)
+
+### 🧪 Testing
+
+- adds tests for scrollview and logsview [_(a18aab7)_](https://github.com/robgonnella/r-lanscan/commit/a18aab79603aef05969132ffa434010a62d1314a)
+
 # [0.4.0](https://github.com/robgonnella/r-lanscan/releases/tag/v0.4.0) - 2026-01-18
 
 ### 🚀 Features
