@@ -12,7 +12,6 @@ use std::{
 
 use crate::{
     config::{Config, ConfigManager},
-    ipc::traits::MockIpcSender,
     ui::store::Store,
 };
 
@@ -80,14 +79,12 @@ fn test_device_view() {
     let (dev_view, store, conf_path) = setup();
     let mut terminal = Terminal::new(TestBackend::new(100, 15)).unwrap();
     let state = store.get_state().unwrap();
-    let sender = MockIpcSender::<MainMessage>::new();
 
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                ipc: Box::new(sender),
             };
 
             dev_view.render_ref(frame.area(), frame.buffer_mut(), &ctx);

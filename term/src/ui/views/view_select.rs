@@ -8,6 +8,7 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind};
 use crate::ui::{
     components::table::{self, Table},
     store::{Dispatcher, action::Action, state::ViewID},
+    views::traits::CustomEventContext,
 };
 
 use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
@@ -67,7 +68,7 @@ impl View for ViewSelect {
 }
 
 impl EventHandler for ViewSelect {
-    fn process_event(&self, evt: &Event, ctx: &CustomWidgetContext) -> bool {
+    fn process_event(&self, evt: &Event, ctx: &CustomEventContext) -> bool {
         if !ctx.state.render_view_select {
             return false;
         }

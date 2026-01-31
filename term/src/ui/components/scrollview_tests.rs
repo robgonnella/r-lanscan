@@ -1,7 +1,4 @@
-use crate::{
-    ipc::{message::MainMessage, traits::MockIpcSender},
-    ui::{components::table::DEFAULT_ITEM_HEIGHT, store::state::State},
-};
+use crate::ui::{components::table::DEFAULT_ITEM_HEIGHT, store::state::State};
 
 use super::*;
 use insta::assert_snapshot;
@@ -16,7 +13,6 @@ fn renders_scrollview_component() {
     }
     let view = ScrollView::new(&text);
     let state = State::default();
-    let sender = MockIpcSender::<MainMessage>::new();
     let mut terminal = Terminal::new(TestBackend::new(100, 100)).unwrap();
 
     terminal
@@ -27,7 +23,6 @@ fn renders_scrollview_component() {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame_area,
-                ipc: Box::new(sender),
             };
 
             let mut scroll_state = ScrollbarState::new(DEFAULT_ITEM_HEIGHT)
