@@ -15,6 +15,7 @@ use crate::ui::{
         action::Action,
         state::{State, ViewID},
     },
+    views::traits::CustomEventContext,
 };
 
 use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
@@ -135,7 +136,7 @@ impl CustomWidgetRef for DevicesView {
 }
 
 impl EventHandler for DevicesView {
-    fn process_event(&self, evt: &Event, ctx: &CustomWidgetContext) -> bool {
+    fn process_event(&self, evt: &Event, ctx: &CustomEventContext) -> bool {
         if ctx.state.render_view_select {
             return false;
         }

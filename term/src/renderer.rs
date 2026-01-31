@@ -12,7 +12,6 @@ use ratatui::{
             enable_raw_mode,
         },
     },
-    layout::Rect,
     prelude::Backend,
 };
 use std::{cell::RefCell, io, sync::Arc};
@@ -26,7 +25,7 @@ use crate::{
         app::{App, Application},
         colors::Theme,
         store::{Dispatcher, Store, action::Action},
-        views::traits::CustomWidgetContext,
+        views::traits::{CustomEventContext, CustomWidgetContext},
     },
 };
 
@@ -85,16 +84,13 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 continue;
             }
 
-            let mut ctx = CustomWidgetContext {
-                state: &state,
-                app_area: Rect::default(),
-                ipc: self.ipc.tx.clone(),
-            };
-
             self.terminal
                 .borrow_mut()
                 .draw(|f| {
-                    ctx.app_area = f.area();
+                    let ctx = CustomWidgetContext {
+                        state: &state,
+                        app_area: f.area(),
+                    };
                     self.app.render_ref(f.area(), f.buffer_mut(), &ctx)
                 })
                 .map_err(|e| eyre!("failed to render: {}", e))?;
@@ -105,6 +101,11 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 && has_event
             {
                 let evt = event::read()?;
+
+                let ctx = CustomEventContext {
+                    state: &state,
+                    ipc: self.ipc.tx.clone(),
+                };
 
                 let handled = self.app.process_event(&evt, &ctx);
 

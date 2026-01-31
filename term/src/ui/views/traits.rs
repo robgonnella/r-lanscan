@@ -7,12 +7,22 @@ use crate::{
     ui::store::state::{State, ViewID},
 };
 
+/// Context passed to widgets during rendering and event handling.
+pub struct CustomEventContext<'a> {
+    // app state
+    pub state: &'a State,
+    // event producer - this how components and views can communicate user
+    // behavior back to main loop to perform actions that aren't related to
+    // state - executing a shell command
+    pub ipc: Box<dyn IpcSender<MainMessage>>,
+}
+
 /// Handles keyboard and mouse events, returns true if consumed.
 pub trait EventHandler {
     fn process_event(
         &self,
         evt: &CrossTermEvent,
-        ctx: &CustomWidgetContext,
+        ctx: &CustomEventContext,
     ) -> bool;
 }
 
@@ -23,10 +33,6 @@ pub struct CustomWidgetContext<'a> {
     // total area for the entire application - useful for calculating
     // popover areas
     pub app_area: Rect,
-    // event producer - this how components and views can communicate user
-    // behavior back to main loop to perform actions that aren't related to
-    // state - executing a shell command
-    pub ipc: Box<dyn IpcSender<MainMessage>>,
 }
 
 /// Owned widget that consumes self on render.

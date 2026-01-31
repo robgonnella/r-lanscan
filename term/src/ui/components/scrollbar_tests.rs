@@ -1,7 +1,4 @@
-use crate::{
-    ipc::{message::MainMessage, traits::MockIpcSender},
-    ui::store::state::State,
-};
+use crate::ui::store::state::State;
 
 use super::*;
 use insta::assert_snapshot;
@@ -13,14 +10,12 @@ fn renders_scrollbar_component() {
     let mut scroll_state = ScrollbarState::new(10);
     let mut terminal = Terminal::new(TestBackend::new(100, 3)).unwrap();
     let state = State::default();
-    let sender = MockIpcSender::<MainMessage>::new();
 
     terminal
         .draw(|frame| {
             let ctx = CustomWidgetContext {
                 state: &state,
                 app_area: frame.area(),
-                ipc: Box::new(sender),
             };
 
             scroll.render(

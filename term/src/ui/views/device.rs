@@ -15,6 +15,7 @@ use crate::{
             derived::get_selected_device_config_from_state,
             state::{State, ViewID},
         },
+        views::traits::CustomEventContext,
     },
 };
 use r_lanlib::scanners::Device;
@@ -567,7 +568,7 @@ impl EventHandler for DeviceView {
     fn process_event(
         &self,
         evt: &CrossTermEvent,
-        ctx: &CustomWidgetContext,
+        ctx: &CustomEventContext,
     ) -> bool {
         if ctx.state.render_view_select {
             return false;

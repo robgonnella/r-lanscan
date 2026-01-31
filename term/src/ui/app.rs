@@ -27,8 +27,8 @@ use crate::ui::{
         devices::DevicesView,
         logs::LogsView,
         traits::{
-            CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler,
-            View,
+            CustomEventContext, CustomWidget, CustomWidgetContext,
+            CustomWidgetRef, EventHandler, View,
         },
         view_select::ViewSelect,
     },
@@ -291,7 +291,7 @@ impl EventHandler for App {
     fn process_event(
         &self,
         evt: &CrossTermEvent,
-        ctx: &CustomWidgetContext,
+        ctx: &CustomEventContext,
     ) -> bool {
         let view_id = ctx.state.view_id;
 

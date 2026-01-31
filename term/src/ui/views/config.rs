@@ -12,6 +12,7 @@ use crate::ui::{
         action::Action,
         state::{State, ViewID},
     },
+    views::traits::CustomEventContext,
 };
 use itertools::Itertools;
 use ratatui::{
@@ -371,7 +372,7 @@ impl CustomWidgetRef for ConfigView {
 }
 
 impl EventHandler for ConfigView {
-    fn process_event(&self, evt: &Event, ctx: &CustomWidgetContext) -> bool {
+    fn process_event(&self, evt: &Event, ctx: &CustomEventContext) -> bool {
         if ctx.state.render_view_select {
             return false;
         }

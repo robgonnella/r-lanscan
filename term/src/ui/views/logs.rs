@@ -11,7 +11,7 @@ use crate::ui::{
         header::Header, scrollview::ScrollView, table::DEFAULT_ITEM_HEIGHT,
     },
     store::state::{State, ViewID},
-    views::traits::CustomStatefulWidget,
+    views::traits::{CustomEventContext, CustomStatefulWidget},
 };
 
 use super::traits::{
@@ -105,7 +105,7 @@ impl CustomWidgetRef for LogsView {
 }
 
 impl EventHandler for LogsView {
-    fn process_event(&self, evt: &Event, ctx: &CustomWidgetContext) -> bool {
+    fn process_event(&self, evt: &Event, ctx: &CustomEventContext) -> bool {
         if ctx.state.render_view_select {
             return false;
         }
