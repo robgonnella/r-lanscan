@@ -7,7 +7,7 @@ use std::{collections::HashSet, fs, net::Ipv4Addr, sync::Mutex};
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::store::Store,
+    ui::store::{StateGetter, Store},
 };
 
 use super::*;
@@ -37,7 +37,7 @@ fn setup() -> (App, Arc<Store>, String) {
         theme: "Blue".to_string(),
     };
     let store = Arc::new(Store::new(conf_manager, config.clone()));
-    store.dispatch(Action::CreateAndSetConfig(config));
+    store.dispatch(Action::CreateAndSetConfig(config)).unwrap();
 
     let mut open_ports: HashSet<Port> = HashSet::new();
     open_ports.insert(Port {
@@ -63,8 +63,8 @@ fn setup() -> (App, Arc<Store>, String) {
         vendor: "linux".to_string(),
     };
 
-    store.dispatch(Action::AddDevice(device_1.clone()));
-    store.dispatch(Action::AddDevice(device_2.clone()));
+    store.dispatch(Action::AddDevice(device_1.clone())).unwrap();
+    store.dispatch(Action::AddDevice(device_2.clone())).unwrap();
     let theme = Theme::Blue;
     (
         App::new(theme, Arc::clone(&store) as Arc<dyn Dispatcher>),
@@ -90,7 +90,9 @@ fn test_main_view() {
                 app_area: frame.area(),
             };
 
-            main_view.render_ref(frame.area(), frame.buffer_mut(), &ctx);
+            main_view
+                .render_ref(frame.area(), frame.buffer_mut(), &ctx)
+                .unwrap();
         })
         .unwrap();
 

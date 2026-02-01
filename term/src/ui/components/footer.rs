@@ -45,7 +45,7 @@ impl CustomWidget for InfoFooter {
                     ),
             );
 
-        info_footer.render(area, buf)
+        info_footer.render(area, buf);
     }
 }
 

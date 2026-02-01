@@ -24,7 +24,7 @@ use crate::{
     ui::{
         app::{App, Application},
         colors::Theme,
-        store::{Dispatcher, Store, action::Action},
+        store::{Dispatcher, StateGetter, Store, action::Action, state::State},
         views::traits::{CustomEventContext, CustomWidgetContext},
     },
 };
@@ -65,38 +65,25 @@ impl<B: Backend + std::io::Write> Renderer<B> {
     }
 
     fn start_loop(&self) -> Result<()> {
+        // now start event handling loop
         loop {
             let state = self.store.get_state()?;
 
-            if state.ui_paused {
-                if let Ok(evt) = self.ipc.rx.recv()
-                    && evt == RendererMessage::ResumeUI
-                {
-                    self.restart()?;
-                    self.ipc.tx.send(MainMessage::UIResumed)?;
-                    continue;
-                }
-            } else if let Ok(evt) = self.ipc.rx.try_recv()
-                && evt == RendererMessage::PauseUI
-            {
-                self.pause()?;
-                self.ipc.tx.send(MainMessage::UIPaused)?;
-                continue;
-            }
-
-            self.terminal
-                .borrow_mut()
-                .draw(|f| {
-                    let ctx = CustomWidgetContext {
-                        state: &state,
-                        app_area: f.area(),
-                    };
-                    self.app.render_ref(f.area(), f.buffer_mut(), &ctx)
-                })
-                .map_err(|e| eyre!("failed to render: {}", e))?;
+            self.render_frame(&state)?;
 
             // Use poll here so we don't block the thread, this will allow
             // rendering of incoming device data from network as it's received
+            if let Ok(ipc_msg) = self.ipc.rx.try_recv() {
+                match ipc_msg {
+                    RendererMessage::PauseUI => self.pause()?,
+                    RendererMessage::ResumeUI => self.restart()?,
+                }
+            }
+
+            if state.ui_paused {
+                continue;
+            }
+
             if let Ok(has_event) = event::poll(time::Duration::from_millis(60))
                 && has_event
             {
@@ -107,7 +94,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                     ipc: self.ipc.tx.clone(),
                 };
 
-                let handled = self.app.process_event(&evt, &ctx);
+                let handled = self.app.process_event(&evt, &ctx)?;
 
                 if let CrossTermEvent::Key(key) = evt {
                     match key.code {
@@ -123,7 +110,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                             if key.modifiers == KeyModifiers::CONTROL {
                                 self.store.dispatch(Action::Log(
                                     "APP RECEIVED CONTROL-C SEQUENCE".into(),
-                                ));
+                                ))?;
                                 self.ipc.tx.send(MainMessage::Quit)?;
                                 return Ok(());
                             }
@@ -133,6 +120,32 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 }
             }
         }
+    }
+
+    fn render_frame(&self, state: &State) -> Result<()> {
+        if state.ui_paused {
+            return Ok(());
+        }
+
+        let mut res = Ok(());
+
+        self.terminal
+            .borrow_mut()
+            .draw(|f| {
+                let ctx = CustomWidgetContext {
+                    state,
+                    app_area: f.area(),
+                };
+
+                if let Err(err) =
+                    self.app.render_ref(f.area(), f.buffer_mut(), &ctx)
+                {
+                    res = Err(err);
+                }
+            })
+            .map_err(|e| eyre!("failed to render: {}", e))?;
+
+        res
     }
 
     fn enable_terminal_raw_mode(&self) -> Result<()> {
@@ -148,8 +161,8 @@ impl<B: Backend + std::io::Write> Renderer<B> {
 
     fn pause(&self) -> Result<()> {
         self.exit()?;
-        self.store.dispatch(Action::SetUIPaused(true));
-        Ok(())
+        self.store.dispatch(Action::SetUIPaused(true))?;
+        self.ipc.tx.send(MainMessage::UIPaused)
     }
 
     fn restart(&self) -> Result<()> {
@@ -162,8 +175,8 @@ impl<B: Backend + std::io::Write> Renderer<B> {
         terminal
             .clear()
             .map_err(|e| eyre!("failed to clear terminal: {}", e))?;
-        self.store.dispatch(Action::SetUIPaused(false));
-        Ok(())
+        self.store.dispatch(Action::SetUIPaused(false))?;
+        self.ipc.tx.send(MainMessage::UIResumed)
     }
 
     fn exit(&self) -> Result<()> {

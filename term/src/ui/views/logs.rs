@@ -1,4 +1,5 @@
 //! Scrollable view for displaying application logs.
+use color_eyre::eyre::Result;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind},
     layout::{Constraint, Layout, Rect},
@@ -88,7 +89,7 @@ impl CustomWidgetRef for LogsView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         let [label_area, _, logs_area] = Layout::vertical([
             Constraint::Length(1), // label
             Constraint::Length(1), // spacer
@@ -101,13 +102,18 @@ impl CustomWidgetRef for LogsView {
 
         self.render_label(label_rects[0], buf, ctx);
         self.render_logs(logs_area, buf, ctx);
+        Ok(())
     }
 }
 
 impl EventHandler for LogsView {
-    fn process_event(&self, evt: &Event, ctx: &CustomEventContext) -> bool {
+    fn process_event(
+        &self,
+        evt: &Event,
+        ctx: &CustomEventContext,
+    ) -> Result<bool> {
         if ctx.state.render_view_select {
-            return false;
+            return Ok(false);
         }
 
         let mut handled = false;
@@ -161,7 +167,7 @@ impl EventHandler for LogsView {
             }
         }
 
-        handled
+        Ok(handled)
     }
 }
 

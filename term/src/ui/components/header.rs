@@ -37,7 +37,7 @@ impl CustomWidget for Header {
         let header =
             Paragraph::new(Line::from(self.title.as_str())).style(header_style);
 
-        header.render(area, buf)
+        header.render(area, buf);
     }
 }
 

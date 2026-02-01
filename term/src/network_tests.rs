@@ -11,6 +11,7 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use crate::config::ConfigManager;
+use crate::ui::store::{StateGetter, Store};
 
 use super::*;
 
@@ -176,7 +177,9 @@ fn test_process_syn() {
     tx.send(ScanMessage::SYNScanDevice(device.clone())).unwrap();
     tx.send(ScanMessage::Done).unwrap();
 
-    store.dispatch(Action::AddDevice(device_with_ports.clone()));
+    store
+        .dispatch(Action::AddDevice(device_with_ports.clone()))
+        .unwrap();
 
     let packet_reader: Arc<Mutex<dyn Reader>> =
         Arc::new(Mutex::new(mock_packet_reader));

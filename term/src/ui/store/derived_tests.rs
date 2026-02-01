@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::store::{Dispatcher, Store, action::Action},
+    ui::store::{Dispatcher, StateGetter, Store, action::Action},
 };
 
 use super::*;
@@ -59,15 +59,21 @@ fn test_get_device_config_from_state() {
     devices.insert(device_1.ip, device_1.clone());
     devices.insert(device_2.ip, device_2.clone());
 
-    store.dispatch(Action::CreateAndSetConfig(config.clone()));
-    store.dispatch(Action::UpdateAllDevices(devices));
-    store.dispatch(Action::UpdateDeviceConfig(DeviceConfig {
-        id: device_1.mac.to_string(),
-        ssh_port: 2222,
-        ssh_identity_file: "dev_1_id_rsa".to_string(),
-        ssh_user: "dev1_user".to_string(),
-    }));
-    store.dispatch(Action::UpdateSelectedDevice(device_1.ip));
+    store
+        .dispatch(Action::CreateAndSetConfig(config.clone()))
+        .unwrap();
+    store.dispatch(Action::UpdateAllDevices(devices)).unwrap();
+    store
+        .dispatch(Action::UpdateDeviceConfig(DeviceConfig {
+            id: device_1.mac.to_string(),
+            ssh_port: 2222,
+            ssh_identity_file: "dev_1_id_rsa".to_string(),
+            ssh_user: "dev1_user".to_string(),
+        }))
+        .unwrap();
+    store
+        .dispatch(Action::UpdateSelectedDevice(device_1.ip))
+        .unwrap();
 
     let state = store.get_state().unwrap();
 
@@ -122,14 +128,18 @@ fn test_get_device_config_from_state_default() {
     devices.insert(device_1.ip, device_1.clone());
     devices.insert(device_2.ip, device_2.clone());
 
-    store.dispatch(Action::CreateAndSetConfig(config.clone()));
-    store.dispatch(Action::UpdateAllDevices(devices));
-    store.dispatch(Action::UpdateDeviceConfig(DeviceConfig {
-        id: device_1.mac.to_string(),
-        ssh_port: 2222,
-        ssh_identity_file: "dev_1_id_rsa".to_string(),
-        ssh_user: "dev1_user".to_string(),
-    }));
+    store
+        .dispatch(Action::CreateAndSetConfig(config.clone()))
+        .unwrap();
+    store.dispatch(Action::UpdateAllDevices(devices)).unwrap();
+    store
+        .dispatch(Action::UpdateDeviceConfig(DeviceConfig {
+            id: device_1.mac.to_string(),
+            ssh_port: 2222,
+            ssh_identity_file: "dev_1_id_rsa".to_string(),
+            ssh_user: "dev1_user".to_string(),
+        }))
+        .unwrap();
 
     let state = store.get_state().unwrap();
 
@@ -189,34 +199,44 @@ fn test_get_detected_devices() {
     let config = Config::new(user, identity, cidr);
     let store = Store::new(conf_manager, config.clone());
 
-    store.dispatch(Action::CreateAndSetConfig(config.clone()));
+    store
+        .dispatch(Action::CreateAndSetConfig(config.clone()))
+        .unwrap();
 
     // this updates arp history
-    store.dispatch(Action::AddDevice(device_1.clone()));
-    store.dispatch(Action::AddDevice(device_2.clone()));
-    store.dispatch(Action::AddDevice(device_3.clone()));
+    store.dispatch(Action::AddDevice(device_1.clone())).unwrap();
+    store.dispatch(Action::AddDevice(device_2.clone())).unwrap();
+    store.dispatch(Action::AddDevice(device_3.clone())).unwrap();
 
     let mut devices = HashMap::new();
     devices.insert(device_1.ip, device_1.clone());
     devices.insert(device_2.ip, device_2.clone());
     devices.insert(device_3.ip, device_3.clone());
 
-    store.dispatch(Action::UpdateAllDevices(devices.clone()));
+    store
+        .dispatch(Action::UpdateAllDevices(devices.clone()))
+        .unwrap();
 
     // missed dev2 & dev3
     devices.remove(&device_2.ip);
     devices.remove(&device_3.ip);
-    store.dispatch(Action::UpdateAllDevices(devices.clone()));
+    store
+        .dispatch(Action::UpdateAllDevices(devices.clone()))
+        .unwrap();
 
     // missed dev3
     devices.insert(device_2.ip, device_2.clone());
-    store.dispatch(Action::UpdateAllDevices(devices.clone()));
+    store
+        .dispatch(Action::UpdateAllDevices(devices.clone()))
+        .unwrap();
 
     // missed dev3 again
-    store.dispatch(Action::UpdateAllDevices(devices.clone()));
+    store
+        .dispatch(Action::UpdateAllDevices(devices.clone()))
+        .unwrap();
 
     // missed dev3 again
-    store.dispatch(Action::UpdateAllDevices(devices));
+    store.dispatch(Action::UpdateAllDevices(devices)).unwrap();
 
     // get just devices with miss count = 0 -> device_1
     let arp_devices = get_detected_arp_devices(&store.get_state().unwrap());

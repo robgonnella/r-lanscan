@@ -1,5 +1,6 @@
 //! Main application widget and view router.
 
+use color_eyre::eyre::Result;
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode},
     layout::{Constraint, Layout, Rect},
@@ -132,14 +133,14 @@ impl App {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         let block: Block<'_> = Block::bordered()
             .border_style(Style::new().fg(ctx.state.colors.border_color))
             .border_type(BorderType::Plain)
             .padding(DEFAULT_PADDING);
         let inner_area = block.inner(area);
         block.render(area, buf);
-        view.render_ref(inner_area, buf, ctx);
+        view.render_ref(inner_area, buf, ctx)
     }
 
     fn render_view_select_popover(
@@ -147,12 +148,14 @@ impl App {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         let view = self.sub_views.get(&ViewID::ViewSelect);
 
         if let Some(view_select) = view {
-            view_select.render_ref(area, buf, ctx);
+            view_select.render_ref(area, buf, ctx)?;
         }
+
+        Ok(())
     }
 
     fn render_error_popover(
@@ -217,7 +220,7 @@ impl CustomWidgetRef for App {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         // consists of 3 vertical rectangles (top, middle, bottom)
         let page_areas = Layout::vertical([
             Constraint::Length(5),
@@ -245,7 +248,7 @@ impl CustomWidgetRef for App {
                 ctx,
             );
             // view
-            self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx);
+            self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx)?;
             // legend for current view
             self.render_footer(
                 legend,
@@ -273,7 +276,7 @@ impl CustomWidgetRef for App {
 
                 ClearWidget.render(select_inner_area, buf);
                 self.render_buffer_bg(select_inner_area, buf, ctx.state);
-                self.render_view_select_popover(select_inner_area, buf, ctx);
+                self.render_view_select_popover(select_inner_area, buf, ctx)?;
             }
 
             // popover when there are errors in the store
@@ -284,6 +287,8 @@ impl CustomWidgetRef for App {
                 ctx.state,
             );
         }
+
+        Ok(())
     }
 }
 
@@ -292,7 +297,7 @@ impl EventHandler for App {
         &self,
         evt: &CrossTermEvent,
         ctx: &CustomEventContext,
-    ) -> bool {
+    ) -> Result<bool> {
         let view_id = ctx.state.view_id;
 
         if ctx.state.render_view_select
@@ -305,34 +310,38 @@ impl EventHandler for App {
             if let CrossTermEvent::Key(key) = evt
                 && key.code == KeyCode::Enter
             {
-                self.dispatcher.dispatch(Action::SetError(None));
+                self.dispatcher.dispatch(Action::SetError(None))?;
             }
-            true
-        } else if let Some(view) = self.sub_views.get(&view_id) {
-            let mut handled = view.process_event(evt, ctx);
+            return Ok(true);
+        }
+
+        if let Some(view) = self.sub_views.get(&view_id) {
+            let mut handled = view.process_event(evt, ctx)?;
 
             if !handled && let CrossTermEvent::Key(key) = evt {
                 match key.code {
                     KeyCode::Char('v') => {
                         if !ctx.state.render_view_select {
                             handled = true;
-                            self.dispatcher.dispatch(Action::ToggleViewSelect);
+                            self.dispatcher
+                                .dispatch(Action::ToggleViewSelect)?;
                         }
                     }
                     KeyCode::Esc => {
                         if ctx.state.render_view_select {
                             handled = true;
-                            self.dispatcher.dispatch(Action::ToggleViewSelect);
+                            self.dispatcher
+                                .dispatch(Action::ToggleViewSelect)?;
                         }
                     }
                     _ => {}
                 }
             }
 
-            handled
-        } else {
-            false
+            return Ok(handled);
         }
+
+        Ok(false)
     }
 }
 

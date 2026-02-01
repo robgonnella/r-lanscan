@@ -197,9 +197,6 @@ fn start_renderer_thread(
     store: Arc<Store>,
     theme: Theme,
 ) -> JoinHandle<Result<()>> {
-    // let (renderer_tx, renderer_rx) = channel();
-    // let (main_tx, main_rx) = channel();
-
     // start tui renderer thread
     thread::spawn(move || {
         let stdout = io::stdout();
@@ -262,9 +259,9 @@ fn init(
     ));
 
     if should_create_config {
-        store.dispatch(Action::CreateAndSetConfig(current_config.clone()));
+        store.dispatch(Action::CreateAndSetConfig(current_config.clone()))?;
     } else {
-        store.dispatch(Action::SetConfig(current_config_id));
+        store.load_config(&current_config_id)?;
     }
 
     Ok((current_config, store))

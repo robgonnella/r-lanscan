@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::store::Store,
+    ui::store::{StateGetter, Store},
 };
 
 use super::*;
@@ -43,7 +43,7 @@ fn setup() -> (DeviceView, Arc<Store>, String) {
     };
     let store = Arc::new(Store::new(conf_manager, config.clone()));
 
-    store.dispatch(Action::CreateAndSetConfig(config));
+    store.dispatch(Action::CreateAndSetConfig(config)).unwrap();
 
     let mut open_ports: HashSet<Port> = HashSet::new();
 
@@ -61,8 +61,10 @@ fn setup() -> (DeviceView, Arc<Store>, String) {
         vendor: "mac".to_string(),
     };
 
-    store.dispatch(Action::AddDevice(device.clone()));
-    store.dispatch(Action::UpdateSelectedDevice(device.ip));
+    store.dispatch(Action::AddDevice(device.clone())).unwrap();
+    store
+        .dispatch(Action::UpdateSelectedDevice(device.ip))
+        .unwrap();
     (
         DeviceView::new(Arc::clone(&store) as Arc<dyn Dispatcher>),
         store,
@@ -87,7 +89,9 @@ fn test_device_view() {
                 app_area: frame.area(),
             };
 
-            dev_view.render_ref(frame.area(), frame.buffer_mut(), &ctx);
+            dev_view
+                .render_ref(frame.area(), frame.buffer_mut(), &ctx)
+                .unwrap();
         })
         .unwrap();
 

@@ -14,6 +14,7 @@ use crate::ui::{
     },
     views::traits::CustomEventContext,
 };
+use color_eyre::eyre::Result;
 use itertools::Itertools;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
@@ -98,24 +99,24 @@ impl ConfigView {
         }
     }
 
-    fn next_color(&self) {
+    fn next_color(&self) -> Result<()> {
         let new_idx = *self.theme_index.borrow() + 1;
         *self.theme_index.borrow_mut() = new_idx % THEMES.len();
         let theme = THEMES[*self.theme_index.borrow()];
         self.theme_state.borrow_mut().value = theme.to_string();
-        self.dispatcher.dispatch(Action::PreviewTheme(theme));
+        self.dispatcher.dispatch(Action::PreviewTheme(theme))
     }
 
-    fn previous_color(&self) {
+    fn previous_color(&self) -> Result<()> {
         let count = THEMES.len();
         let new_idx = *self.theme_index.borrow() + count - 1;
         *self.theme_index.borrow_mut() = new_idx % count;
         let theme = THEMES[*self.theme_index.borrow()];
         self.theme_state.borrow_mut().value = theme.to_string();
-        self.dispatcher.dispatch(Action::PreviewTheme(theme));
+        self.dispatcher.dispatch(Action::PreviewTheme(theme))
     }
 
-    fn set_config(&self, state: &State) {
+    fn set_config(&self, state: &State) -> Result<()> {
         let mut config = state.config.clone();
         config.theme = THEMES[*self.theme_index.borrow()].to_string();
         config.default_ssh_user = self.ssh_user_state.borrow().value.clone();
@@ -137,7 +138,7 @@ impl ConfigView {
             .split(",")
             .map_into()
             .collect();
-        self.dispatcher.dispatch(Action::UpdateConfig(config));
+        self.dispatcher.dispatch(Action::UpdateConfig(config))
     }
 
     fn render_label(
@@ -346,7 +347,7 @@ impl CustomWidgetRef for ConfigView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         let view_rects = Layout::vertical([
             Constraint::Length(1), // label
             Constraint::Length(1), // spacer
@@ -368,13 +369,18 @@ impl CustomWidgetRef for ConfigView {
         self.render_ssh(view_rects[4], buf, ctx.state, ctx);
         self.render_theme(view_rects[6], buf, ctx);
         self.render_ports(view_rects[8], buf, ctx);
+        Ok(())
     }
 }
 
 impl EventHandler for ConfigView {
-    fn process_event(&self, evt: &Event, ctx: &CustomEventContext) -> bool {
+    fn process_event(
+        &self,
+        evt: &Event,
+        ctx: &CustomEventContext,
+    ) -> Result<bool> {
         if ctx.state.render_view_select {
-            return false;
+            return Ok(false);
         }
 
         let mut handled = false;
@@ -411,7 +417,7 @@ impl EventHandler for ConfigView {
                             if *self.editing.borrow()
                                 && self.theme_state.borrow().editing
                             {
-                                self.next_color();
+                                self.next_color()?;
                                 handled = true;
                             }
                         }
@@ -419,13 +425,13 @@ impl EventHandler for ConfigView {
                             if *self.editing.borrow()
                                 && self.theme_state.borrow().editing
                             {
-                                self.previous_color();
+                                self.previous_color()?;
                                 handled = true;
                             }
                         }
                         KeyCode::Enter => {
                             if *self.editing.borrow() {
-                                self.set_config(ctx.state);
+                                self.set_config(ctx.state)?;
                                 self.reset_input_state();
                                 *self.focus.borrow_mut() = 0;
                                 *self.editing.borrow_mut() = false;
@@ -460,7 +466,7 @@ impl EventHandler for ConfigView {
             }
         }
 
-        handled
+        Ok(handled)
     }
 }
 

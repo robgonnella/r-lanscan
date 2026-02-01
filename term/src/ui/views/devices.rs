@@ -1,5 +1,6 @@
 //! Devices list view showing all discovered network devices in a table.
 
+use color_eyre::eyre::Result;
 use itertools::Itertools;
 use r_lanlib::scanners::Device;
 use ratatui::{
@@ -54,17 +55,20 @@ impl DevicesView {
         self.table.borrow_mut().previous();
     }
 
-    fn set_store_selected(&self, i: usize, devices: &[Device]) {
+    fn set_store_selected(&self, i: usize, devices: &[Device]) -> Result<()> {
         if !devices.is_empty() && i < devices.len() {
             let ip = devices[i].ip;
-            self.dispatcher.dispatch(Action::UpdateSelectedDevice(ip));
+            self.dispatcher.dispatch(Action::UpdateSelectedDevice(ip))?;
         }
+        Ok(())
     }
 
-    fn handle_device_selection(&self, state: &State) {
+    fn handle_device_selection(&self, state: &State) -> Result<()> {
         if state.selected_device.is_some() {
-            self.dispatcher.dispatch(Action::UpdateView(ViewID::Device));
+            self.dispatcher
+                .dispatch(Action::UpdateView(ViewID::Device))?;
         }
+        Ok(())
     }
 
     fn render_table(
@@ -72,11 +76,11 @@ impl DevicesView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         let devices = ctx.state.sorted_device_list.clone();
 
         if let Some(selected_idx) = self.table.borrow().selected() {
-            self.set_store_selected(selected_idx, &devices);
+            self.set_store_selected(selected_idx, &devices)?;
         }
 
         let items = devices
@@ -103,10 +107,10 @@ impl DevicesView {
         let selected = self.table.borrow_mut().update_items(items);
 
         if let Some(selected) = selected {
-            self.set_store_selected(selected, &devices);
+            self.set_store_selected(selected, &devices)?;
         }
 
-        self.table.borrow().render_ref(area, buf, ctx);
+        self.table.borrow().render_ref(area, buf, ctx)
     }
 }
 
@@ -126,19 +130,23 @@ impl CustomWidgetRef for DevicesView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         let view_rects =
             Layout::vertical([Constraint::Length(1), Constraint::Min(5)])
                 .split(area);
 
-        self.render_table(view_rects[1], buf, ctx);
+        self.render_table(view_rects[1], buf, ctx)
     }
 }
 
 impl EventHandler for DevicesView {
-    fn process_event(&self, evt: &Event, ctx: &CustomEventContext) -> bool {
+    fn process_event(
+        &self,
+        evt: &Event,
+        ctx: &CustomEventContext,
+    ) -> Result<bool> {
         if ctx.state.render_view_select {
-            return false;
+            return Ok(false);
         }
 
         let mut handled = false;
@@ -179,7 +187,7 @@ impl EventHandler for DevicesView {
                             handled = true;
                         }
                         KeyCode::Enter => {
-                            self.handle_device_selection(ctx.state);
+                            self.handle_device_selection(ctx.state)?;
                             handled = true;
                         }
                         _ => {}
@@ -188,7 +196,7 @@ impl EventHandler for DevicesView {
             }
         }
 
-        handled
+        Ok(handled)
     }
 }
 

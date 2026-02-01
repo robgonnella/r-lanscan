@@ -45,7 +45,7 @@ impl CustomStatefulWidget for ScrollBar {
             .end_symbol(None)
             .style(Style::new().fg(ctx.state.colors.scroll_bar_fg));
 
-        scrollbar.render(scroll_area, buf, state)
+        scrollbar.render(scroll_area, buf, state);
     }
 }
 

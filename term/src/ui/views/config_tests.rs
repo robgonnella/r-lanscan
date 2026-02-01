@@ -5,7 +5,7 @@ use std::{collections::HashMap, fs, sync::Mutex};
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::store::Store,
+    ui::store::{StateGetter, Store},
 };
 
 use super::*;
@@ -36,7 +36,7 @@ fn setup() -> (ConfigView, Arc<Store>, String) {
     };
     let theme = Theme::from_string(&config.theme);
     let store = Arc::new(Store::new(conf_manager, config.clone()));
-    store.dispatch(Action::CreateAndSetConfig(config));
+    store.dispatch(Action::CreateAndSetConfig(config)).unwrap();
     (
         ConfigView::new(Arc::clone(&store) as Arc<dyn Dispatcher>, theme),
         store,
@@ -61,7 +61,9 @@ fn test_config_view() {
                 app_area: frame.area(),
             };
 
-            conf_view.render_ref(frame.area(), frame.buffer_mut(), &ctx);
+            conf_view
+                .render_ref(frame.area(), frame.buffer_mut(), &ctx)
+                .unwrap()
         })
         .unwrap();
 

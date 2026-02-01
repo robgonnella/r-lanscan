@@ -15,7 +15,7 @@ use crate::{
         message::{Command as AppCommand, MainMessage, RendererMessage},
     },
     shell::traits::{BrowseArgs, ShellExecutor},
-    ui::store::{Dispatcher, Store, action::Action},
+    ui::store::{Dispatcher, StateGetter, Store, action::Action},
 };
 
 /// Runs the event loop, handling UI pause/resume and command execution.
@@ -92,15 +92,15 @@ impl MainEventHandler {
                         let mut stderr_reader = BufReader::new(stderr);
                         stderr_reader.read_to_string(&mut stderr_output)?;
                         self.store
-                            .dispatch(Action::SetError(Some(stderr_output)));
+                            .dispatch(Action::SetError(Some(stderr_output)))?;
                     } else {
                         let err = String::from("ssh command failed");
-                        self.store.dispatch(Action::SetError(Some(err)));
+                        self.store.dispatch(Action::SetError(Some(err)))?;
                     }
                 }
             }
             Err(e) => {
-                self.store.dispatch(Action::SetError(Some(e.to_string())));
+                self.store.dispatch(Action::SetError(Some(e.to_string())))?;
             }
         }
 
@@ -118,11 +118,12 @@ impl MainEventHandler {
                 self.store.dispatch(Action::UpdateCommandOutput((
                     cmd.clone(),
                     output,
-                )));
-                self.store.dispatch(Action::SetCommandInProgress(None));
+                )))?;
+                self.store.dispatch(Action::SetCommandInProgress(None))?;
             }
             Err(err) => {
-                self.store.dispatch(Action::SetError(Some(err.to_string())));
+                self.store
+                    .dispatch(Action::SetError(Some(err.to_string())))?;
             }
         }
 
@@ -144,15 +145,15 @@ impl MainEventHandler {
                         let mut stderr_reader = BufReader::new(stderr);
                         stderr_reader.read_to_string(&mut stderr_output)?;
                         self.store
-                            .dispatch(Action::SetError(Some(stderr_output)));
+                            .dispatch(Action::SetError(Some(stderr_output)))?;
                     } else {
                         let err = String::from("lynx command failed");
-                        self.store.dispatch(Action::SetError(Some(err)));
+                        self.store.dispatch(Action::SetError(Some(err)))?;
                     }
                 }
             }
             Err(e) => {
-                self.store.dispatch(Action::SetError(Some(e.to_string())));
+                self.store.dispatch(Action::SetError(Some(e.to_string())))?;
             }
         }
 
@@ -167,7 +168,7 @@ impl MainEventHandler {
         }
 
         self.store
-            .dispatch(Action::SetCommandInProgress(Some(cmd.clone())));
+            .dispatch(Action::SetCommandInProgress(Some(cmd.clone())))?;
 
         match &cmd {
             AppCommand::Ssh(device, device_config) => {
@@ -179,7 +180,7 @@ impl MainEventHandler {
             AppCommand::Browse(args) => self.handle_browse(args)?,
         }
 
-        self.store.dispatch(Action::SetCommandInProgress(None));
+        self.store.dispatch(Action::SetCommandInProgress(None))?;
 
         Ok(())
     }

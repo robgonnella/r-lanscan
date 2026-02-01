@@ -30,6 +30,5 @@ pub enum Action {
     UpdateSelectedDevice(Ipv4Addr),
     UpdateConfig(Config),
     UpdateDeviceConfig(DeviceConfig),
-    SetConfig(String),
     CreateAndSetConfig(Config),
 }

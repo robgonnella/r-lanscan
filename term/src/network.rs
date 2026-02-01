@@ -27,7 +27,8 @@ use crate::{
     config::Config,
     error,
     ui::store::{
-        Dispatcher, Store, action::Action, derived::get_detected_arp_devices,
+        Dispatcher, StateGetter, Store, action::Action,
+        derived::get_detected_arp_devices,
     },
 };
 
@@ -41,7 +42,7 @@ pub fn monitor_network(
     interface: Arc<NetworkInterface>,
     store: Arc<Store>,
 ) -> Result<()> {
-    store.dispatch(Action::Log("starting network monitor".into()));
+    store.dispatch(Action::Log("starting network monitor".into()))?;
 
     loop {
         if exit.try_recv().is_ok() {
@@ -93,9 +94,9 @@ pub fn monitor_network(
 
         let results = process_syn(syn_scanner, rx, Arc::clone(&store))?;
 
-        store.dispatch(Action::UpdateAllDevices(results));
+        store.dispatch(Action::UpdateAllDevices(results))?;
 
-        store.dispatch(Action::Log("network scan completed".into()));
+        store.dispatch(Action::Log("network scan completed".into()))?;
 
         thread::sleep(time::Duration::from_secs(15));
     }
@@ -109,7 +110,7 @@ fn process_arp(
 ) -> Result<Receiver<ScanMessage>> {
     dispatcher.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing ARP Scan…",
-    ))));
+    ))))?;
 
     let handle = scanner.scan()?;
 
@@ -119,27 +120,28 @@ fn process_arp(
         match msg {
             ScanMessage::Done => {
                 dispatcher
-                    .dispatch(Action::Log("arp scanning complete".into()));
+                    .dispatch(Action::Log("arp scanning complete".into()))?;
                 break;
             }
             ScanMessage::ARPScanDevice(d) => {
                 dispatcher.dispatch(Action::Log(format!(
                     "received arp scanning message: {:?}",
                     d
-                )));
-                dispatcher.dispatch(Action::AddDevice(d));
+                )))?;
+                dispatcher.dispatch(Action::AddDevice(d))?;
             }
             _ => {}
         }
     }
 
-    dispatcher.dispatch(Action::Log("waiting for arp handle to finish".into()));
+    dispatcher
+        .dispatch(Action::Log("waiting for arp handle to finish".into()))?;
 
     handle.join().map_err(error::report_from_thread_panic)??;
 
-    dispatcher.dispatch(Action::UpdateMessage(None));
+    dispatcher.dispatch(Action::UpdateMessage(None))?;
 
-    dispatcher.dispatch(Action::Log("finished arp scan".into()));
+    dispatcher.dispatch(Action::Log("finished arp scan".into()))?;
 
     Ok(rx)
 }
@@ -168,11 +170,11 @@ fn process_syn(
         );
     }
 
-    store.dispatch(Action::Log("starting syn scan".into()));
+    store.dispatch(Action::Log("starting syn scan".into()))?;
 
     store.dispatch(Action::UpdateMessage(Some(String::from(
         "Performing SYN Scan…",
-    ))));
+    ))))?;
 
     let handle = scanner.scan()?;
 
@@ -181,26 +183,26 @@ fn process_syn(
 
         match msg {
             ScanMessage::Done => {
-                store.dispatch(Action::Log("syn scanning complete".into()));
+                store.dispatch(Action::Log("syn scanning complete".into()))?;
                 break;
             }
             ScanMessage::SYNScanDevice(device) => {
                 store.dispatch(Action::Log(format!(
                     "received syn scanning device: {:?}",
                     device
-                )));
+                )))?;
 
                 let result = syn_results.get_mut(&device.ip);
                 match result {
                     Some(d) => {
                         d.open_ports.0.extend(device.open_ports.0);
-                        store.dispatch(Action::AddDevice(d.clone()));
+                        store.dispatch(Action::AddDevice(d.clone()))?;
                     }
                     None => {
                         store.dispatch(Action::Log(format!(
                             "received syn result for unknown device: {:?}",
                             device
-                        )));
+                        )))?;
                     }
                 }
             }
@@ -210,7 +212,7 @@ fn process_syn(
 
     handle.join().map_err(error::report_from_thread_panic)??;
 
-    store.dispatch(Action::UpdateMessage(None));
+    store.dispatch(Action::UpdateMessage(None))?;
 
     Ok(syn_results)
 }

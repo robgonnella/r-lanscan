@@ -2,6 +2,7 @@
 
 use std::{cell::RefCell, sync::Arc};
 
+use color_eyre::eyre::Result;
 use itertools::Itertools;
 use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind};
 
@@ -51,13 +52,15 @@ impl ViewSelect {
         self.table.borrow_mut().previous();
     }
 
-    fn handle_selected(&self) {
+    fn handle_selected(&self) -> Result<()> {
         let i = self.table.borrow().selected();
         if let Some(selected) = i {
             let id = self.view_ids[selected];
-            self.dispatcher.dispatch(Action::UpdateView(id));
-            self.dispatcher.dispatch(Action::ToggleViewSelect);
+            self.dispatcher.dispatch(Action::UpdateView(id))?;
+            self.dispatcher.dispatch(Action::ToggleViewSelect)?;
         }
+
+        Ok(())
     }
 }
 
@@ -68,9 +71,13 @@ impl View for ViewSelect {
 }
 
 impl EventHandler for ViewSelect {
-    fn process_event(&self, evt: &Event, ctx: &CustomEventContext) -> bool {
+    fn process_event(
+        &self,
+        evt: &Event,
+        ctx: &CustomEventContext,
+    ) -> Result<bool> {
         if !ctx.state.render_view_select {
-            return false;
+            return Ok(false);
         }
 
         let mut handled = false;
@@ -89,19 +96,19 @@ impl EventHandler for ViewSelect {
                 }
                 KeyCode::Esc => {
                     if ctx.state.render_view_select {
-                        self.dispatcher.dispatch(Action::ToggleViewSelect);
+                        self.dispatcher.dispatch(Action::ToggleViewSelect)?;
                         handled = true;
                     }
                 }
                 KeyCode::Enter => {
-                    self.handle_selected();
+                    self.handle_selected()?;
                     handled = true;
                 }
                 _ => {}
             }
         }
 
-        handled
+        Ok(handled)
     }
 }
 
@@ -111,8 +118,8 @@ impl CustomWidgetRef for ViewSelect {
         area: ratatui::prelude::Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
-        self.table.borrow().render_ref(area, buf, ctx);
+    ) -> Result<()> {
+        self.table.borrow().render_ref(area, buf, ctx)
     }
 }
 
