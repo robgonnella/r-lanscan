@@ -1,6 +1,6 @@
 [package]
 name = "r-lanterm"
-version = "0.5.0"
+version = "0.6.0"
 description = "A full-featured terminal user interface (TUI) application for managing and interacting with networked LAN devices"
 categories = ["command-line-utilities", "network-programming"]
 readme = "README.md"
@@ -26,7 +26,7 @@ ratatui = { version = "0.30.0", features = ["unstable-widget-ref"] }
 color-eyre = "0.6.5"
 itertools = "0.14.0"
 unicode-width = "0.2.2"
-r-lanlib = { path = "../lib", version = "0.5.0" }
+r-lanlib = { path = "../lib", version = "0.6.0" }
 fakeit = "1.4.1"
 ctrlc = "3.5.1"
 supports-color = "3.0.2"
