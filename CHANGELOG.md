@@ -1,3 +1,19 @@
+# [0.6.0](https://github.com/robgonnella/r-lanscan/releases/tag/v0.6.0) - 2026-01-31
+
+### 🚀 Features
+
+- _(term)_ enables text selection and copy in TUI [_(5f51f98)_](https://github.com/robgonnella/r-lanscan/commit/5f51f98dc1e123677fd76a2a6a4ada453c312549)
+
+### 🐛 Bug Fixes
+
+- _(term)_ fixes issue in device view [_(5cc5793)_](https://github.com/robgonnella/r-lanscan/commit/5cc5793fc669852599145a60eceb190201639a45)
+
+- fix devices legend [_(9d264ef)_](https://github.com/robgonnella/r-lanscan/commit/9d264ef6d05591e44714e74175c4617d54b0cb2f)
+
+### 🚜 Refactor
+
+- _(term)_ refactors rendering in tui [_(15ab84b)_](https://github.com/robgonnella/r-lanscan/commit/15ab84b61893ba5bd5093d5e39d4b505a2d8a9cb)
+
 # [0.5.0](https://github.com/robgonnella/r-lanscan/releases/tag/v0.5.0) - 2026-01-26
 
 ### 🚀 Features
