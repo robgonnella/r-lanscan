@@ -2,6 +2,7 @@
 
 use std::cell::RefCell;
 
+use color_eyre::eyre::Result;
 use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style, Stylize},
@@ -141,14 +142,14 @@ impl CustomWidgetRef for Table {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         // main table view + right aligned scrollbar
         let table_rects =
             Layout::horizontal([Constraint::Min(5), Constraint::Length(3)])
                 .split(area);
 
         if table_rects[0].width < 1 || table_rects[0].height < 1 {
-            return;
+            return Ok(());
         }
 
         let header = self.headers.as_ref().map(|hs| {
@@ -216,6 +217,7 @@ impl CustomWidgetRef for Table {
         let scrollbar = ScrollBar::new();
         let mut scroll_state = self.scroll_state.borrow_mut();
         scrollbar.render(table_rects[1], buf, &mut scroll_state, ctx);
+        Ok(())
     }
 }
 

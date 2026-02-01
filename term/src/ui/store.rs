@@ -2,7 +2,7 @@
 
 use std::{
     collections::{HashMap, VecDeque},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use color_eyre::eyre::{Result, eyre};
@@ -10,20 +10,36 @@ use color_eyre::eyre::{Result, eyre};
 use crate::{
     config::{Config, ConfigManager},
     ui::{
-        colors::Theme,
-        store::{action::Action, state::MAX_LOGS},
+        colors::{Colors, Theme},
+        store::{
+            action::Action,
+            effect::Effect,
+            state::{MAX_LOGS, State},
+        },
     },
 };
 
 pub mod action;
 pub mod derived;
+pub mod effect;
 pub mod reducer;
 pub mod state;
 
+/// Gets application state
+pub trait StateGetter {
+    fn get_state(&self) -> Result<State>;
+}
+
+/// Dispatches actions to update application state
+pub trait Dispatcher {
+    fn dispatch(&self, action: Action) -> Result<()>;
+}
+
 /// Centralized state container with thread-safe access.
 pub struct Store {
-    state: Mutex<state::State>,
+    state: RwLock<State>,
     reducer: reducer::Reducer,
+    config_manager: Arc<Mutex<ConfigManager>>,
 }
 
 impl Store {
@@ -40,14 +56,15 @@ impl Store {
 
         let theme = Theme::from_string(&current_config.theme);
 
-        let colors = crate::ui::colors::Colors::new(
+        let colors = Colors::new(
             theme.to_palette(true_color_enabled),
             true_color_enabled,
         );
 
         Self {
-            reducer: reducer::Reducer::new(config_manager),
-            state: Mutex::new(state::State {
+            reducer: reducer::Reducer::new(),
+            config_manager,
+            state: RwLock::new(State {
                 true_color_enabled,
                 ui_paused: false,
                 error: None,
@@ -68,26 +85,76 @@ impl Store {
         }
     }
 
-    /// Returns a clone of the current state.
-    pub fn get_state(&self) -> Result<state::State> {
-        let state = self
-            .state
-            .lock()
-            .map_err(|e| eyre!("failed to get lock on state: {}", e))?;
+    /// Executes side effects returned by the reducer.
+    fn handle_effect(&self, effect: Effect) -> Result<()> {
+        match effect {
+            Effect::None => Ok(()),
+            Effect::CreateConfig(config) => {
+                let mut manager = self.config_manager.lock().map_err(|e| {
+                    eyre!("failed to lock config manager: {}", e)
+                })?;
+                manager
+                    .create(&config)
+                    .map_err(|e| eyre!("failed to create config: {}", e))
+            }
+            Effect::SaveConfig(config) => {
+                let mut manager = self.config_manager.lock().map_err(|e| {
+                    eyre!("failed to lock config manager: {}", e)
+                })?;
+                manager
+                    .update_config(config)
+                    .map_err(|e| eyre!("failed to save config: {}", e))
+            }
+        }
+    }
+
+    /// Loads a config by ID from the config manager and updates state.
+    /// This is separate from dispatch because it requires reading from the
+    /// config manager.
+    pub fn load_config(&self, config_id: &str) -> Result<()> {
+        let config = {
+            let manager = self
+                .config_manager
+                .lock()
+                .map_err(|e| eyre!("failed to lock config manager: {}", e))?;
+            manager.get_by_id(config_id)
+        };
+
+        if let Some(conf) = config {
+            let mut state = self.state.write().map_err(|e| {
+                eyre!("failed to get write lock on store state: {}", e)
+            })?;
+            let theme = Theme::from_string(&conf.theme);
+            state.config = conf;
+            state.colors = Colors::new(
+                theme.to_palette(state.true_color_enabled),
+                state.true_color_enabled,
+            );
+        }
+
+        Ok(())
+    }
+}
+
+impl StateGetter for Store {
+    fn get_state(&self) -> Result<State> {
+        let state = self.state.read().map_err(|e| {
+            eyre!("failed to get read lock on store state: {}", e)
+        })?;
         Ok(state.clone())
     }
 }
 
-/// Dispatches actions to update application state.
-pub trait Dispatcher {
-    fn dispatch(&self, action: Action);
-}
-
 impl Dispatcher for Store {
-    fn dispatch(&self, action: action::Action) {
-        if let Ok(mut state) = self.state.lock() {
-            self.reducer.reduce(&mut state, action);
-        }
+    fn dispatch(&self, action: action::Action) -> Result<()> {
+        let effect = {
+            let mut state = self.state.write().map_err(|e| {
+                eyre!("failed to get write lock on store state: {}", e)
+            })?;
+            self.reducer.reduce(&mut state, action)
+        }; // Lock released here before I/O
+
+        self.handle_effect(effect)
     }
 }
 

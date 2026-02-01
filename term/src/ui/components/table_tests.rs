@@ -20,7 +20,9 @@ fn renders_table_component() {
                 app_area: frame.area(),
             };
 
-            table.render_ref(frame.area(), frame.buffer_mut(), &ctx);
+            table
+                .render_ref(frame.area(), frame.buffer_mut(), &ctx)
+                .unwrap();
         })
         .unwrap();
     assert_snapshot!(terminal.backend());

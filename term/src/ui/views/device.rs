@@ -18,6 +18,7 @@ use crate::{
         views::traits::CustomEventContext,
     },
 };
+use color_eyre::eyre::Result;
 use r_lanlib::scanners::Device;
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode},
@@ -538,7 +539,7 @@ impl CustomWidgetRef for DeviceView {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         let [left_area, right_area] = Layout::horizontal([
             Constraint::Percentage(50), // info
             Constraint::Percentage(50), // command output
@@ -561,6 +562,8 @@ impl CustomWidgetRef for DeviceView {
             // important that this is last so it properly layers on top
             self.render_browser_config_popover(popover_area, buf, ctx);
         }
+
+        Ok(())
     }
 }
 
@@ -569,9 +572,9 @@ impl EventHandler for DeviceView {
         &self,
         evt: &CrossTermEvent,
         ctx: &CustomEventContext,
-    ) -> bool {
+    ) -> Result<bool> {
         if ctx.state.render_view_select {
-            return false;
+            return Ok(false);
         }
 
         let mut handled = false;
@@ -590,9 +593,9 @@ impl EventHandler for DeviceView {
                         self.reset_input_state();
                         handled = true;
                     } else if !self.is_tracing(ctx.state) {
-                        self.dispatcher.dispatch(Action::ClearCommandOutput);
+                        self.dispatcher.dispatch(Action::ClearCommandOutput)?;
                         self.dispatcher
-                            .dispatch(Action::UpdateView(ViewID::Devices));
+                            .dispatch(Action::UpdateView(ViewID::Devices))?;
                         handled = true;
                     }
                 }
@@ -663,11 +666,12 @@ impl EventHandler for DeviceView {
                         device_config.ssh_port = port.unwrap_or(22);
                         device_config.ssh_identity_file =
                             self.ssh_identity_state.borrow().value.clone();
-                        self.dispatcher.dispatch(Action::UpdateDeviceConfig(
-                            device_config,
-                        ));
-                        self.dispatcher
-                            .dispatch(Action::UpdateSelectedDevice(device.ip));
+                        self.dispatcher.dispatch(
+                            Action::UpdateDeviceConfig(device_config),
+                        )?;
+                        self.dispatcher.dispatch(
+                            Action::UpdateSelectedDevice(device.ip),
+                        )?;
                         self.reset_input_state();
                         handled = true;
                     }
@@ -734,7 +738,7 @@ impl EventHandler for DeviceView {
             },
         }
 
-        handled
+        Ok(handled)
     }
 }
 

@@ -1,5 +1,6 @@
 //! Traits for UI components, views, and event handling.
 
+use color_eyre::eyre::Result;
 use ratatui::{crossterm::event::Event as CrossTermEvent, layout::Rect};
 
 use crate::{
@@ -23,7 +24,7 @@ pub trait EventHandler {
         &self,
         evt: &CrossTermEvent,
         ctx: &CustomEventContext,
-    ) -> bool;
+    ) -> Result<bool>;
 }
 
 /// Context passed to widgets during rendering and event handling.
@@ -52,7 +53,7 @@ pub trait CustomWidgetRef {
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    );
+    ) -> Result<()>;
 }
 
 /// Stateful widget with mutable render state.

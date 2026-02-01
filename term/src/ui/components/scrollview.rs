@@ -45,6 +45,7 @@ impl CustomStatefulWidget for ScrollView<'_> {
         p.render(logs_area, buf);
 
         let scrollbar = ScrollBar::new();
+
         scrollbar.render(scroll_bar_area, buf, state, ctx);
     }
 }

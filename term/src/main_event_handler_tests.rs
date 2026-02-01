@@ -15,6 +15,7 @@ use crate::{
     config::{Config, ConfigManager, DeviceConfig},
     ipc::traits::{MockIpcReceiver, MockIpcSender},
     shell::traits::MockShellExecutor,
+    ui::store::StateGetter,
 };
 
 use super::*;

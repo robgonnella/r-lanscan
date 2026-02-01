@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::store::{Dispatcher, Store, action::Action},
+    ui::store::{Dispatcher, StateGetter, Store, action::Action},
 };
 
 use super::*;
@@ -40,8 +40,8 @@ fn setup() -> (LogsView, Arc<Store>, String) {
     };
     let store = Arc::new(Store::new(conf_manager, config.clone()));
 
-    store.dispatch(Action::Log("test log 1".into()));
-    store.dispatch(Action::Log("test log 2".into()));
+    store.dispatch(Action::Log("test log 1".into())).unwrap();
+    store.dispatch(Action::Log("test log 2".into())).unwrap();
 
     (LogsView::new(), store, tmp_path)
 }
@@ -63,7 +63,9 @@ fn test_logs_view() {
                 app_area: frame.area(),
             };
 
-            logs_view.render_ref(frame.area(), frame.buffer_mut(), &ctx);
+            logs_view
+                .render_ref(frame.area(), frame.buffer_mut(), &ctx)
+                .unwrap();
         })
         .unwrap();
 
