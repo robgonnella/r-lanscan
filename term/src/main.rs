@@ -49,7 +49,10 @@ use crate::{
         renderer::{RendererIpc, RendererReceiver, RendererSender},
     },
     shell::Shell,
-    ui::{colors::Theme, store::Dispatcher},
+    ui::{
+        colors::Theme,
+        store::{Dispatcher, SubscriptionProvider, state::State},
+    },
 };
 
 #[doc(hidden)]
@@ -234,10 +237,19 @@ fn process_main_thread_events(
 }
 
 #[doc(hidden)]
-fn init(
-    args: &Args,
-    interface: &NetworkInterface,
-) -> Result<(Config, Arc<Store>)> {
+fn register_state_listener(
+    renderer_tx: Sender<RendererMessage>,
+    store: &mut Store,
+) {
+    store.subscribe(move |_: &State| {
+        renderer_tx.send(RendererMessage::ReRender).map_err(|e| {
+            eyre!("failed to send rerender message to renderer process: {}", e)
+        })
+    });
+}
+
+#[doc(hidden)]
+fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Store)> {
     let (user, identity) = get_user_info()?;
 
     let config_manager =
@@ -253,10 +265,10 @@ fn init(
 
     let current_config_id = current_config.id.clone();
 
-    let store = Arc::new(Store::new(
+    let store = Store::new(
         Arc::new(Mutex::new(config_manager)),
         current_config.clone(),
-    ));
+    );
 
     if should_create_config {
         store.dispatch(Action::CreateAndSetConfig(current_config.clone()))?;
@@ -286,8 +298,15 @@ fn main() -> Result<()> {
 
     let interface = get_default_interface()
         .ok_or_else(|| eyre!("Could not detect default network interface"))?;
-    let (config, store) = init(&args, &interface)?;
+    let (config, mut store) = init(&args, &interface)?;
     let theme = Theme::from_string(&config.theme);
+
+    let (renderer_tx, renderer_rx) = channel();
+    let (main_tx, main_rx) = channel();
+
+    register_state_listener(renderer_tx.clone(), &mut store);
+
+    let store = Arc::new(store);
 
     // ignore handle here - we will forcefully exit instead of waiting
     // for scan to finish
@@ -309,9 +328,6 @@ fn main() -> Result<()> {
     // be handled by the command being executed, which should return us
     // to our app where we can restart our ui and key-handlers
     ctrlc::set_handler(move || println!("captured ctrl-c!"))?;
-
-    let (renderer_tx, renderer_rx) = channel();
-    let (main_tx, main_rx) = channel();
 
     // start separate thread for tui rendering process
     let renderer_handle =

@@ -35,10 +35,20 @@ pub trait Dispatcher {
     fn dispatch(&self, action: Action) -> Result<()>;
 }
 
+type SubscribeFn = Arc<dyn Fn(&State) -> Result<()> + Send + Sync + 'static>;
+
+pub trait SubscriptionProvider {
+    fn subscribe<F: Fn(&State) -> Result<()> + Send + Sync + 'static>(
+        &mut self,
+        f: F,
+    );
+}
+
 /// Centralized state container with thread-safe access.
 pub struct Store {
     state: RwLock<State>,
     reducer: reducer::Reducer,
+    subscribers: Vec<SubscribeFn>,
     config_manager: Arc<Mutex<ConfigManager>>,
 }
 
@@ -63,6 +73,7 @@ impl Store {
 
         Self {
             reducer: reducer::Reducer::new(),
+            subscribers: vec![],
             config_manager,
             state: RwLock::new(State {
                 true_color_enabled,
@@ -154,7 +165,24 @@ impl Dispatcher for Store {
             self.reducer.reduce(&mut state, action)
         }; // Lock released here before I/O
 
-        self.handle_effect(effect)
+        self.handle_effect(effect)?;
+
+        let state = self.get_state()?;
+
+        for subscriber in self.subscribers.iter() {
+            subscriber(&state)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl SubscriptionProvider for Store {
+    fn subscribe<F: Fn(&State) -> Result<()> + Send + Sync + 'static>(
+        &mut self,
+        f: F,
+    ) {
+        self.subscribers.push(Arc::new(f));
     }
 }
 

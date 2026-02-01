@@ -44,6 +44,8 @@ pub enum RendererMessage {
     PauseUI,
     /// Request the renderer to resume after shell command.
     ResumeUI,
+    /// Instructs renderer process that it needs to redraw
+    ReRender,
 }
 
 #[cfg(test)]
