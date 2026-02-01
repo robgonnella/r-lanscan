@@ -65,11 +65,13 @@ impl<B: Backend + std::io::Write> Renderer<B> {
     }
 
     fn start_loop(&self) -> Result<()> {
+        // render initial frame
+        let state = self.store.get_state()?;
+        self.render_frame(&state)?;
+
         // now start event handling loop
         loop {
             let state = self.store.get_state()?;
-
-            self.render_frame(&state)?;
 
             // Use try_recv here so we don't block the thread, this will allow
             // rendering of incoming device data from network as it's received
@@ -77,6 +79,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 match ipc_msg {
                     RendererMessage::PauseUI => self.pause()?,
                     RendererMessage::ResumeUI => self.restart()?,
+                    RendererMessage::ReRender => self.render_frame(&state)?,
                 }
             }
 
@@ -86,7 +89,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
 
             // Use poll here so we don't block the thread, this will allow
             // rendering of incoming device data from network as it's received
-            if let Ok(has_event) = event::poll(time::Duration::from_millis(60))
+            if let Ok(has_event) = event::poll(time::Duration::from_millis(16))
                 && has_event
             {
                 let evt = event::read()?;
@@ -120,6 +123,8 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                         _ => {}
                     }
                 }
+
+                self.render_frame(&state)?;
             }
         }
     }
