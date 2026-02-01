@@ -120,7 +120,7 @@ impl View for DevicesView {
     }
 
     fn legend(&self, _state: &State) -> &str {
-        "(enter) view device details"
+        "(enter) manage device"
     }
 }
 

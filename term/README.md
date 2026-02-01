@@ -119,7 +119,7 @@ The application provides several interactive views:
 - **Purpose**: Display all discovered network devices in a table
 - **Columns**: IP Address, Hostname, Vendor, MAC Address, Open Ports
 - **Navigation**: Use arrow keys or `j`/`k` to navigate
-- **Selection**: Press `Enter` to view device details
+- **Selection**: Press `Enter` to manage device
 
 #### 2. Device Detail View
 
