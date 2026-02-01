@@ -71,7 +71,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
 
             self.render_frame(&state)?;
 
-            // Use poll here so we don't block the thread, this will allow
+            // Use try_recv here so we don't block the thread, this will allow
             // rendering of incoming device data from network as it's received
             if let Ok(ipc_msg) = self.ipc.rx.try_recv() {
                 match ipc_msg {
@@ -84,6 +84,8 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 continue;
             }
 
+            // Use poll here so we don't block the thread, this will allow
+            // rendering of incoming device data from network as it's received
             if let Ok(has_event) = event::poll(time::Duration::from_millis(60))
                 && has_event
             {

@@ -57,6 +57,13 @@ pub fn add_device(state: &mut State, device: Device) {
 
     state.sorted_device_list =
         state.device_map.values().cloned().sorted().collect();
+
+    // Update selected_device if it matches the updated device
+    if let Some(selected) = &state.selected_device
+        && let Some(updated) = state.device_map.get(&selected.ip)
+    {
+        state.selected_device = Some(updated.clone());
+    }
 }
 
 /// Selects a device by IP, loading its config (or defaults).

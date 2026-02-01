@@ -382,3 +382,43 @@ fn test_updates_device_with_new_info() {
     assert_eq!(devices[0].open_ports.0.len(), 1);
     assert!(devices[0].open_ports.0.contains(&port));
 }
+
+#[test]
+fn test_add_device_updates_selected_device_ports() {
+    let (mut state, reducer) = setup();
+
+    let dev = Device {
+        hostname: "dev".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 2),
+        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
+        is_current_host: false,
+        vendor: "dev_vendor".to_string(),
+        open_ports: PortSet::new(),
+    };
+
+    // Add device and select it (simulating user viewing device details)
+    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
+    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev.ip));
+
+    // Verify device is selected with no open ports
+    assert!(state.selected_device.is_some());
+    assert_eq!(
+        state.selected_device.as_ref().unwrap().open_ports.0.len(),
+        0
+    );
+
+    // Simulate SYN scan discovering a port
+    let port = Port {
+        id: 80,
+        service: "http".to_string(),
+    };
+    let mut dev_with_port = dev.clone();
+    dev_with_port.open_ports.0.insert(port.clone());
+
+    reducer.reduce(&mut state, Action::AddDevice(dev_with_port));
+
+    // Verify selected_device is updated with the new port
+    let selected = state.selected_device.as_ref().unwrap();
+    assert_eq!(selected.open_ports.0.len(), 1);
+    assert!(selected.open_ports.0.contains(&port));
+}

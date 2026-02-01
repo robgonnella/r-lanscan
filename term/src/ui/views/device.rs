@@ -130,10 +130,10 @@ impl DeviceView {
         ])
         .split(area);
 
-        let header = Header::new("Device SSH Config".to_string());
-        let ssh_user_input = Input::new("SSH User");
-        let ssh_port_input = Input::new("SSH Port");
-        let ssh_identity_input = Input::new("SSH Identity");
+        let header = Header::new("SSH Config".to_string());
+        let ssh_user_input = Input::new("User");
+        let ssh_port_input = Input::new("Port");
+        let ssh_identity_input = Input::new("Identity");
 
         header.render(rects[0], buf, ctx);
         ssh_user_input.render(
@@ -212,7 +212,7 @@ impl DeviceView {
         ])
         .areas(info_area);
 
-        let header = Header::new("Device Info".to_string());
+        let header = Header::new("Info".to_string());
         let host = Line::from(host_str);
         let ip = Line::from(ip_str);
         let mac = Line::from(mac_str);

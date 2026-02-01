@@ -2,16 +2,16 @@
 source: term/src/ui/views/./device_tests.rs
 expression: terminal.backend()
 ---
-"Device SSH Config                                                                                   "
+"SSH Config                                                                                          "
 "                                                                                                    "
-"SSH User: user                                                                                      "
+"User: user                                                                                          "
 "                                                                                                    "
-"SSH Port: 22                                                                                        "
+"Port: 22                                                                                            "
 "                                                                                                    "
-"SSH Identity: id_rsa                                                                                "
+"Identity: id_rsa                                                                                    "
 "                                                                                                    "
 "                                                                                                    "
-"Device Info                                                                                         "
+"Info                                                                                                "
 "                                                                                                    "
 "Hostname: hostname                                                                                  "
 "IP: 10.10.10.1                                                                                      "
