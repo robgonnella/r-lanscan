@@ -99,3 +99,28 @@ fn test_main_view() {
     assert_snapshot!(terminal.backend());
     tear_down(conf_path);
 }
+
+#[test]
+fn test_main_view_with_popover() {
+    let (main_view, store, conf_path) = setup();
+    let mut terminal = Terminal::new(TestBackend::new(100, 45)).unwrap();
+
+    let mut state = store.get_state().unwrap();
+    state.popover_message = Some("Test popover message".into());
+
+    terminal
+        .draw(|frame| {
+            let ctx = CustomWidgetContext {
+                state: &state,
+                app_area: frame.area(),
+            };
+
+            main_view
+                .render_ref(frame.area(), frame.buffer_mut(), &ctx)
+                .unwrap();
+        })
+        .unwrap();
+
+    assert_snapshot!(terminal.backend());
+    tear_down(conf_path);
+}

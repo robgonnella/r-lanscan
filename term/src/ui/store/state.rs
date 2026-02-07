@@ -59,6 +59,7 @@ pub struct State {
     pub message: Option<String>,
     pub cmd_in_progress: Option<Command>,
     pub cmd_output: Option<(Command, Output)>,
+    pub popover_message: Option<String>,
 }
 
 #[cfg(test)]
@@ -92,6 +93,7 @@ impl State {
             message: None,
             cmd_in_progress: None,
             cmd_output: None,
+            popover_message: None,
         }
     }
 }
