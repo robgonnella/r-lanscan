@@ -92,6 +92,7 @@ impl Store {
                 message: None,
                 cmd_in_progress: None,
                 cmd_output: None,
+                popover_message: None,
             }),
         }
     }

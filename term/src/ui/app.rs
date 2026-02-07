@@ -190,6 +190,31 @@ impl App {
         }
     }
 
+    fn render_info_popover(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        state: &State,
+    ) {
+        if let Some(msg) = state.popover_message.as_ref() {
+            let block = Block::bordered()
+                .border_type(BorderType::Double)
+                .border_style(
+                    Style::new()
+                        .fg(state.colors.border_color)
+                        .bg(state.colors.buffer_bg),
+                )
+                .padding(Padding::uniform(2))
+                .style(Style::default().bg(state.colors.buffer_bg));
+            let inner_area = block.inner(area);
+
+            let message = Paragraph::new(msg.to_string()).centered();
+            ClearWidget.render(area, buf);
+            block.render(area, buf);
+            message.render(inner_area, buf);
+        }
+    }
+
     fn render_footer(
         &self,
         legend: &str,
@@ -278,6 +303,13 @@ impl CustomWidgetRef for App {
                 self.render_buffer_bg(select_inner_area, buf, ctx.state);
                 self.render_view_select_popover(select_inner_area, buf, ctx)?;
             }
+
+            // render any popover messages if needed
+            self.render_info_popover(
+                get_popover_area(area, 50, 15),
+                buf,
+                ctx.state,
+            );
 
             // popover when there are errors in the store
             // important to render this last so it properly layers on top

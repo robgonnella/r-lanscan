@@ -6,6 +6,11 @@ use crate::{ipc::message::Command, ui::store::state::State};
 
 /// Sets or clears the currently executing command.
 pub fn set_command_in_progress(state: &mut State, value: Option<Command>) {
+    if let Some(cmd) = value.as_ref() {
+        state.popover_message = Some(format!("Executing command: {cmd}"));
+    } else {
+        state.popover_message = None
+    }
     state.cmd_in_progress = value;
 }
 
