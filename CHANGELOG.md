@@ -1,3 +1,11 @@
+# [0.6.1](https://github.com/robgonnella/r-lanscan/releases/tag/v0.6.1) - 2026-02-07
+
+### 🐛 Bug Fixes
+
+- _(term)_ renders popover when executing commands [_(c0f7076)_](https://github.com/robgonnella/r-lanscan/commit/c0f7076b8b7caa64854f4feb684c3a1947bb0f52)
+
+- _(term)_ fixes issues with pausing and resuming ui [_(e159b6e)_](https://github.com/robgonnella/r-lanscan/commit/e159b6ee972e51ef2fe5d5ac2fde27283259d02a)
+
 # [0.6.0](https://github.com/robgonnella/r-lanscan/releases/tag/v0.6.0) - 2026-01-31
 
 ### 🚀 Features
