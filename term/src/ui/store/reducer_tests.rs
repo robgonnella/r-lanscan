@@ -94,8 +94,8 @@ fn test_preview_theme() {
     assert_eq!(state.colors.header_fg, expected_colors.header_fg);
     assert_eq!(state.colors.input_editing, expected_colors.input_editing);
     assert_eq!(state.colors.label, expected_colors.label);
-    assert_eq!(state.colors.row_bg, expected_colors.row_bg);
-    assert_eq!(state.colors.row_fg, expected_colors.row_fg);
+    assert_eq!(state.colors.bg, expected_colors.bg);
+    assert_eq!(state.colors.fg, expected_colors.fg);
     assert_eq!(state.colors.scroll_bar_fg, expected_colors.scroll_bar_fg);
     assert_eq!(
         state.colors.selected_row_fg,

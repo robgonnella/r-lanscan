@@ -191,8 +191,8 @@ impl CustomWidgetRef for Table {
                 .collect::<Row>()
                 .style(
                     Style::new()
-                        .fg(ctx.state.colors.row_fg)
-                        .bg(ctx.state.colors.row_bg),
+                        .fg(ctx.state.colors.fg)
+                        .bg(ctx.state.colors.bg),
                 )
                 .height(self.item_height as u16)
         });
