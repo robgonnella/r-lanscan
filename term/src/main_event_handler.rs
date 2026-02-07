@@ -1,6 +1,6 @@
 //! Processes UI events and executes external commands.
 
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, eyre};
 use r_lanlib::scanners::Device;
 use std::{
     io::{BufReader, Read},
@@ -58,20 +58,49 @@ impl MainEventHandler {
     }
 
     fn pause_ui(&self) -> Result<()> {
-        // send event to app thread to pause UI
         self.ipc.tx.send(RendererMessage::PauseUI)?;
         let start = Instant::now();
         let timeout = Duration::from_millis(5000);
-        // wait for app to respond that UI has been paused
         loop {
-            // continue if we're stuck waiting for UI to respond
             if start.elapsed() >= timeout {
                 return Ok(());
             }
-            if let Ok(evt) = self.ipc.rx.recv()
-                && evt == MainMessage::UIPaused
-            {
+            if let Ok(evt) = self.ipc.rx.recv() {
+                match evt {
+                    MainMessage::UIPaused => {
+                        return Ok(());
+                    }
+                    MainMessage::Quit => {
+                        return Err(eyre!("quit received during pause"));
+                    }
+                    other => {
+                        log::debug!("pause_ui: ignored {:?}", other);
+                    }
+                }
+            }
+        }
+    }
+
+    fn resume_ui(&self) -> Result<()> {
+        self.ipc.tx.send(RendererMessage::ResumeUI)?;
+        let start = Instant::now();
+        let timeout = Duration::from_millis(5000);
+        loop {
+            if start.elapsed() >= timeout {
                 return Ok(());
+            }
+            if let Ok(evt) = self.ipc.rx.recv() {
+                match evt {
+                    MainMessage::UIResumed => {
+                        return Ok(());
+                    }
+                    MainMessage::Quit => {
+                        return Err(eyre!("quit received during resume"));
+                    }
+                    other => {
+                        log::debug!("resume_ui: ignored {:?}", other);
+                    }
+                }
             }
         }
     }
@@ -83,7 +112,7 @@ impl MainEventHandler {
     ) -> Result<()> {
         self.pause_ui()?;
         let res = self.executor.ssh(device, device_config);
-        self.ipc.tx.send(RendererMessage::ResumeUI)?;
+        self.resume_ui()?;
         match res {
             Ok((status, err)) => {
                 if !status.success() {
@@ -132,10 +161,8 @@ impl MainEventHandler {
 
     fn handle_browse(&self, args: &BrowseArgs) -> Result<()> {
         self.pause_ui()?;
-
         let res = self.executor.browse(args);
-
-        self.ipc.tx.send(RendererMessage::ResumeUI)?;
+        self.resume_ui()?;
 
         match res {
             Ok((status, err)) => {
