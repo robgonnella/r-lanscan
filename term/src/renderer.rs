@@ -73,8 +73,27 @@ impl<B: Backend + std::io::Write> Renderer<B> {
         loop {
             let state = self.store.get_state()?;
 
-            // Use try_recv here so we don't block the thread, this will allow
-            // rendering of incoming device data from network as it's received
+            // When paused, block on recv() to avoid busy-spinning.
+            // No rendering or event polling needed while paused.
+            if state.ui_paused {
+                match self.ipc.rx.recv() {
+                    Ok(RendererMessage::ResumeUI) => {
+                        self.restart()?;
+                    }
+                    Ok(_) => {
+                        // Ignore PauseUI (duplicate) and
+                        // ReRender (can't render while paused)
+                    }
+                    Err(_) => {
+                        // Channel closed; exit loop
+                        return self.exit();
+                    }
+                }
+                continue;
+            }
+
+            // Use try_recv so we don't block the thread, allowing rendering
+            // of incoming device data as it's received
             if let Ok(ipc_msg) = self.ipc.rx.try_recv() {
                 match ipc_msg {
                     RendererMessage::PauseUI => self.pause()?,
@@ -83,12 +102,8 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 }
             }
 
-            if state.ui_paused {
-                continue;
-            }
-
-            // Use poll here so we don't block the thread, this will allow
-            // rendering of incoming device data from network as it's received
+            // Use poll so we don't block the thread, allowing rendering of
+            // incoming device data as it's received
             if let Ok(has_event) = event::poll(time::Duration::from_millis(16))
                 && has_event
             {

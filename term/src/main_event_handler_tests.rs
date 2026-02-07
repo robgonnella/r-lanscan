@@ -84,12 +84,18 @@ fn handles_ssh_command_err() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::UIPaused));
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
 
     mock_sender
         .expect_send()
         .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
         .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIResumed))
+        .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
@@ -150,12 +156,18 @@ fn handles_ssh_command_ok() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::UIPaused));
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
 
     mock_sender
         .expect_send()
         .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
         .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIResumed))
+        .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
@@ -223,12 +235,18 @@ fn handles_ssh_command_ok_err() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::UIPaused));
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
 
     mock_sender
         .expect_send()
         .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
         .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIResumed))
+        .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
@@ -293,12 +311,18 @@ fn handles_ssh_command_ok_err_empty() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::UIPaused));
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
 
     mock_sender
         .expect_send()
         .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
         .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIResumed))
+        .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
@@ -463,12 +487,18 @@ fn handles_browse_command_err() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::UIPaused));
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
 
     mock_sender
         .expect_send()
         .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
         .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIResumed))
+        .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
@@ -525,12 +555,18 @@ fn handles_browse_command_ok() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::UIPaused));
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
 
     mock_sender
         .expect_send()
         .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
         .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIResumed))
+        .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
@@ -595,12 +631,18 @@ fn handles_browse_command_ok_err() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::UIPaused));
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
 
     mock_sender
         .expect_send()
         .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
         .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIResumed))
+        .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
@@ -661,12 +703,18 @@ fn handles_browse_command_ok_err_empty() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::UIPaused));
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
 
     mock_sender
         .expect_send()
         .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
         .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIResumed))
+        .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
 
@@ -742,6 +790,134 @@ fn listens_for_events() {
     let state = test.store.get_state().unwrap();
 
     assert!(state.error.is_some());
+
+    tear_down(tmp_path.as_str());
+}
+
+#[test]
+fn pause_ui_handles_quit() {
+    fs::create_dir_all("generated").unwrap();
+    let tmp_path = format!("generated/{}.yml", nanoid!());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
+
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
+    let mock_executor = MockShellExecutor::new();
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::Quit))
+        .times(1);
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
+
+    let device = Device {
+        hostname: "Hostname".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
+        vendor: "Vendor".to_string(),
+        is_current_host: false,
+        open_ports: PortSet::new(),
+    };
+
+    let device_config = DeviceConfig {
+        id: "device_id".to_string(),
+        ssh_port: 22,
+        ssh_identity_file: "id_rsa".to_string(),
+        ssh_user: "user".to_string(),
+    };
+
+    let result = test
+        .main_handler
+        .handle_cmd(AppCommand::Ssh(device, device_config));
+
+    assert!(result.is_err());
+
+    tear_down(tmp_path.as_str());
+}
+
+#[test]
+fn resume_ui_handles_quit() {
+    fs::create_dir_all("generated").unwrap();
+    let tmp_path = format!("generated/{}.yml", nanoid!());
+    let user = "user".to_string();
+    let identity = "/home/user/.ssh/id_rsa".to_string();
+    let cidr = "192.168.1.1/24".to_string();
+
+    let conf_manager = ConfigManager::builder()
+        .default_user(user.clone())
+        .default_identity(identity.clone())
+        .default_cidr(cidr.clone())
+        .path(tmp_path.clone())
+        .build()
+        .unwrap();
+
+    let mut mock_sender = MockIpcSender::<RendererMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<MainMessage>::new();
+    let mut mock_executor = MockShellExecutor::new();
+
+    mock_executor
+        .expect_ssh()
+        .returning(|_, _| Ok((ExitStatus::default(), None)));
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::PauseUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::UIPaused))
+        .times(1);
+
+    mock_sender
+        .expect_send()
+        .withf(|msg| matches!(msg, RendererMessage::ResumeUI))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_recv()
+        .returning(|| Ok(MainMessage::Quit))
+        .times(1);
+
+    let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
+
+    let device = Device {
+        hostname: "Hostname".to_string(),
+        ip: Ipv4Addr::new(10, 10, 10, 1),
+        mac: MacAddr::default(),
+        vendor: "Vendor".to_string(),
+        is_current_host: false,
+        open_ports: PortSet::new(),
+    };
+
+    let device_config = DeviceConfig {
+        id: "device_id".to_string(),
+        ssh_port: 22,
+        ssh_identity_file: "id_rsa".to_string(),
+        ssh_user: "user".to_string(),
+    };
+
+    let result = test
+        .main_handler
+        .handle_cmd(AppCommand::Ssh(device, device_config));
+
+    assert!(result.is_err());
 
     tear_down(tmp_path.as_str());
 }
