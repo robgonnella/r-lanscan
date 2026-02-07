@@ -4,7 +4,7 @@ use color_eyre::eyre::Result;
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode},
     layout::{Constraint, Layout, Rect},
-    style::{Style, palette::tailwind},
+    style::Style,
     text::Line,
     widgets::{
         Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget,
@@ -169,7 +169,7 @@ impl App {
                 .border_type(BorderType::Double)
                 .border_style(
                     Style::new()
-                        .fg(tailwind::RED.c600)
+                        .fg(state.colors.error)
                         .bg(state.colors.buffer_bg),
                 )
                 .padding(Padding::uniform(2))

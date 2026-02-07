@@ -33,7 +33,7 @@ impl CustomWidget for InfoFooter {
         let info_footer = Paragraph::new(Line::from(self.content.as_str()))
             .style(
                 Style::new()
-                    .fg(ctx.state.colors.row_fg)
+                    .fg(ctx.state.colors.fg)
                     .bg(ctx.state.colors.buffer_bg),
             )
             .centered()
