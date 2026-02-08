@@ -5,4 +5,3 @@ pub mod device;
 pub mod devices;
 pub mod logs;
 pub mod traits;
-pub mod view_select;

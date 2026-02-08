@@ -1,70 +1,94 @@
 //! Main application widget and view router.
 
 use color_eyre::eyre::Result;
+use indoc::indoc;
 use ratatui::{
-    crossterm::event::{Event as CrossTermEvent, KeyCode},
-    layout::{Constraint, Layout, Rect},
-    style::Style,
-    text::Line,
+    crossterm::event::{Event as CrossTermEvent, KeyCode, KeyEventKind},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Modifier, Style, Stylize},
+    text::{Line, Text},
     widgets::{
-        Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Widget,
+        Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Tabs,
+        Widget,
     },
 };
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
+use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
 use crate::ui::{
     colors::Theme,
-    components::{
-        footer::InfoFooter, header::Header, popover::get_popover_area,
-    },
-    store::{
-        Dispatcher,
-        action::Action,
-        state::{State, ViewID},
-    },
+    components::{footer::InfoFooter, popover::get_popover_area},
+    store::{Dispatcher, action::Action, state::State},
     views::{
         config::ConfigView,
-        device::DeviceView,
         devices::DevicesView,
         logs::LogsView,
         traits::{
             CustomEventContext, CustomWidget, CustomWidgetContext,
             CustomWidgetRef, EventHandler, View,
         },
-        view_select::ViewSelect,
     },
 };
+
+const LOGO: &str = indoc! {"
+▖     ▄▖
+▌ ▀▌▛▌▚ ▛▘▀▌▛▌
+▙▖█▌▌▌▄▌▙▖█▌▌▌
+"};
+
+#[derive(Default, Clone, Copy, Display, FromRepr, EnumIter)]
+enum SelectedTab {
+    #[default]
+    #[strum(to_string = "Devices")]
+    Devices,
+    #[strum(to_string = "Config")]
+    Config,
+    #[strum(to_string = "Logs")]
+    Logs,
+}
+
+impl SelectedTab {
+    /// Get the previous tab, if there is no previous tab return the current tab.
+    fn previous(self) -> Self {
+        let current_index: usize = self as usize;
+        let previous_index = current_index.saturating_sub(1);
+        Self::from_repr(previous_index).unwrap_or(self)
+    }
+
+    /// Get the next tab, if there is no next tab return the current tab.
+    fn next(self) -> Self {
+        let current_index = self as usize;
+        let next_index = current_index.saturating_add(1);
+        Self::from_repr(next_index).unwrap_or(self)
+    }
+}
 
 const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 
 /// Root widget that manages views, handles global events, and renders layout.
 pub struct App {
     dispatcher: Arc<dyn Dispatcher>,
-    sub_views: HashMap<ViewID, Box<dyn View>>,
+    selected_tab: RefCell<SelectedTab>,
+    selected_view: RefCell<Rc<dyn View>>,
+    devices_view: Rc<DevicesView>,
+    config_view: Rc<ConfigView>,
+    logs_view: Rc<LogsView>,
 }
 
 impl App {
     /// Creates a new app with the given theme and dispatcher.
-    pub fn new(theme: Theme, dispatcher: Arc<dyn Dispatcher>) -> Self {
-        let mut sub_views: HashMap<ViewID, Box<dyn View>> = HashMap::new();
-        let config = Box::new(ConfigView::new(Arc::clone(&dispatcher), theme));
-        let device = Box::new(DeviceView::new(Arc::clone(&dispatcher)));
-        let devices = Box::new(DevicesView::new(Arc::clone(&dispatcher)));
-        let logs = Box::new(LogsView::new());
-        let view_select = Box::new(ViewSelect::new(
-            vec![ViewID::Devices, ViewID::Config, ViewID::Logs],
-            Arc::clone(&dispatcher),
-        ));
-
-        sub_views.insert(config.id(), config);
-        sub_views.insert(device.id(), device);
-        sub_views.insert(devices.id(), devices);
-        sub_views.insert(logs.id(), logs);
-        sub_views.insert(view_select.id(), view_select);
-
+    pub fn new(dispatcher: Arc<dyn Dispatcher>, theme: Theme) -> Self {
+        let devices_view = Rc::new(DevicesView::new(Arc::clone(&dispatcher)));
+        let config_view =
+            Rc::new(ConfigView::new(Arc::clone(&dispatcher), theme));
+        let logs_view = Rc::new(LogsView::new());
         Self {
-            dispatcher,
-            sub_views,
+            dispatcher: Arc::clone(&dispatcher),
+            selected_tab: RefCell::new(SelectedTab::Devices),
+            selected_view: RefCell::new(devices_view.clone()),
+            devices_view,
+            config_view,
+            logs_view,
         }
     }
 
@@ -80,51 +104,49 @@ impl App {
         block.render(area, buf);
     }
 
-    fn get_top_section_areas(&self, area: Rect) -> Rc<[Rect]> {
-        Layout::horizontal([
-            Constraint::Length(25),
-            Constraint::Percentage(100),
-            Constraint::Length(25),
-        ])
-        .split(area)
-    }
-
     fn render_top(
         &self,
-        sections: Rc<[Rect]>,
+        area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        message: Option<&String>,
         ctx: &CustomWidgetContext,
     ) {
-        let logo = Paragraph::new("\nr-lanterm")
-            .style(Style::new().fg(ctx.state.colors.border_color));
-        let logo_block: Block<'_> = Block::bordered()
-            .border_style(Style::new().fg(ctx.state.colors.border_color))
-            .border_type(BorderType::Double)
-            .padding(DEFAULT_PADDING);
-        let logo_inner_area = logo_block.inner(sections[0]);
+        let [_padding_top, area] =
+            Layout::vertical([Constraint::Length(1), Constraint::Min(0)])
+                .areas(area);
 
-        logo_block.render(sections[0], buf);
-        logo.render(logo_inner_area, buf);
+        let [left, middle, right] = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(45),
+                Constraint::Length(14),
+                Constraint::Min(0),
+            ])
+            .areas(area);
 
-        if let Some(message) = message {
-            let message_block = Block::default().padding(Padding::uniform(2));
-            let message_inner_area = message_block.inner(sections[1]);
-            let m = Header::new(format!("\n\n{message}"));
-            message_block.render(sections[1], buf);
-            m.render(message_inner_area, buf, ctx);
-        }
+        let [left_padding, network_and_tabs_area] = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Length(1), Constraint::Min(0)])
+            .areas(left);
 
-        let current_view = Paragraph::new(format!("\n{} ▼", ctx.state.view_id))
-            .style(Style::new().fg(ctx.state.colors.border_color));
-        let current_view_block = Block::bordered()
-            .border_style(Style::new().fg(ctx.state.colors.border_color))
-            .border_type(BorderType::Double)
-            .padding(DEFAULT_PADDING);
-        let current_view_inner_area = current_view_block.inner(sections[2]);
+        let [network_area, tabs_area] = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(1)])
+            .areas(network_and_tabs_area);
 
-        current_view_block.render(sections[2], buf);
-        current_view.render(current_view_inner_area, buf);
+        let [_, message_area] = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(1)])
+            .areas(right);
+
+        Block::new().render(left_padding, buf);
+
+        self.render_network_label(network_area, buf, ctx);
+
+        self.render_tabs(tabs_area, buf, ctx);
+
+        self.render_logo(middle, buf, ctx);
+
+        self.render_message(message_area, buf, ctx);
     }
 
     fn render_middle_view(
@@ -143,19 +165,70 @@ impl App {
         view.render_ref(inner_area, buf, ctx)
     }
 
-    fn render_view_select_popover(
+    fn render_tabs(
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) -> Result<()> {
-        let view = self.sub_views.get(&ViewID::ViewSelect);
+    ) {
+        let titles = SelectedTab::iter().map(|t| {
+            Line::from(format!("{:^10}", t)).centered().style(
+                Style::new()
+                    .fg(ctx.state.colors.text)
+                    .bg(ctx.state.colors.gray),
+            )
+        });
+        let selected_tab_index = *self.selected_tab.borrow() as usize;
+        let selected_style = Style::default()
+            .add_modifier(Modifier::REVERSED)
+            .fg(ctx.state.colors.selected_row_fg);
+        Tabs::new(titles)
+            .highlight_style(selected_style)
+            .select(selected_tab_index)
+            .padding("", "")
+            .divider(" ")
+            .render(area, buf);
+    }
 
-        if let Some(view_select) = view {
-            view_select.render_ref(area, buf, ctx)?;
+    fn render_network_label(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        let network_str = format!("Network: {}", ctx.state.config.cidr);
+        let network_style = Style::default()
+            .fg(ctx.state.colors.light_gray)
+            .add_modifier(Modifier::BOLD);
+        let network =
+            Paragraph::new(Line::from(network_str)).style(network_style);
+
+        network.render(area, buf);
+    }
+
+    fn render_logo(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        Text::raw(LOGO)
+            .fg(ctx.state.colors.selected_row_fg)
+            .render(area, buf);
+    }
+
+    fn render_message(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        if let Some(message) = ctx.state.message.as_ref() {
+            let m = Paragraph::new(format!("{}    ", message))
+                .alignment(Alignment::Right)
+                .fg(ctx.state.colors.light_gray);
+            m.render(area, buf);
         }
-
-        Ok(())
     }
 
     fn render_error_popover(
@@ -227,7 +300,8 @@ impl App {
             let footer = InfoFooter::new(legend.to_string());
             footer.render(area, buf, ctx);
         } else {
-            let mut info = String::from("(q) quit | (v) change view");
+            let mut info =
+                String::from("(ctrl-c) quit | (f) next tab | (d) previous tab");
 
             if !legend.is_empty() {
                 info = format!("{info} | {legend}");
@@ -236,6 +310,28 @@ impl App {
             let footer = InfoFooter::new(info);
             footer.render(area, buf, ctx);
         }
+    }
+
+    pub fn next_tab(&self) {
+        let next = self.selected_tab.borrow().next();
+        self.selected_tab.replace(next);
+        self.set_next_view();
+    }
+
+    pub fn previous_tab(&self) {
+        let previous = self.selected_tab.borrow().previous();
+        self.selected_tab.replace(previous);
+        self.set_next_view();
+    }
+
+    pub fn set_next_view(&self) {
+        let view: Rc<dyn View> = match *self.selected_tab.borrow() {
+            SelectedTab::Devices => self.devices_view.clone(),
+            SelectedTab::Config => self.config_view.clone(),
+            SelectedTab::Logs => self.logs_view.clone(),
+        };
+
+        self.selected_view.replace(view);
     }
 }
 
@@ -249,76 +345,41 @@ impl CustomWidgetRef for App {
         // consists of 3 vertical rectangles (top, middle, bottom)
         let page_areas = Layout::vertical([
             Constraint::Length(5),
-            Constraint::Min(10),
+            Constraint::Min(0),
             Constraint::Length(3),
         ])
         .split(area);
 
-        let view_id = ctx.state.view_id;
-        // TODO: there shouldn't be a case where we don't find a view but
-        // this will require a larger refactor
-        if let Some(view) = self.sub_views.get(&view_id) {
-            let legend = view.legend(ctx.state);
-            let override_legend = view.override_main_legend(ctx.state);
+        let view = self.selected_view.borrow();
+        let legend = view.legend(ctx.state);
+        let override_legend = view.override_main_legend(ctx.state);
 
-            // render background for entire display
-            self.render_buffer_bg(area, buf, ctx.state);
-            // logo & view select
-            let top_section_areas = self.get_top_section_areas(page_areas[0]);
-            let top_section_areas_clone = Rc::clone(&top_section_areas);
-            self.render_top(
-                top_section_areas,
-                buf,
-                ctx.state.message.as_ref(),
-                ctx,
-            );
-            // view
-            self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx)?;
-            // legend for current view
-            self.render_footer(
-                legend,
-                override_legend,
-                page_areas[2],
-                buf,
-                ctx,
-            );
+        // render background for entire display
+        self.render_buffer_bg(area, buf, ctx.state);
 
-            // view selection
-            if ctx.state.render_view_select {
-                let mut select_area = top_section_areas_clone[2];
-                select_area.height =
-                    (self.sub_views.len() * 3).try_into().unwrap_or_default();
+        self.render_top(page_areas[0], buf, ctx);
 
-                let select_block = Block::bordered()
-                    .border_style(
-                        Style::new().fg(ctx.state.colors.border_color),
-                    )
-                    .border_type(BorderType::Double);
+        // view
+        self.render_middle_view(view.as_ref(), page_areas[1], buf, ctx)?;
 
-                let select_inner_area = select_block.inner(select_area);
+        // legend for current view
+        self.render_footer(&legend, override_legend, page_areas[2], buf, ctx);
 
-                select_block.render(select_area, buf);
+        // render any popover messages if needed
+        self.render_info_popover(
+            get_popover_area(area, 50, 15),
+            buf,
+            ctx.state,
+        );
 
-                ClearWidget.render(select_inner_area, buf);
-                self.render_buffer_bg(select_inner_area, buf, ctx.state);
-                self.render_view_select_popover(select_inner_area, buf, ctx)?;
-            }
-
-            // render any popover messages if needed
-            self.render_info_popover(
-                get_popover_area(area, 50, 15),
-                buf,
-                ctx.state,
-            );
-
-            // popover when there are errors in the store
-            // important to render this last so it properly layers on top
-            self.render_error_popover(
-                get_popover_area(area, 50, 40),
-                buf,
-                ctx.state,
-            );
-        }
+        // popover when there are errors in the store
+        // important to render this last so it properly layers on top
+        self.render_error_popover(
+            get_popover_area(area, 50, 40),
+            buf,
+            ctx.state,
+        );
+        // }
 
         Ok(())
     }
@@ -330,47 +391,55 @@ impl EventHandler for App {
         evt: &CrossTermEvent,
         ctx: &CustomEventContext,
     ) -> Result<bool> {
-        let view_id = ctx.state.view_id;
-
-        if ctx.state.render_view_select
-            && let Some(select_view) = self.sub_views.get(&ViewID::ViewSelect)
+        if ctx.state.error.is_some()
+            && let CrossTermEvent::Key(key) = evt
+            && key.code == KeyCode::Enter
         {
-            return select_view.process_event(evt, ctx);
-        }
-
-        if ctx.state.error.is_some() {
-            if let CrossTermEvent::Key(key) = evt
-                && key.code == KeyCode::Enter
-            {
-                self.dispatcher.dispatch(Action::SetError(None))?;
-            }
+            self.dispatcher.dispatch(Action::SetError(None))?;
             return Ok(true);
         }
 
-        if let Some(view) = self.sub_views.get(&view_id) {
-            let mut handled = view.process_event(evt, ctx)?;
+        // scoped so borrow is dropped before any additional event handling
+        {
+            let view = self.selected_view.borrow();
+            let result = view.process_event(evt, ctx);
 
-            if !handled && let CrossTermEvent::Key(key) = evt {
-                match key.code {
-                    KeyCode::Char('v') => {
-                        if !ctx.state.render_view_select {
-                            handled = true;
-                            self.dispatcher
-                                .dispatch(Action::ToggleViewSelect)?;
-                        }
-                    }
-                    KeyCode::Esc => {
-                        if ctx.state.render_view_select {
-                            handled = true;
-                            self.dispatcher
-                                .dispatch(Action::ToggleViewSelect)?;
-                        }
-                    }
-                    _ => {}
+            if let Err(err) = result {
+                if let Err(dispatch_err) = self
+                    .dispatcher
+                    .dispatch(Action::SetError(Some(err.to_string())))
+                {
+                    // if we can't dispatch and we can't send messages there's
+                    // no way out. So here we use ? and let renderer process
+                    // crash. The user will have to ctrl-c to exit main process
+                    ctx.ipc.send(crate::ipc::message::MainMessage::Quit(
+                        Some(dispatch_err.to_string()),
+                    ))?;
                 }
+                return Ok(true);
             }
 
-            return Ok(handled);
+            if let Ok(handled) = result
+                && handled
+            {
+                return Ok(handled);
+            }
+        }
+
+        if let CrossTermEvent::Key(key) = evt
+            && key.kind == KeyEventKind::Press
+        {
+            match key.code {
+                KeyCode::Char('f') | KeyCode::Tab | KeyCode::Right => {
+                    self.next_tab();
+                    return Ok(true);
+                }
+                KeyCode::Char('d') | KeyCode::BackTab | KeyCode::Left => {
+                    self.previous_tab();
+                    return Ok(true);
+                }
+                _ => {}
+            }
         }
 
         Ok(false)

@@ -7,16 +7,12 @@ use pnet::util::MacAddr;
 use r_lanlib::scanners::{Device, Port, PortSet};
 
 use crate::{
-    config::{Config, DeviceConfig},
+    config::Config,
     ipc::message::Command,
     shell::traits::BrowseArgs,
     ui::{
         colors::{Colors, Theme},
-        store::{
-            action::Action,
-            effect::Effect,
-            state::{State, ViewID},
-        },
+        store::{action::Action, effect::Effect, state::State},
     },
 };
 
@@ -56,22 +52,6 @@ fn test_set_error() {
 }
 
 #[test]
-fn test_toggle_view_select() {
-    let (mut state, reducer) = setup();
-    let effect = reducer.reduce(&mut state, Action::ToggleViewSelect);
-    assert!(state.render_view_select);
-    assert_eq!(effect, Effect::None);
-}
-
-#[test]
-fn test_update_view() {
-    let (mut state, reducer) = setup();
-    let effect = reducer.reduce(&mut state, Action::UpdateView(ViewID::Config));
-    assert_eq!(state.view_id, ViewID::Config);
-    assert_eq!(effect, Effect::None);
-}
-
-#[test]
 fn test_update_message() {
     let (mut state, reducer) = setup();
     let effect = reducer.reduce(
@@ -90,13 +70,11 @@ fn test_preview_theme() {
         reducer.reduce(&mut state, Action::PreviewTheme(Theme::Emerald));
     assert_eq!(state.colors.border_color, expected_colors.border_color);
     assert_eq!(state.colors.buffer_bg, expected_colors.buffer_bg);
-    assert_eq!(state.colors.header_bg, expected_colors.header_bg);
-    assert_eq!(state.colors.header_fg, expected_colors.header_fg);
+    assert_eq!(state.colors.row_header_bg, expected_colors.row_header_bg);
     assert_eq!(state.colors.input_editing, expected_colors.input_editing);
-    assert_eq!(state.colors.label, expected_colors.label);
-    assert_eq!(state.colors.bg, expected_colors.bg);
-    assert_eq!(state.colors.fg, expected_colors.fg);
-    assert_eq!(state.colors.scroll_bar_fg, expected_colors.scroll_bar_fg);
+    assert_eq!(state.colors.header_text, expected_colors.header_text);
+    assert_eq!(state.colors.text, expected_colors.text);
+    assert_eq!(state.colors.gray, expected_colors.gray);
     assert_eq!(
         state.colors.selected_row_fg,
         expected_colors.selected_row_fg
@@ -196,85 +174,6 @@ fn test_create_and_set_config() {
         reducer.reduce(&mut state, Action::CreateAndSetConfig(config.clone()));
     assert_eq!(state.config.id, config.id);
     assert_eq!(effect, Effect::CreateConfig(config));
-}
-
-#[test]
-fn test_update_selected_device() {
-    let (mut state, reducer) = setup();
-
-    let dev1 = Device {
-        hostname: "dev1".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 1),
-        mac: MacAddr::default(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        vendor: "dev1_vendor".to_string(),
-    };
-
-    let dev2 = Device {
-        hostname: "dev2".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 2),
-        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        vendor: "dev2_vendor".to_string(),
-    };
-
-    let mut devices = HashMap::new();
-    devices.insert(dev1.ip, dev1.clone());
-    devices.insert(dev2.ip, dev2.clone());
-
-    reducer.reduce(&mut state, Action::AddDevice(dev1.clone()));
-    reducer.reduce(&mut state, Action::AddDevice(dev2.clone()));
-    reducer.reduce(&mut state, Action::UpdateAllDevices(devices));
-    let effect =
-        reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev2.ip));
-    assert!(state.selected_device.is_some());
-    let selected = state.selected_device.unwrap();
-    assert_eq!(selected.mac, dev2.mac);
-    assert_eq!(effect, Effect::None);
-}
-
-#[test]
-fn test_update_device_config() {
-    let (mut state, reducer) = setup();
-
-    let dev = Device {
-        hostname: "dev".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 2),
-        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        vendor: "dev_vendor".to_string(),
-    };
-
-    let dev_config = DeviceConfig {
-        id: dev.mac.to_string(),
-        ssh_identity_file: "id_rsa".to_string(),
-        ssh_port: 2222,
-        ssh_user: "dev_user".to_string(),
-    };
-
-    let mut devices = HashMap::new();
-    devices.insert(dev.ip, dev.clone());
-
-    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
-    reducer.reduce(&mut state, Action::UpdateAllDevices(devices));
-    let effect = reducer
-        .reduce(&mut state, Action::UpdateDeviceConfig(dev_config.clone()));
-    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev.ip));
-
-    assert!(state.selected_device_config.is_some());
-    let selected = state.selected_device_config.unwrap();
-    assert_eq!(selected.id, dev_config.id);
-    assert_eq!(selected.ssh_port, dev_config.ssh_port);
-
-    // Effect should contain the updated config with the device config
-    if let Effect::SaveConfig(config) = effect {
-        assert!(config.device_configs.contains_key(&dev_config.id));
-    } else {
-        panic!("Expected Effect::SaveConfig");
-    }
 }
 
 #[test]
@@ -381,44 +280,4 @@ fn test_updates_device_with_new_info() {
     assert_eq!(devices[0], dev);
     assert_eq!(devices[0].open_ports.0.len(), 1);
     assert!(devices[0].open_ports.0.contains(&port));
-}
-
-#[test]
-fn test_add_device_updates_selected_device_ports() {
-    let (mut state, reducer) = setup();
-
-    let dev = Device {
-        hostname: "dev".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 2),
-        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: false,
-        vendor: "dev_vendor".to_string(),
-        open_ports: PortSet::new(),
-    };
-
-    // Add device and select it (simulating user viewing device details)
-    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
-    reducer.reduce(&mut state, Action::UpdateSelectedDevice(dev.ip));
-
-    // Verify device is selected with no open ports
-    assert!(state.selected_device.is_some());
-    assert_eq!(
-        state.selected_device.as_ref().unwrap().open_ports.0.len(),
-        0
-    );
-
-    // Simulate SYN scan discovering a port
-    let port = Port {
-        id: 80,
-        service: "http".to_string(),
-    };
-    let mut dev_with_port = dev.clone();
-    dev_with_port.open_ports.0.insert(port.clone());
-
-    reducer.reduce(&mut state, Action::AddDevice(dev_with_port));
-
-    // Verify selected_device is updated with the new port
-    let selected = state.selected_device.as_ref().unwrap();
-    assert_eq!(selected.open_ports.0.len(), 1);
-    assert!(selected.open_ports.0.contains(&port));
 }

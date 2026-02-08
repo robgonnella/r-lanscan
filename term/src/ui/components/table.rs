@@ -1,7 +1,5 @@
 //! Scrollable table component with selection support.
 
-use std::cell::RefCell;
-
 use color_eyre::eyre::Result;
 use ratatui::{
     layout::{Constraint, Layout, Rect},
@@ -12,6 +10,7 @@ use ratatui::{
         Table as RatatuiTable, TableState,
     },
 };
+use std::cell::RefCell;
 use unicode_width::UnicodeWidthStr;
 
 use crate::ui::views::traits::{
@@ -22,8 +21,7 @@ use super::scrollbar::ScrollBar;
 
 /// Default height for table rows.
 pub const DEFAULT_ITEM_HEIGHT: usize = 3;
-/// Maximum column width before truncation.
-pub const COLUMN_MAX_WIDTH: u16 = u16::MAX;
+/// Used for overflow when item exceeds max width
 const ELLIPSIS: &str = "…";
 
 /// Scrollable table with optional headers, row selection, and scrollbar.
@@ -31,7 +29,8 @@ pub struct Table {
     headers: Option<Vec<String>>,
     items: Vec<Vec<String>>,
     item_height: usize,
-    column_sizes: Vec<usize>,
+    column_sizes: Vec<u16>,
+    centering_breaks: String,
     table_state: RefCell<TableState>,
     scroll_state: RefCell<ScrollbarState>,
 }
@@ -42,7 +41,7 @@ impl Table {
     pub fn new(
         items: Vec<Vec<String>>,
         headers: Option<Vec<String>>,
-        column_sizes: Vec<usize>,
+        column_sizes: Vec<u16>,
         item_height: usize,
     ) -> Self {
         let mut scroll_height = item_height;
@@ -51,11 +50,24 @@ impl Table {
             scroll_height = (items.len() - 1) * item_height;
         }
 
+        // line break - hacky way of centering the text in each cell
+        let mut line_break_count = item_height / 2;
+        let mut line_breaks = String::from("");
+
+        if line_break_count > 1 && line_break_count.is_multiple_of(2) {
+            line_break_count -= 1;
+        }
+
+        for _ in 0..line_break_count {
+            line_breaks += "\n";
+        }
+
         Self {
             headers,
             column_sizes,
             items,
             item_height,
+            centering_breaks: line_breaks,
             table_state: RefCell::new(TableState::new()),
             scroll_state: RefCell::new(ScrollbarState::new(scroll_height)),
         }
@@ -144,22 +156,20 @@ impl CustomWidgetRef for Table {
         ctx: &CustomWidgetContext,
     ) -> Result<()> {
         // main table view + right aligned scrollbar
-        let table_rects =
-            Layout::horizontal([Constraint::Min(5), Constraint::Length(3)])
-                .split(area);
-
-        if table_rects[0].width < 1 || table_rects[0].height < 1 {
-            return Ok(());
-        }
+        let table_rects = Layout::horizontal([
+            Constraint::Percentage(100),
+            Constraint::Length(3),
+        ])
+        .split(area);
 
         let header = self.headers.as_ref().map(|hs| {
             let header_style = Style::default()
-                .fg(ctx.state.colors.header_fg)
-                .bg(ctx.state.colors.header_bg)
+                .fg(ctx.state.colors.text)
+                .bg(ctx.state.colors.row_header_bg)
                 .add_modifier(Modifier::BOLD);
 
             hs.iter()
-                .map(|h| Cell::from(h.as_str()))
+                .map(|h| Cell::from(format!(" {h}")))
                 .collect::<Row>()
                 .style(header_style)
                 .height(1)
@@ -169,41 +179,64 @@ impl CustomWidgetRef for Table {
             .add_modifier(Modifier::REVERSED)
             .fg(ctx.state.colors.selected_row_fg);
 
-        let rows = self.items.iter().map(|data| {
-            let item = fit_to_width(data, &self.column_sizes);
-
-            // line break - hacky way of centering the text
-            let mut line_break_count = self.item_height / 2;
-            let mut line_breaks = String::from("");
-
-            if line_break_count > 1 && line_break_count.is_multiple_of(2) {
-                line_break_count -= 1;
+        // uses provided column sizes to calculate the remaining available
+        // space for the last column. We use this to allow the last column
+        // to fill up all remaining space rather than truncating on the
+        // explicit provided final col size
+        let mut free_for_last_col = area.width;
+        self.column_sizes.iter().enumerate().for_each(|(i, s)| {
+            if i != self.column_sizes.len() - 1 {
+                free_for_last_col =
+                    free_for_last_col.saturating_sub(s.to_owned());
             }
-
-            for _ in 0..line_break_count {
-                line_breaks += "\n";
-            }
-
-            item.into_iter()
-                .map(|content| {
-                    Cell::from(Text::from(format!("{line_breaks}{content}")))
-                })
-                .collect::<Row>()
-                .style(
-                    Style::new()
-                        .fg(ctx.state.colors.fg)
-                        .bg(ctx.state.colors.bg),
-                )
-                .height(self.item_height as u16)
         });
 
-        let mut widths: Vec<Constraint> = Vec::new();
+        let rows = self
+            .items
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .enumerate()
+                    .map(|(i, content)| {
+                        // allow the final column to consume the rest of the
+                        // available space
+                        let max_width = if i == self.column_sizes.len() - 1 {
+                            // - app padding - scroll width - extra padding
+                            free_for_last_col.saturating_sub(10)
+                        } else {
+                            self.column_sizes[i]
+                        };
+                        let formatted_content =
+                            fit_to_width(content, max_width);
+                        Cell::from(Text::from(format!(
+                            "{} {formatted_content}",
+                            self.centering_breaks
+                        )))
+                    })
+                    .collect::<Row>()
+                    .style(
+                        Style::new()
+                            .fg(ctx.state.colors.text)
+                            .bg(ctx.state.colors.buffer_bg),
+                    )
+                    .height(self.item_height as u16)
+            })
+            .collect::<Vec<_>>();
 
-        for _ in self.column_sizes.iter() {
-            widths.push(Constraint::Max(COLUMN_MAX_WIDTH));
-        }
+        let constraints = self
+            .column_sizes
+            .iter()
+            .enumerate()
+            .map(|(i, w)| {
+                if i == self.column_sizes.len() - 1 {
+                    Constraint::Min(w.to_owned())
+                } else {
+                    Constraint::Max(w.to_owned())
+                }
+            })
+            .collect::<Vec<_>>();
 
-        let mut t = RatatuiTable::new(rows, widths)
+        let mut t = RatatuiTable::new(rows, constraints)
             .row_highlight_style(selected_style)
             .bg(ctx.state.colors.buffer_bg)
             .highlight_spacing(HighlightSpacing::Always);
@@ -221,20 +254,19 @@ impl CustomWidgetRef for Table {
     }
 }
 
-fn fit_to_width(item: &[String], col_widths: &[usize]) -> Vec<String> {
-    item.iter()
-        .enumerate()
-        .map(|(i, v)| {
-            let width = v.width();
-            let mut value = v.clone();
-            let col_width = col_widths[i];
-            if width >= col_width {
-                value.truncate(col_width - ELLIPSIS.width());
-                value.push_str(ELLIPSIS);
-            }
-            value
-        })
-        .collect::<Vec<String>>()
+fn fit_to_width(content: &str, max_width: u16) -> String {
+    let width = content.width() as u16;
+    let mut value = content.to_string();
+    let ellipsis_width = ELLIPSIS.width() as u16;
+    let trim_length = (max_width.saturating_sub(ellipsis_width * 2)) as usize;
+
+    if width >= max_width {
+        value.truncate(trim_length);
+        value = value.trim().to_string();
+        value.push_str(ELLIPSIS);
+    }
+
+    value
 }
 
 #[cfg(test)]

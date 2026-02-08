@@ -1,7 +1,7 @@
 //! Scrollable view for displaying application logs.
 use color_eyre::eyre::Result;
 use ratatui::{
-    crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind},
+    crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
     widgets::{ScrollDirection, ScrollbarState},
 };
@@ -11,7 +11,6 @@ use crate::ui::{
     components::{
         header::Header, scrollview::ScrollView, table::DEFAULT_ITEM_HEIGHT,
     },
-    store::state::{State, ViewID},
     views::traits::{CustomEventContext, CustomStatefulWidget},
 };
 
@@ -59,6 +58,7 @@ impl LogsView {
             .join("\n\n");
 
         let mut scroll_state = self.scroll_state.borrow_mut();
+
         *scroll_state = scroll_state
             .content_length(ctx.state.logs.len() * DEFAULT_ITEM_HEIGHT)
             .viewport_content_length(area.height.into());
@@ -69,19 +69,7 @@ impl LogsView {
     }
 }
 
-impl View for LogsView {
-    fn id(&self) -> ViewID {
-        ViewID::Logs
-    }
-
-    fn legend(&self, _state: &State) -> &str {
-        ""
-    }
-
-    fn override_main_legend(&self, _state: &State) -> bool {
-        false
-    }
-}
+impl View for LogsView {}
 
 impl CustomWidgetRef for LogsView {
     fn render_ref(
@@ -112,34 +100,12 @@ impl EventHandler for LogsView {
         evt: &Event,
         ctx: &CustomEventContext,
     ) -> Result<bool> {
-        if ctx.state.render_view_select {
-            return Ok(false);
-        }
-
         let mut handled = false;
 
         match evt {
             Event::FocusGained => {}
             Event::FocusLost => {}
-            Event::Mouse(m) => {
-                if m.kind == MouseEventKind::ScrollDown {
-                    if !ctx.state.logs.is_empty() {
-                        self.scroll_state
-                            .borrow_mut()
-                            .scroll(ScrollDirection::Forward);
-                    }
-                    handled = true;
-                }
-
-                if m.kind == MouseEventKind::ScrollUp {
-                    if !ctx.state.logs.is_empty() {
-                        self.scroll_state
-                            .borrow_mut()
-                            .scroll(ScrollDirection::Backward);
-                    }
-                    handled = true;
-                }
-            }
+            Event::Mouse(_m) => {}
             Event::Paste(_s) => {}
             Event::Resize(_x, _y) => {}
             Event::Key(key) => {

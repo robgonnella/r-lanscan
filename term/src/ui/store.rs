@@ -77,17 +77,14 @@ impl Store {
             config_manager,
             state: RwLock::new(State {
                 true_color_enabled,
+                theme,
                 ui_paused: false,
                 error: None,
                 logs: VecDeque::with_capacity(MAX_LOGS),
-                render_view_select: false,
-                view_id: state::ViewID::Devices,
                 config: current_config,
                 arp_history: HashMap::new(),
                 device_map: HashMap::new(),
                 sorted_device_list: vec![],
-                selected_device: None,
-                selected_device_config: None,
                 colors,
                 message: None,
                 cmd_in_progress: None,
@@ -168,10 +165,12 @@ impl Dispatcher for Store {
 
         self.handle_effect(effect)?;
 
-        let state = self.get_state()?;
+        if !self.subscribers.is_empty() {
+            let state = self.get_state()?;
 
-        for subscriber in self.subscribers.iter() {
-            subscriber(&state)?;
+            for subscriber in self.subscribers.iter() {
+                subscriber(&state)?;
+            }
         }
 
         Ok(())

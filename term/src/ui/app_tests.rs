@@ -3,7 +3,12 @@ use nanoid::nanoid;
 use pnet::util::MacAddr;
 use r_lanlib::scanners::{Device, Port};
 use ratatui::{Terminal, backend::TestBackend};
-use std::{collections::HashSet, fs, net::Ipv4Addr, sync::Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    net::Ipv4Addr,
+    sync::Mutex,
+};
 
 use crate::{
     config::{Config, ConfigManager},
@@ -65,9 +70,8 @@ fn setup() -> (App, Arc<Store>, String) {
 
     store.dispatch(Action::AddDevice(device_1.clone())).unwrap();
     store.dispatch(Action::AddDevice(device_2.clone())).unwrap();
-    let theme = Theme::Blue;
     (
-        App::new(theme, Arc::clone(&store) as Arc<dyn Dispatcher>),
+        App::new(Arc::clone(&store) as Arc<dyn Dispatcher>, Theme::Blue),
         store,
         tmp_path,
     )
@@ -78,9 +82,9 @@ fn tear_down(conf_path: String) {
 }
 
 #[test]
-fn test_main_view() {
+fn test_app_view() {
     let (main_view, store, conf_path) = setup();
-    let mut terminal = Terminal::new(TestBackend::new(100, 15)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(150, 15)).unwrap();
     let state = store.get_state().unwrap();
 
     terminal
@@ -101,9 +105,9 @@ fn test_main_view() {
 }
 
 #[test]
-fn test_main_view_with_popover() {
+fn test_app_view_with_popover() {
     let (main_view, store, conf_path) = setup();
-    let mut terminal = Terminal::new(TestBackend::new(100, 45)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(150, 45)).unwrap();
 
     let mut state = store.get_state().unwrap();
     state.popover_message = Some("Test popover message".into());

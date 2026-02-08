@@ -58,14 +58,9 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-        include:
-          - cmd: script -q /dev/null -c 'cargo llvm-cov --ignore-filename-regex "(_test.rs$)|(_tests.rs$)"'
-            os: ubuntu-latest
-          - cmd: script -q /dev/null cargo llvm-cov --ignore-filename-regex "(_test.rs$)|(_tests.rs$)"
-            os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/rust-setup
       - name: Test
-        run: ${{ matrix.cmd }}
+        run: cargo test
