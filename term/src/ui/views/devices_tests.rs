@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     config::{Config, ConfigManager},
-    ui::store::{StateGetter, Store},
+    ui::store::{StateGetter, Store, action::Action},
 };
 
 use super::*;
@@ -85,7 +85,7 @@ fn tear_down(conf_path: String) {
 #[test]
 fn test_devices_view() {
     let (devs_view, store, conf_path) = setup();
-    let mut terminal = Terminal::new(TestBackend::new(100, 15)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(130, 15)).unwrap();
     let state = store.get_state().unwrap();
 
     terminal

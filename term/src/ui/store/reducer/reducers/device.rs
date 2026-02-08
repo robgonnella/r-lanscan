@@ -7,7 +7,7 @@ use std::{
     net::Ipv4Addr,
 };
 
-use crate::{config::DeviceConfig, ui::store::state::State};
+use crate::ui::store::state::State;
 
 const MAX_ARP_MISS: i8 = 3;
 
@@ -57,37 +57,4 @@ pub fn add_device(state: &mut State, device: Device) {
 
     state.sorted_device_list =
         state.device_map.values().cloned().sorted().collect();
-
-    // Update selected_device if it matches the updated device
-    if let Some(selected) = &state.selected_device
-        && let Some(updated) = state.device_map.get(&selected.ip)
-    {
-        state.selected_device = Some(updated.clone());
-    }
-}
-
-/// Selects a device by IP, loading its config (or defaults).
-pub fn update_selected_device(state: &mut State, ip: Ipv4Addr) {
-    if let Some(device) = state.device_map.get(&ip) {
-        state.selected_device = Some(device.clone());
-
-        let device_config = if let Some(device_config) =
-            state.config.device_configs.get(&device.ip.to_string())
-        {
-            device_config.clone()
-        } else if let Some(device_config) =
-            state.config.device_configs.get(&device.mac.to_string())
-        {
-            device_config.clone()
-        } else {
-            DeviceConfig {
-                id: device.mac.to_string(),
-                ssh_identity_file: state.config.default_ssh_identity.clone(),
-                ssh_port: state.config.default_ssh_port,
-                ssh_user: state.config.default_ssh_user.clone(),
-            }
-        };
-
-        state.selected_device_config = Some(device_config);
-    }
 }

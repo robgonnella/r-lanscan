@@ -1,6 +1,5 @@
 //! Application state definitions.
 
-use core::fmt;
 use std::{
     collections::{HashMap, VecDeque},
     net::Ipv4Addr,
@@ -9,13 +8,8 @@ use std::{
 
 use r_lanlib::scanners::Device;
 
-use crate::{
-    config::{Config, DeviceConfig},
-    ipc::message::Command,
-    ui::colors::Colors,
-};
+use crate::{config::Config, ipc::message::Command, ui::colors::Colors};
 
-#[cfg(test)]
 use crate::ui::colors::Theme;
 
 /// Maximum log lines to store in state
@@ -24,37 +18,18 @@ pub const MAX_LOGS: usize = 100;
 /// Tracks how many scans a device has been missing from.
 pub type MissedCount = i8;
 
-/// Identifies the currently active view.
-#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
-pub enum ViewID {
-    Device,
-    Devices,
-    Config,
-    Logs,
-    ViewSelect,
-}
-
-impl fmt::Display for ViewID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 /// Complete application state for the terminal UI.
 #[derive(Debug, Clone)]
 pub struct State {
     pub true_color_enabled: bool,
+    pub theme: Theme,
     pub ui_paused: bool,
     pub error: Option<String>,
     pub logs: VecDeque<String>,
-    pub render_view_select: bool,
-    pub view_id: ViewID,
     pub config: Config,
     pub arp_history: HashMap<Ipv4Addr, (Device, MissedCount)>,
     pub device_map: HashMap<Ipv4Addr, Device>,
     pub sorted_device_list: Vec<Device>,
-    pub selected_device: Option<Device>,
-    pub selected_device_config: Option<DeviceConfig>,
     pub colors: Colors,
     pub message: Option<String>,
     pub cmd_in_progress: Option<Command>,
@@ -78,17 +53,14 @@ impl State {
 
         Self {
             true_color_enabled,
+            theme,
             ui_paused: false,
             error: None,
             logs: VecDeque::with_capacity(MAX_LOGS),
-            render_view_select: false,
-            view_id: ViewID::Devices,
             config,
             arp_history: HashMap::new(),
             device_map: HashMap::new(),
             sorted_device_list: vec![],
-            selected_device: None,
-            selected_device_config: None,
             colors,
             message: None,
             cmd_in_progress: None,

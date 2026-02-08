@@ -10,6 +10,7 @@ use crate::{
 
 /// Updates the current config state.
 pub fn update_config(state: &mut State, config: &Config) {
+    state.theme = Theme::from_string(&config.theme);
     state.config = config.clone();
 }
 
@@ -17,6 +18,7 @@ pub fn update_config(state: &mut State, config: &Config) {
 pub fn create_and_set_config(state: &mut State, config: &Config) {
     let theme = Theme::from_string(&config.theme);
     state.config = config.clone();
+    state.theme = theme;
     state.colors = Colors::new(
         theme.to_palette(state.true_color_enabled),
         state.true_color_enabled,

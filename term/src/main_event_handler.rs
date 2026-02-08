@@ -4,7 +4,8 @@ use color_eyre::eyre::{Result, eyre};
 use r_lanlib::scanners::Device;
 use std::{
     io::{BufReader, Read},
-    sync::Arc,
+    process,
+    sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
 
@@ -18,11 +19,57 @@ use crate::{
     ui::store::{Dispatcher, StateGetter, Store, action::Action},
 };
 
+#[derive(Default)]
+pub struct CtrlCHandler {
+    block: Arc<RwLock<bool>>,
+}
+
+impl CtrlCHandler {
+    pub fn intercept(&self) -> Result<()> {
+        // captures ctrl-c only in main thread so when we drop down to shell
+        // commands like ssh, we will pause the key handler for ctrl-c in app
+        // and capture ctrl-c here to prevent exiting app and just let ctrl-c
+        // be handled by the command being executed, which should return us
+        // to our app where we can restart our ui and key-handlers
+        let block = Arc::clone(&self.block);
+
+        ctrlc::set_handler(move || {
+            if let Ok(blocked) = block.read() {
+                if *blocked {
+                    println!("captured ctrl-c!");
+                } else {
+                    process::exit(1);
+                }
+            } else {
+                process::exit(1);
+            }
+        })
+        .map_err(|err| eyre!("failed to set ctrl-c handler: {}", err))
+    }
+
+    pub fn block(&self) -> Result<()> {
+        let mut blocked = self.block.write().map_err(|err| {
+            eyre!("failed to get write lock on ctrl-c block setting: {}", err)
+        })?;
+        *blocked = true;
+        Ok(())
+    }
+
+    pub fn unblock(&self) -> Result<()> {
+        let mut blocked = self.block.write().map_err(|err| {
+            eyre!("failed to get write lock on ctrl-c block setting: {}", err)
+        })?;
+        *blocked = false;
+        Ok(())
+    }
+}
+
 /// Runs the event loop, handling UI pause/resume and command execution.
 pub struct MainEventHandler {
     store: Arc<Store>,
     executor: Box<dyn ShellExecutor>,
     ipc: MainIpc,
+    ctrlc_handler: CtrlCHandler,
 }
 
 impl MainEventHandler {
@@ -37,12 +84,14 @@ impl MainEventHandler {
             store,
             executor,
             ipc,
+            ctrlc_handler: CtrlCHandler::default(),
         }
     }
 
     /// Runs the main event loop, blocking until a quit message is received.
     /// Dispatches commands to the appropriate handler (SSH, traceroute, browse).
     pub fn process_events(&self) -> Result<()> {
+        self.ctrlc_handler.intercept()?;
         loop {
             if let Ok(evt) = self.ipc.rx.recv() {
                 // event loop
@@ -50,7 +99,13 @@ impl MainEventHandler {
                     MainMessage::ExecCommand(cmd) => {
                         let _ = self.handle_cmd(cmd);
                     }
-                    MainMessage::Quit => return Ok(()),
+                    MainMessage::Quit(error) => {
+                        if let Some(message) = error {
+                            return Err(eyre!(message));
+                        } else {
+                            return Ok(());
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -68,10 +123,18 @@ impl MainEventHandler {
             if let Ok(evt) = self.ipc.rx.recv() {
                 match evt {
                     MainMessage::UIPaused => {
+                        self.ctrlc_handler.block()?;
                         return Ok(());
                     }
-                    MainMessage::Quit => {
-                        return Err(eyre!("quit received during pause"));
+                    MainMessage::Quit(error) => {
+                        if let Some(message) = error {
+                            return Err(eyre!(
+                                "quit received during pause: details: {}",
+                                message
+                            ));
+                        } else {
+                            return Err(eyre!("quit received during pause"));
+                        }
                     }
                     other => {
                         log::debug!("pause_ui: ignored {:?}", other);
@@ -92,10 +155,18 @@ impl MainEventHandler {
             if let Ok(evt) = self.ipc.rx.recv() {
                 match evt {
                     MainMessage::UIResumed => {
+                        self.ctrlc_handler.unblock()?;
                         return Ok(());
                     }
-                    MainMessage::Quit => {
-                        return Err(eyre!("quit received during resume"));
+                    MainMessage::Quit(error) => {
+                        if let Some(message) = error {
+                            return Err(eyre!(
+                                "quit received during resume: details: {}",
+                                message
+                            ));
+                        } else {
+                            return Err(eyre!("quit received during resume"));
+                        }
                     }
                     other => {
                         log::debug!("resume_ui: ignored {:?}", other);

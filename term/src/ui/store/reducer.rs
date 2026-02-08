@@ -1,5 +1,7 @@
 //! Pure reducer functions that compute new state from actions.
 
+use std::fmt::Debug;
+
 use super::{action::Action, effect::Effect, state::State};
 
 mod reducers;
@@ -20,10 +22,12 @@ impl Reducer {
         match action {
             // UI actions
             Action::SetUIPaused(value) => {
+                self.log_action("SetUIPaused", &value, state);
                 reducers::ui::set_ui_paused(state, value);
                 Effect::None
             }
             Action::SetError(err) => {
+                self.log_action("SetError", &err, state);
                 reducers::ui::set_error(state, err);
                 Effect::None
             }
@@ -35,47 +39,42 @@ impl Reducer {
                 state.logs.push_back(log);
                 Effect::None
             }
-            Action::ToggleViewSelect => {
-                reducers::ui::toggle_view_select(state);
-                Effect::None
-            }
-            Action::UpdateView(id) => {
-                reducers::ui::update_view(state, id);
-                Effect::None
-            }
             Action::UpdateMessage(message) => {
+                self.log_action("UpdateMessage", &message, state);
                 reducers::ui::update_message(state, message);
                 Effect::None
             }
             Action::PreviewTheme(theme) => {
+                self.log_action("PreviewTheme", &theme, state);
                 reducers::ui::preview_theme(state, theme);
                 Effect::None
             }
 
             // Device actions
             Action::UpdateAllDevices(devices) => {
+                self.log_action("UpdateAllDevices", &devices, state);
                 reducers::device::update_all_devices(state, devices);
                 Effect::None
             }
             Action::AddDevice(device) => {
+                self.log_action("AddDevice", &device, state);
                 reducers::device::add_device(state, device);
-                Effect::None
-            }
-            Action::UpdateSelectedDevice(ip) => {
-                reducers::device::update_selected_device(state, ip);
                 Effect::None
             }
 
             // Config actions
             Action::UpdateConfig(config) => {
+                self.log_action("UpdateConfig", &config, state);
                 reducers::config::update_config(state, &config);
                 Effect::SaveConfig(config)
             }
             Action::CreateAndSetConfig(config) => {
+                self.log_action("CreateAndSetConfig", &config, state);
                 reducers::config::create_and_set_config(state, &config);
                 Effect::CreateConfig(config)
             }
             Action::UpdateDeviceConfig(device_config) => {
+                self.log_action("UpdateDeviceConfig", &device_config, state);
                 let config = reducers::config::update_device_config(
                     state,
                     device_config,
@@ -85,18 +84,27 @@ impl Reducer {
 
             // Command actions
             Action::SetCommandInProgress(value) => {
+                self.log_action("SetCommandInProgress", &value, state);
                 reducers::command::set_command_in_progress(state, value);
                 Effect::None
             }
             Action::UpdateCommandOutput((cmd, output)) => {
+                self.log_action("UpdateCommandOutput", &output, state);
                 reducers::command::update_command_output(state, cmd, output);
                 Effect::None
             }
             Action::ClearCommandOutput => {
+                self.log_action("ClearCommandOutput", &"", state);
                 reducers::command::clear_command_output(state);
                 Effect::None
             }
         }
+    }
+
+    fn log_action<D: Debug>(&self, name: &str, data: &D, state: &mut State) {
+        state
+            .logs
+            .push_back(format!("processing action: {name}({:?})", data));
     }
 }
 

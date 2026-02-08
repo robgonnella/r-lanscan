@@ -61,12 +61,20 @@ fn setup() -> (DeviceView, Arc<Store>, String) {
         vendor: "mac".to_string(),
     };
 
+    let device_config = DeviceConfig {
+        id: device.mac.to_string(),
+        ssh_identity_file: identity.clone(),
+        ssh_port: 22,
+        ssh_user: user.clone(),
+    };
+
     store.dispatch(Action::AddDevice(device.clone())).unwrap();
-    store
-        .dispatch(Action::UpdateSelectedDevice(device.ip))
-        .unwrap();
     (
-        DeviceView::new(Arc::clone(&store) as Arc<dyn Dispatcher>),
+        DeviceView::new(
+            Arc::clone(&store) as Arc<dyn Dispatcher>,
+            device,
+            device_config,
+        ),
         store,
         tmp_path,
     )
@@ -79,7 +87,7 @@ fn tear_down(conf_path: String) {
 #[test]
 fn test_device_view() {
     let (dev_view, store, conf_path) = setup();
-    let mut terminal = Terminal::new(TestBackend::new(100, 15)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(130, 15)).unwrap();
     let state = store.get_state().unwrap();
 
     terminal

@@ -34,7 +34,7 @@ pub enum MainMessage {
     /// Request to execute an external command.
     ExecCommand(Command),
     /// Request to quit the application.
-    Quit,
+    Quit(Option<String>),
 }
 
 /// Messages sent from the main event handler to the renderer.

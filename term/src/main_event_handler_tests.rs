@@ -780,7 +780,7 @@ fn listens_for_events() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::Quit))
+        .returning(|| Ok(MainMessage::Quit(None)))
         .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
@@ -821,7 +821,7 @@ fn pause_ui_handles_quit() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::Quit))
+        .returning(|| Ok(MainMessage::Quit(None)))
         .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);
@@ -892,7 +892,7 @@ fn resume_ui_handles_quit() {
 
     mock_receiver
         .expect_recv()
-        .returning(|| Ok(MainMessage::Quit))
+        .returning(|| Ok(MainMessage::Quit(None)))
         .times(1);
 
     let test = setup(conf_manager, mock_executor, mock_sender, mock_receiver);

@@ -10,8 +10,6 @@ use crate::{
     ui::colors::Theme,
 };
 
-use super::state::ViewID;
-
 /// Commands that trigger state changes via the reducer.
 #[derive(Debug)]
 pub enum Action {
@@ -21,13 +19,10 @@ pub enum Action {
     SetCommandInProgress(Option<Command>),
     UpdateCommandOutput((Command, Output)),
     ClearCommandOutput,
-    ToggleViewSelect,
-    UpdateView(ViewID),
     UpdateMessage(Option<String>),
     PreviewTheme(Theme),
     UpdateAllDevices(HashMap<Ipv4Addr, Device>),
     AddDevice(Device),
-    UpdateSelectedDevice(Ipv4Addr),
     UpdateConfig(Config),
     UpdateDeviceConfig(DeviceConfig),
     CreateAndSetConfig(Config),

@@ -32,7 +32,7 @@ impl CustomStatefulWidget for ScrollView<'_> {
         ctx: &CustomWidgetContext,
     ) {
         // main view + right aligned scrollbar
-        let [logs_area, scroll_bar_area] =
+        let [content_area, scroll_bar_area] =
             Layout::horizontal([Constraint::Min(5), Constraint::Length(3)])
                 .areas(area);
 
@@ -42,7 +42,7 @@ impl CustomStatefulWidget for ScrollView<'_> {
             .wrap(Wrap { trim: true })
             .scroll((position, 0));
 
-        p.render(logs_area, buf);
+        p.render(content_area, buf);
 
         let scrollbar = ScrollBar::new();
 

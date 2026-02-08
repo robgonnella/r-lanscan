@@ -1,5 +1,7 @@
+name: test
+
 services:
-  openssh-server:
+  ssh-server:
     image: lscr.io/linuxserver/openssh-server:latest
     environment:
       TZ: Etc/UTC
@@ -14,7 +16,7 @@ services:
       default:
         ipv4_address: 172.22.0.10
 
-  nginx:
+  web-server:
     image: nginx:latest
     ports:
       - 8080:80
@@ -24,6 +26,7 @@ services:
 
   workspace:
     build: .
+    hostname: workspace
     volumes:
       - $PRIVATE_KEY_FILE:/root/.ssh/id_rsa:ro
       - $PUBLIC_KEY_FILE:/root/.ssh/id_rsa.pub:ro

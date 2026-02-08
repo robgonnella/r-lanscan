@@ -1,6 +1,7 @@
 //! Single device detail view with SSH config, info, and command output.
 
 use crate::{
+    config::DeviceConfig,
     ipc::message::{Command, MainMessage},
     shell::traits::BrowseArgs,
     ui::{
@@ -9,21 +10,16 @@ use crate::{
             input::{Input, InputState},
             popover::get_popover_area,
         },
-        store::{
-            Dispatcher,
-            action::Action,
-            derived::get_selected_device_config_from_state,
-            state::{State, ViewID},
-        },
+        store::{Dispatcher, action::Action, state::State},
         views::traits::CustomEventContext,
     },
 };
 use color_eyre::eyre::Result;
 use r_lanlib::scanners::Device;
 use ratatui::{
-    crossterm::event::{Event as CrossTermEvent, KeyCode},
+    crossterm::event::{Event as CrossTermEvent, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    style::Style,
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Clear, Padding, Paragraph, Widget, Wrap},
 };
@@ -58,6 +54,8 @@ const FOCUS_BROWSER_ARRAY: [FocusBrowser; 2] =
 /// View for displaying device details and executing SSH, traceroute, browse.
 pub struct DeviceView {
     dispatcher: Arc<dyn Dispatcher>,
+    device: Device,
+    device_config: DeviceConfig,
     editing_ssh: RefCell<bool>,
     editing_browser: RefCell<bool>,
     ssh_focus: RefCell<i8>,
@@ -71,9 +69,15 @@ pub struct DeviceView {
 
 impl DeviceView {
     /// Creates a new device view with the given dispatcher.
-    pub fn new(dispatcher: Arc<dyn Dispatcher>) -> Self {
+    pub fn new(
+        dispatcher: Arc<dyn Dispatcher>,
+        device: Device,
+        device_config: DeviceConfig,
+    ) -> Self {
         Self {
             dispatcher,
+            device,
+            device_config,
             editing_ssh: RefCell::new(false),
             editing_browser: RefCell::new(false),
             ssh_focus: RefCell::new(0),
@@ -101,6 +105,35 @@ impl DeviceView {
         }
     }
 
+    pub fn update_device(
+        &mut self,
+        device: Device,
+        device_config: DeviceConfig,
+    ) {
+        self.device = device;
+        self.device_config = device_config;
+    }
+
+    fn render_label(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        let [label_area, _] =
+            Layout::horizontal([Constraint::Length(25), Constraint::Min(0)])
+                .areas(area);
+
+        let header_style = Style::default()
+            .fg(ctx.state.colors.text)
+            .bg(ctx.state.colors.row_header_bg)
+            .add_modifier(Modifier::BOLD);
+
+        Paragraph::new(format!("Device: {}", self.device.ip))
+            .style(header_style)
+            .render(label_area, buf);
+    }
+
     fn render_device_ssh_config(
         &self,
         area: Rect,
@@ -108,14 +141,12 @@ impl DeviceView {
         ctx: &CustomWidgetContext,
     ) {
         if !*self.editing_ssh.borrow() {
-            let device_config =
-                get_selected_device_config_from_state(ctx.state);
             self.ssh_user_state.borrow_mut().value =
-                device_config.ssh_user.clone();
+                self.device_config.ssh_user.clone();
             self.ssh_port_state.borrow_mut().value =
-                device_config.ssh_port.to_string();
+                self.device_config.ssh_port.to_string();
             self.ssh_identity_state.borrow_mut().value =
-                device_config.ssh_identity_file.clone();
+                self.device_config.ssh_identity_file.clone();
         }
 
         let rects = Layout::vertical([
@@ -160,7 +191,6 @@ impl DeviceView {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        device: &Device,
         ctx: &CustomWidgetContext,
     ) {
         let [header_area, _, info_area] = Layout::vertical([
@@ -170,17 +200,17 @@ impl DeviceView {
         ])
         .areas(area);
 
-        let host_str = format!("Hostname: {0}", device.hostname);
-        let ip_str = if device.is_current_host {
-            format!("IP: {0} [YOU]", device.ip)
+        let host_str = format!("Hostname: {0}", self.device.hostname);
+        let ip_str = if self.device.is_current_host {
+            format!("IP: {0} [YOU]", self.device.ip)
         } else {
-            format!("IP: {0}", device.ip)
+            format!("IP: {0}", self.device.ip)
         };
-        let mac_str = format!("MAC: {0}", device.mac);
-        let vendor_str = format!("Vendor: {0}", device.vendor);
+        let mac_str = format!("MAC: {0}", self.device.mac);
+        let vendor_str = format!("Vendor: {0}", self.device.vendor);
         let open_ports_str = format!(
             "Open Ports: {0}",
-            device
+            self.device
                 .open_ports
                 .to_sorted_vec()
                 .iter()
@@ -516,18 +546,16 @@ impl DeviceView {
 }
 
 impl View for DeviceView {
-    fn id(&self) -> ViewID {
-        ViewID::Device
-    }
-    fn legend(&self, state: &State) -> &str {
+    fn legend(&self, state: &State) -> String {
         if *self.editing_browser.borrow() || *self.editing_ssh.borrow() {
-            "(esc) exit configuration | (enter) save configuration"
+            "(esc) exit configuration | (enter) save configuration".into()
         } else if self.is_tracing(state) {
-            "tracing..."
+            "tracing...".into()
         } else {
-            "(esc) back to devices | (c) configure | (s) SSH | (t) traceroute | (b) browse"
+            "(esc) back to devices | (c) configure | (s) SSH | (t) traceroute | (b) browse".into()
         }
     }
+
     fn override_main_legend(&self, _state: &State) -> bool {
         true
     }
@@ -546,7 +574,9 @@ impl CustomWidgetRef for DeviceView {
         ])
         .areas(area);
 
-        let [ssh_area, _, info_area] = Layout::vertical([
+        let [label_area, _, ssh_area, _, info_area] = Layout::vertical([
+            Constraint::Length(1),       // label
+            Constraint::Length(2),       // spacer
             Constraint::Length(8),       // ssh info
             Constraint::Length(1),       // spacer
             Constraint::Percentage(100), // device info
@@ -555,13 +585,12 @@ impl CustomWidgetRef for DeviceView {
 
         let popover_area = get_popover_area(ctx.app_area, 40, 30);
 
-        if let Some(device) = ctx.state.selected_device.as_ref() {
-            self.render_device_ssh_config(ssh_area, buf, ctx);
-            self.render_device_info(info_area, buf, device, ctx);
-            self.render_cmd_output(right_area, buf, ctx);
-            // important that this is last so it properly layers on top
-            self.render_browser_config_popover(popover_area, buf, ctx);
-        }
+        self.render_label(label_area, buf, ctx);
+        self.render_device_ssh_config(ssh_area, buf, ctx);
+        self.render_device_info(info_area, buf, ctx);
+        self.render_cmd_output(right_area, buf, ctx);
+        // important that this is last so it properly layers on top
+        self.render_browser_config_popover(popover_area, buf, ctx);
 
         Ok(())
     }
@@ -573,172 +602,186 @@ impl EventHandler for DeviceView {
         evt: &CrossTermEvent,
         ctx: &CustomEventContext,
     ) -> Result<bool> {
-        if ctx.state.render_view_select {
-            return Ok(false);
-        }
-
-        let mut handled = false;
-
         match evt {
             CrossTermEvent::FocusGained => {}
             CrossTermEvent::FocusLost => {}
+            // override scroll events from devices view
             CrossTermEvent::Mouse(_m) => {}
             CrossTermEvent::Paste(_s) => {}
             CrossTermEvent::Resize(_x, _y) => {}
-            CrossTermEvent::Key(key) => match key.code {
-                KeyCode::Esc => {
-                    if *self.editing_browser.borrow()
-                        || *self.editing_ssh.borrow()
-                    {
-                        self.reset_input_state();
-                        handled = true;
-                    } else if !self.is_tracing(ctx.state) {
-                        self.dispatcher.dispatch(Action::ClearCommandOutput)?;
-                        self.dispatcher
-                            .dispatch(Action::UpdateView(ViewID::Devices))?;
-                        handled = true;
-                    }
-                }
-                KeyCode::Right => {
-                    if *self.editing_browser.borrow() {
-                        self.next_browser();
-                        handled = true;
-                    }
-                }
-                KeyCode::Left => {
-                    if *self.editing_browser.borrow() {
-                        self.next_browser();
-                        handled = true;
-                    }
-                }
-                KeyCode::Tab => {
-                    if *self.editing_browser.borrow()
-                        || *self.editing_ssh.borrow()
-                    {
-                        self.focus_next();
-                        handled = true;
-                    }
-                }
-                KeyCode::BackTab => {
-                    if *self.editing_browser.borrow()
-                        || *self.editing_ssh.borrow()
-                    {
-                        self.focus_previous();
-                        handled = true;
-                    }
-                }
-                KeyCode::Enter => {
-                    if *self.editing_browser.borrow() {
-                        let port_str =
-                            self.browser_port_state.borrow().value.clone();
-                        if let Ok(port) = port_str.parse::<u16>()
-                            && let Some(selected) =
-                                ctx.state.selected_device.as_ref()
-                        {
-                            let _ = ctx.ipc.send(MainMessage::ExecCommand(
-                                Command::Browse(BrowseArgs {
-                                    device: selected.clone(),
-                                    port,
-                                    use_lynx: self
-                                        .browser_select_state
-                                        .borrow()
-                                        .value
-                                        == "lynx",
-                                }),
-                            ));
-                            self.reset_input_state();
-                            handled = true;
+            CrossTermEvent::Key(key) => {
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Esc => {
+                            if *self.editing_browser.borrow()
+                                || *self.editing_ssh.borrow()
+                            {
+                                self.reset_input_state();
+                                return Ok(true);
+                            } else {
+                                self.dispatcher
+                                    .dispatch(Action::ClearCommandOutput)?;
+                                // allow this one to bubble up to next layer
+                                return Ok(false);
+                            }
                         }
-                    } else if *self.editing_ssh.borrow()
-                        && let Some(device) = ctx.state.selected_device.as_ref()
-                    {
-                        // save config
-                        let mut device_config =
-                            get_selected_device_config_from_state(ctx.state);
-                        device_config.ssh_user =
-                            self.ssh_user_state.borrow().value.clone();
-                        let port = self
-                            .ssh_port_state
-                            .borrow()
-                            .value
-                            .clone()
-                            .parse::<u16>();
-                        device_config.ssh_port = port.unwrap_or(22);
-                        device_config.ssh_identity_file =
-                            self.ssh_identity_state.borrow().value.clone();
-                        self.dispatcher.dispatch(
-                            Action::UpdateDeviceConfig(device_config),
-                        )?;
-                        self.dispatcher.dispatch(
-                            Action::UpdateSelectedDevice(device.ip),
-                        )?;
-                        self.reset_input_state();
-                        handled = true;
-                    }
-                }
-                KeyCode::Backspace => {
-                    if *self.editing_browser.borrow()
-                        || *self.editing_ssh.borrow()
-                    {
-                        self.pop_input_char();
-                        handled = true;
-                    }
-                }
-                KeyCode::Char(c) => {
-                    if *self.editing_browser.borrow()
-                        || *self.editing_ssh.borrow()
-                    {
-                        // handle value update for focused element
-                        self.push_input_char(c);
-                        handled = true;
-                    } else if self.is_tracing(ctx.state) {
-                        handled = true
-                    } else if c == 'c' {
-                        // enter edit mode
-                        *self.ssh_focus.borrow_mut() = 0;
-                        self.ssh_user_state.borrow_mut().editing = true;
-                        *self.editing_ssh.borrow_mut() = true;
-                        handled = true;
-                    } else if c == 's'
-                        && let Some(selected) =
-                            ctx.state.selected_device.as_ref()
-                        && let Some(selected_config) =
-                            ctx.state.selected_device_config.as_ref()
-                    {
-                        if ctx.state.cmd_in_progress.is_none() {
-                            handled = true;
-                            let _ = ctx.ipc.send(MainMessage::ExecCommand(
-                                Command::Ssh(
-                                    selected.clone(),
-                                    selected_config.clone(),
-                                ),
-                            ));
+                        KeyCode::Right => {
+                            if *self.editing_browser.borrow() {
+                                self.next_browser();
+                                return Ok(true);
+                            }
+                            // allow tab change to bubble up
+                            return Ok(false);
                         }
-                    } else if c == 't' {
-                        if !self.is_tracing(ctx.state)
-                            && let Some(selected) =
-                                ctx.state.selected_device.as_ref()
-                        {
-                            let _ = ctx.ipc.send(MainMessage::ExecCommand(
-                                Command::TraceRoute(selected.clone()),
-                            ));
-                            handled = true;
+                        KeyCode::Left => {
+                            if *self.editing_browser.borrow() {
+                                self.next_browser();
+                                return Ok(true);
+                            }
+                            // allow tab change to bubble up
+                            return Ok(false);
                         }
-                    } else if c == 'b' {
-                        *self.browser_focus.borrow_mut() = 0;
-                        let mut browser_state =
-                            self.browser_select_state.borrow_mut();
-                        browser_state.editing = true;
-                        browser_state.value = "default".to_string();
-                        *self.editing_browser.borrow_mut() = true;
-                        handled = true;
+                        KeyCode::Tab => {
+                            if *self.editing_browser.borrow()
+                                || *self.editing_ssh.borrow()
+                            {
+                                self.focus_next();
+                                return Ok(true);
+                            }
+                            // allow tab change to bubble up
+                            return Ok(false);
+                        }
+                        KeyCode::BackTab => {
+                            if *self.editing_browser.borrow()
+                                || *self.editing_ssh.borrow()
+                            {
+                                self.focus_previous();
+                                return Ok(true);
+                            }
+                            // allow tab change to bubble up
+                            return Ok(false);
+                        }
+                        KeyCode::Enter => {
+                            if *self.editing_browser.borrow() {
+                                let port_str = self
+                                    .browser_port_state
+                                    .borrow()
+                                    .value
+                                    .clone();
+                                if let Ok(port) = port_str.parse::<u16>() {
+                                    ctx.ipc.send(MainMessage::ExecCommand(
+                                        Command::Browse(BrowseArgs {
+                                            device: self.device.clone(),
+                                            port,
+                                            use_lynx: self
+                                                .browser_select_state
+                                                .borrow()
+                                                .value
+                                                == "lynx",
+                                        }),
+                                    ))?;
+                                    self.reset_input_state();
+                                    return Ok(true);
+                                }
+                            }
+
+                            if *self.editing_ssh.borrow() {
+                                let mut device_config =
+                                    self.device_config.clone();
+                                device_config.ssh_user =
+                                    self.ssh_user_state.borrow().value.clone();
+                                let port = self
+                                    .ssh_port_state
+                                    .borrow()
+                                    .value
+                                    .clone()
+                                    .parse::<u16>();
+                                device_config.ssh_port = port.unwrap_or(22);
+                                device_config.ssh_identity_file = self
+                                    .ssh_identity_state
+                                    .borrow()
+                                    .value
+                                    .clone();
+                                self.dispatcher.dispatch(
+                                    Action::UpdateDeviceConfig(device_config),
+                                )?;
+                                self.reset_input_state();
+                                return Ok(true);
+                            }
+                        }
+                        KeyCode::Backspace => {
+                            if *self.editing_browser.borrow()
+                                || *self.editing_ssh.borrow()
+                            {
+                                self.pop_input_char();
+                                return Ok(true);
+                            }
+                        }
+                        KeyCode::Char(c) => {
+                            if *self.editing_browser.borrow()
+                                || *self.editing_ssh.borrow()
+                            {
+                                // handle value update for focused element
+                                self.push_input_char(c);
+                                return Ok(true);
+                            }
+
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
+
+                            if c == 'c' {
+                                // enter edit mode
+                                *self.ssh_focus.borrow_mut() = 0;
+                                self.ssh_user_state.borrow_mut().editing = true;
+                                *self.editing_ssh.borrow_mut() = true;
+                                return Ok(true);
+                            }
+
+                            if c == 's' && ctx.state.cmd_in_progress.is_none() {
+                                let _ = ctx.ipc.send(MainMessage::ExecCommand(
+                                    Command::Ssh(
+                                        self.device.clone(),
+                                        self.device_config.clone(),
+                                    ),
+                                ));
+                                return Ok(true);
+                            }
+
+                            if c == 't' && !self.is_tracing(ctx.state) {
+                                ctx.ipc.send(MainMessage::ExecCommand(
+                                    Command::TraceRoute(self.device.clone()),
+                                ))?;
+                                return Ok(true);
+                            }
+
+                            if c == 'b' {
+                                *self.browser_focus.borrow_mut() = 0;
+                                let mut browser_state =
+                                    self.browser_select_state.borrow_mut();
+                                browser_state.editing = true;
+                                browser_state.value = "default".to_string();
+                                *self.editing_browser.borrow_mut() = true;
+                                return Ok(true);
+                            }
+
+                            if c == 'f'
+                                || c == 'd'
+                                    && !*self.editing_browser.borrow()
+                                    && !*self.editing_ssh.borrow()
+                            {
+                                // allow tab change to bubble up
+                                return Ok(false);
+                            }
+                        }
+                        _ => {}
                     }
                 }
-                _ => {}
-            },
+            }
         }
 
-        Ok(handled)
+        // override all other key handlers from devices view
+        Ok(true)
     }
 }
 

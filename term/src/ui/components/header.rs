@@ -31,7 +31,7 @@ impl CustomWidget for Header {
         Self: Sized,
     {
         let header_style = Style::default()
-            .fg(ctx.state.colors.label)
+            .fg(ctx.state.colors.header_text)
             .add_modifier(Modifier::BOLD);
 
         let header =

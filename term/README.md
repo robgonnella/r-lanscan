@@ -110,29 +110,25 @@ sudo r-lanterm --debug
 
 ## User Interface
 
-### Main Views
+### Tabs
 
-The application provides several interactive views:
+The application uses a tab-based interface with three tabs displayed at the top
+of the screen. Use `f` / `d` (or `Tab` / `Shift+Tab`) to switch between tabs.
 
-#### 1. Devices View (Default)
+#### 1. Devices (Default)
 
 - **Purpose**: Display all discovered network devices in a table
 - **Columns**: IP Address, Hostname, Vendor, MAC Address, Open Ports
 - **Navigation**: Use arrow keys or `j`/`k` to navigate
-- **Selection**: Press `Enter` to manage device
+- **Selection**: Press `Enter` to view device details inline
+- **Back**: Press `Esc` to return to the device list
 
-#### 2. Device Detail View
-
-- **Purpose**: Detailed information and actions for a specific device
-- **Features**: SSH connection, traceroute, port browsing, device
-  configuration
-
-#### 3. Configuration View
+#### 2. Config
 
 - **Purpose**: Manage global and device-specific settings
 - **Options**: SSH credentials, port ranges, themes
 
-#### 4. Logs View
+#### 3. Logs
 
 - **Purpose**: View real-time application logs and scan activity
 - **Features**: Scrollable log history, displays scan events and status messages
@@ -142,19 +138,20 @@ The application provides several interactive views:
 
 #### Global Controls
 
-- **`q`** - Quit application
-- **`Ctrl+C`** - Force quit (also handles external commands)
-- **`v`** - Change view / Open view selection menu
+- **`Ctrl+C`** - Quit application
+- **`f` / `Tab` / `→`** - Next tab
+- **`d` / `Shift+Tab` / `←`** - Previous tab
 - **`Esc`** - Cancel current action or go back
 
-#### Devices View
+#### Devices Tab
 
 - **`j` / `↓`** - Move down in device list
 - **`k` / `↑`** - Move up in device list
 - **`Enter`** - View selected device details
+- **`Esc`** - Back to device list (from device details)
 - **Mouse wheel** - Scroll through device list
 
-#### Device Detail View
+#### Device Details (within Devices Tab)
 
 - **`Esc`** - Back to devices list
 - **`c`** - Configure device-specific SSH settings
@@ -162,7 +159,7 @@ The application provides several interactive views:
 - **`t`** - Run traceroute to device
 - **`b`** - Browse device via web browser (specify port)
 
-#### Configuration View
+#### Config Tab
 
 - **`c`** - Start/enter configuration mode
 - **`Tab`** - Focus next input field
@@ -172,7 +169,7 @@ The application provides several interactive views:
 - **`← / →`** - Navigate theme colors (when in theme field)
 - **`Backspace`** - Delete character in input fields
 
-#### Logs View
+#### Logs Tab
 
 - **`j` / `↓`** - Scroll down
 - **`k` / `↑`** - Scroll up
@@ -260,7 +257,7 @@ r-lanterm continuously monitors your network:
 
 **Configuration**:
 
-1. Navigate to Configuration view (`v` → select Config)
+1. Navigate to the Config tab (`f` / `d` to switch tabs)
 2. Press `c` to enter configuration mode
 3. Set SSH user, port, and identity file path
 4. Press `Enter` to save
@@ -273,13 +270,13 @@ r-lanterm continuously monitors your network:
 
 - Shows network path to selected device
 - Displays hop-by-hop latency information
-- Results shown directly in the device detail view
+- Results shown directly in the device details panel
 - Uses ICMP traceroute for accurate results
 
 **Usage**:
 
-1. Select device in Devices view (`Enter`)
-2. Press `t` in Device Detail view
+1. Select a device in the Devices tab (`Enter`)
+2. Press `t` to run traceroute
 3. Results appear in real-time
 
 ### Web Browsing
@@ -295,7 +292,7 @@ r-lanterm continuously monitors your network:
 
 **Usage**:
 
-1. Select device in Device Detail view
+1. Select a device in the Devices tab (`Enter`)
 2. Press `b` to browse
 3. Select browser type (default or lynx) using arrow keys
 4. Enter port number
