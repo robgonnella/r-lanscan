@@ -23,7 +23,6 @@ use crate::{
     },
     ui::{
         app::{App, Application},
-        colors::Theme,
         store::{Dispatcher, StateGetter, Store, action::Action, state::State},
         views::traits::{CustomEventContext, CustomWidgetContext},
     },
@@ -44,14 +43,13 @@ impl<B: Backend + std::io::Write> Renderer<B> {
     /// Creates a new renderer with the given terminal, theme, store, and IPC.
     pub fn new(
         terminal: Terminal<B>,
-        theme: Theme,
         store: Arc<Store>,
         ipc: RendererIpc,
     ) -> Self {
         Self {
             terminal: RefCell::new(terminal),
             store: Arc::clone(&store),
-            app: Box::new(App::new(theme, store as Arc<dyn Dispatcher>)),
+            app: Box::new(App::new(store as Arc<dyn Dispatcher>)),
             ipc,
         }
     }

@@ -49,10 +49,7 @@ use crate::{
         renderer::{RendererIpc, RendererReceiver, RendererSender},
     },
     shell::Shell,
-    ui::{
-        colors::Theme,
-        store::{Dispatcher, SubscriptionProvider, state::State},
-    },
+    ui::store::{Dispatcher, SubscriptionProvider, state::State},
 };
 
 #[doc(hidden)]
@@ -198,7 +195,6 @@ fn start_renderer_thread(
     main_tx: Sender<MainMessage>,
     renderer_rx: Receiver<RendererMessage>,
     store: Arc<Store>,
-    theme: Theme,
 ) -> JoinHandle<Result<()>> {
     // start tui renderer thread
     thread::spawn(move || {
@@ -210,7 +206,7 @@ fn start_renderer_thread(
             Box::new(RendererReceiver::new(renderer_rx)),
         );
         let app_renderer =
-            renderer::Renderer::new(terminal, theme, store, renderer_ipc);
+            renderer::Renderer::new(terminal, store, renderer_ipc);
         app_renderer.start_render_loop()
     })
 }
@@ -299,7 +295,6 @@ fn main() -> Result<()> {
     let interface = get_default_interface()
         .ok_or_else(|| eyre!("Could not detect default network interface"))?;
     let (config, mut store) = init(&args, &interface)?;
-    let theme = Theme::from_string(&config.theme);
 
     let (renderer_tx, renderer_rx) = channel();
     let (main_tx, main_rx) = channel();
@@ -331,7 +326,7 @@ fn main() -> Result<()> {
 
     // start separate thread for tui rendering process
     let renderer_handle =
-        start_renderer_thread(main_tx, renderer_rx, Arc::clone(&store), theme);
+        start_renderer_thread(main_tx, renderer_rx, Arc::clone(&store));
 
     // loop / block and process incoming ipc messages in main thread
     process_main_thread_events(renderer_tx, main_rx, Arc::clone(&store))?;

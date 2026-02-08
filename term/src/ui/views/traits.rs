@@ -5,7 +5,7 @@ use ratatui::{crossterm::event::Event as CrossTermEvent, layout::Rect};
 
 use crate::{
     ipc::{message::MainMessage, traits::IpcSender},
-    ui::store::state::{State, ViewID},
+    ui::store::state::State,
 };
 
 /// Context passed to widgets during rendering and event handling.
@@ -71,9 +71,8 @@ pub trait CustomStatefulWidget {
 
 /// A screen that handles events and renders content.
 pub trait View: EventHandler + CustomWidgetRef {
-    fn id(&self) -> ViewID;
-    fn legend(&self, _state: &State) -> &str {
-        ""
+    fn legend(&self, _state: &State) -> String {
+        "".into()
     }
     fn override_main_legend(&self, _state: &State) -> bool {
         false

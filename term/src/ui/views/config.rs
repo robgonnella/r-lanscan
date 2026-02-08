@@ -7,11 +7,7 @@ use crate::ui::{
         header::Header,
         input::{Input, InputState},
     },
-    store::{
-        Dispatcher,
-        action::Action,
-        state::{State, ViewID},
-    },
+    store::{Dispatcher, action::Action, state::State},
     views::traits::CustomEventContext,
 };
 use color_eyre::eyre::Result;
@@ -326,16 +322,15 @@ impl ConfigView {
 }
 
 impl View for ConfigView {
-    fn id(&self) -> ViewID {
-        ViewID::Config
-    }
-    fn legend(&self, _state: &State) -> &str {
+    fn legend(&self, _state: &State) -> String {
         if *self.editing.borrow() {
             "(esc) exit configuration | (tab) focus next | (enter) save config"
+                .into()
         } else {
-            "(c) configure"
+            "(c) configure".into()
         }
     }
+
     fn override_main_legend(&self, _state: &State) -> bool {
         *self.editing.borrow()
     }
@@ -379,10 +374,6 @@ impl EventHandler for ConfigView {
         evt: &Event,
         ctx: &CustomEventContext,
     ) -> Result<bool> {
-        if ctx.state.render_view_select {
-            return Ok(false);
-        }
-
         let mut handled = false;
         match evt {
             Event::FocusGained => {}

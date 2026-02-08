@@ -35,14 +35,6 @@ impl Reducer {
                 state.logs.push_back(log);
                 Effect::None
             }
-            Action::ToggleViewSelect => {
-                reducers::ui::toggle_view_select(state);
-                Effect::None
-            }
-            Action::UpdateView(id) => {
-                reducers::ui::update_view(state, id);
-                Effect::None
-            }
             Action::UpdateMessage(message) => {
                 reducers::ui::update_message(state, message);
                 Effect::None
@@ -59,10 +51,6 @@ impl Reducer {
             }
             Action::AddDevice(device) => {
                 reducers::device::add_device(state, device);
-                Effect::None
-            }
-            Action::UpdateSelectedDevice(ip) => {
-                reducers::device::update_selected_device(state, ip);
                 Effect::None
             }
 
