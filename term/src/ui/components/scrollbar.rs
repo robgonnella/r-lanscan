@@ -43,7 +43,7 @@ impl CustomStatefulWidget for ScrollBar {
             .orientation(ScrollbarOrientation::VerticalRight)
             .begin_symbol(None)
             .end_symbol(None)
-            .style(Style::new().fg(ctx.state.colors.scroll_bar_fg));
+            .style(Style::new().fg(ctx.state.colors.gray));
 
         scrollbar.render(scroll_area, buf, state);
     }

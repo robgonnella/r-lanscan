@@ -8,15 +8,14 @@ use ratatui::style::{Color, palette::tailwind};
 #[derive(Clone, Debug)]
 pub struct Colors {
     pub buffer_bg: Color,
-    pub header_bg: Color,
-    pub header_fg: Color,
+    pub row_header_bg: Color,
     pub selected_row_fg: Color,
     pub error: Color,
-    pub fg: Color,
-    pub bg: Color,
+    pub header_text: Color,
+    pub text: Color,
     pub border_color: Color,
-    pub scroll_bar_fg: Color,
-    pub label: Color,
+    pub light_gray: Color,
+    pub gray: Color,
     pub input_editing: Color,
 }
 
@@ -26,29 +25,27 @@ impl Colors {
     pub fn new(color: &tailwind::Palette, true_color_enabled: bool) -> Self {
         let basic_colors = Self {
             buffer_bg: Color::Black,
-            header_bg: color.c900,
-            header_fg: Color::Black,
+            row_header_bg: color.c900,
             selected_row_fg: color.c400,
             error: Color::Red,
-            fg: Color::White,
-            bg: Color::Black,
+            header_text: color.c400,
+            text: Color::White,
             border_color: color.c400,
-            scroll_bar_fg: Color::Black,
-            label: color.c400,
+            light_gray: Color::Gray,
+            gray: Color::DarkGray,
             input_editing: Color::LightYellow,
         };
 
         let tw_colors = Self {
             buffer_bg: tailwind::SLATE.c950,
-            header_bg: color.c900,
-            header_fg: tailwind::SLATE.c200,
+            row_header_bg: color.c900,
             selected_row_fg: color.c400,
             error: tailwind::RED.c600,
-            fg: tailwind::SLATE.c200,
-            bg: tailwind::SLATE.c950,
+            header_text: color.c600,
+            text: tailwind::SLATE.c200,
             border_color: color.c400,
-            scroll_bar_fg: tailwind::SLATE.c800,
-            label: color.c400,
+            light_gray: tailwind::SLATE.c500,
+            gray: tailwind::SLATE.c800,
             input_editing: tailwind::AMBER.c600,
         };
 
