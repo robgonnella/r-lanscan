@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Commands that trigger state changes via the reducer.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Action {
     SetUIPaused(bool),
     SetError(Option<String>),
@@ -25,5 +25,5 @@ pub enum Action {
     AddDevice(Device),
     UpdateConfig(Config),
     UpdateDeviceConfig(DeviceConfig),
-    CreateAndSetConfig(Config),
+    Sync(Box<Action>),
 }

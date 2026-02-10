@@ -39,8 +39,7 @@ fn main() {
 
     let scanner = FullScanner::builder()
         .interface(interface)
-        .packet_sender(wire.0)
-        .packet_reader(wire.1)
+        .wire(wire)
         .targets(ip_targets)
         .ports(port_targets)
         .vendor(vendor)

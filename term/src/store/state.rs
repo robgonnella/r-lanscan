@@ -15,9 +15,6 @@ use crate::ui::colors::Theme;
 /// Maximum log lines to store in state
 pub const MAX_LOGS: usize = 100;
 
-/// Tracks how many scans a device has been missing from.
-pub type MissedCount = i8;
-
 /// Complete application state for the terminal UI.
 #[derive(Debug, Clone)]
 pub struct State {
@@ -27,7 +24,6 @@ pub struct State {
     pub error: Option<String>,
     pub logs: VecDeque<String>,
     pub config: Config,
-    pub arp_history: HashMap<Ipv4Addr, (Device, MissedCount)>,
     pub device_map: HashMap<Ipv4Addr, Device>,
     pub sorted_device_list: Vec<Device>,
     pub colors: Colors,
@@ -35,6 +31,26 @@ pub struct State {
     pub cmd_in_progress: Option<Command>,
     pub cmd_output: Option<(Command, Output)>,
     pub popover_message: Option<String>,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            true_color_enabled: Default::default(),
+            theme: Default::default(),
+            ui_paused: Default::default(),
+            error: Default::default(),
+            logs: VecDeque::with_capacity(MAX_LOGS),
+            config: Default::default(),
+            device_map: Default::default(),
+            sorted_device_list: Default::default(),
+            colors: Default::default(),
+            message: Default::default(),
+            cmd_in_progress: Default::default(),
+            cmd_output: Default::default(),
+            popover_message: Default::default(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -58,7 +74,6 @@ impl State {
             error: None,
             logs: VecDeque::with_capacity(MAX_LOGS),
             config,
-            arp_history: HashMap::new(),
             device_map: HashMap::new(),
             sorted_device_list: vec![],
             colors,

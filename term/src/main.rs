@@ -31,29 +31,32 @@ use r_lanlib::{
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
+    cell::RefCell,
     fs, io,
+    rc::Rc,
     sync::{
-        Arc, Mutex,
-        mpsc::{self, Receiver, Sender, channel},
+        Arc,
+        mpsc::{Receiver, Sender, channel},
     },
     thread::{self, JoinHandle},
 };
-
-use ui::store::{Store, action::Action};
 
 use crate::{
     config::DEFAULT_CONFIG_ID,
     ipc::{
         main::{MainIpc, MainReceiver, MainSender},
-        message::{MainMessage, RendererMessage},
+        message::{MainMessage, NetworkMessage, RendererMessage},
+        network::{NetworkIpc, NetworkReceiver, NetworkSender},
         renderer::{RendererIpc, RendererReceiver, RendererSender},
     },
-    renderer::process::Renderer,
-    shell::Shell,
-    ui::{
-        colors::Theme,
-        store::{Dispatcher, StateGetter, SubscriptionProvider, state::State},
+    process::{
+        main::process::MainProcess,
+        network::{process::NetworkProcess, traits::NetworkMonitor},
+        renderer::process::RendererProcess,
     },
+    shell::Shell,
+    store::{Store, action::Action, reducer::StoreReducer, state::State},
+    ui::colors::{Colors, Theme},
 };
 
 #[doc(hidden)]
@@ -63,13 +66,11 @@ mod error;
 #[doc(hidden)]
 mod ipc;
 #[doc(hidden)]
-mod main_event_handler;
-#[doc(hidden)]
-mod network;
-#[doc(hidden)]
-mod renderer;
+mod process;
 #[doc(hidden)]
 mod shell;
+#[doc(hidden)]
+mod store;
 #[doc(hidden)]
 mod ui;
 
@@ -178,82 +179,98 @@ fn get_current_config(
 fn start_network_monitoring_thread(
     config: Config,
     interface: Arc<NetworkInterface>,
-    store: Arc<Store>,
-) -> Result<()> {
-    let (_, exit_rx) = mpsc::channel();
+    tx: Sender<MainMessage>,
+    rx: Receiver<NetworkMessage>,
+) -> Result<JoinHandle<Result<()>>> {
     let wire = packet::wire::default(&interface)?;
 
-    // ignore handle here - we will forcefully exit instead of waiting
-    // for scan to finish
-    thread::spawn(move || -> Result<()> {
-        network::monitor_network(
-            exit_rx, wire.0, wire.1, config, interface, store,
-        )
-    });
+    let ipc = NetworkIpc::new(
+        Box::new(NetworkSender::new(tx)),
+        Box::new(NetworkReceiver::new(rx)),
+    );
 
-    Ok(())
+    let network_process = NetworkProcess::builder()
+        .interface(interface)
+        .wire(wire)
+        .ipc(ipc)
+        .config(RefCell::new(config))
+        .build()?;
+
+    Ok(thread::spawn(move || -> Result<()> {
+        network_process.monitor()
+    }))
 }
 
 #[doc(hidden)]
 fn start_renderer_thread(
     main_tx: Sender<MainMessage>,
     renderer_rx: Receiver<RendererMessage>,
-    store: Arc<Store>,
-    initial_theme: Theme,
+    initial_state: State,
 ) -> JoinHandle<Result<()>> {
     // start tui renderer thread
     thread::spawn(move || {
         let stdout = io::stdout();
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
+        let main_tx_clone = main_tx.clone();
         let renderer_ipc = RendererIpc::new(
             Box::new(RendererSender::new(main_tx)),
             Box::new(RendererReceiver::new(renderer_rx)),
         );
-        let app_renderer =
-            Renderer::new(terminal, store, renderer_ipc, initial_theme);
-        app_renderer.start_render_loop()
+        let mut store = Store::new(initial_state, StoreReducer::boxed());
+        store.set_sync_fn(move |a| {
+            let _ = main_tx_clone.send(MainMessage::ActionSync(Box::new(
+                Action::Sync(Box::new(a)),
+            )));
+        });
+        let renderer_process =
+            RendererProcess::new(terminal, renderer_ipc, Rc::new(store));
+        renderer_process.start_render_loop()
     })
 }
 
 #[doc(hidden)]
-fn process_main_thread_events(
+fn start_main_process(
+    config_manager: ConfigManager,
     renderer_tx: Sender<RendererMessage>,
+    network_tx: Sender<NetworkMessage>,
     main_rx: Receiver<MainMessage>,
-    store: Arc<Store>,
+    initial_state: State,
 ) -> Result<()> {
+    let renderer_tx_clone = renderer_tx.clone();
     let main_ipc = MainIpc::new(
-        Box::new(MainSender::new(renderer_tx)),
+        Box::new(MainSender::new(renderer_tx.clone(), network_tx.clone())),
+        Box::new(MainSender::new(renderer_tx, network_tx)),
         Box::new(MainReceiver::new(main_rx)),
     );
 
-    let handler = main_event_handler::MainEventHandler::new(
-        store,
-        Box::new(Shell::new()),
-        main_ipc,
-    );
+    let mut store = Store::new(initial_state, StoreReducer::boxed());
 
-    // block and process incoming ipc events
-    handler.process_events()
-}
-
-#[doc(hidden)]
-fn register_state_listener(
-    renderer_tx: Sender<RendererMessage>,
-    store: &mut Store,
-) {
-    store.subscribe(move |_: &State| {
-        renderer_tx.send(RendererMessage::ReRender).map_err(|e| {
-            eyre!("failed to send rerender message to renderer process: {}", e)
-        })
+    store.set_sync_fn(move |a| {
+        let _ = renderer_tx_clone.send(RendererMessage::ActionSync(Box::new(
+            Action::Sync(Box::new(a)),
+        )));
     });
+
+    let main_process = MainProcess::builder()
+        .config_manager(RefCell::new(config_manager))
+        .executor(Box::new(Shell::new()))
+        .store(Rc::new(store))
+        .ipc(main_ipc)
+        .build()?;
+
+    // block and process incoming ipc` events
+    main_process.process_events()
 }
 
 #[doc(hidden)]
-fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Store)> {
+fn init(
+    args: &Args,
+    interface: &NetworkInterface,
+) -> Result<(ConfigManager, State)> {
     let (user, identity) = get_user_info()?;
 
-    let config_manager =
+    let mut config_manager =
         create_config_manager(user.clone(), identity.clone(), interface)?;
 
     let (current_config, should_create_config) = get_current_config(
@@ -264,20 +281,30 @@ fn init(args: &Args, interface: &NetworkInterface) -> Result<(Config, Store)> {
         identity,
     );
 
-    let current_config_id = current_config.id.clone();
-
-    let store = Store::new(
-        Arc::new(Mutex::new(config_manager)),
-        current_config.clone(),
-    );
-
     if should_create_config {
-        store.dispatch(Action::CreateAndSetConfig(current_config.clone()))?;
-    } else {
-        store.load_config(&current_config_id)?;
+        config_manager.create(&current_config)?;
     }
 
-    Ok((current_config, store))
+    let true_color_enabled =
+        match supports_color::on(supports_color::Stream::Stdout) {
+            Some(support) => support.has_16m,
+            _ => false,
+        };
+
+    let theme = Theme::from_string(&current_config.theme);
+
+    let colors =
+        Colors::new(theme.to_palette(true_color_enabled), true_color_enabled);
+
+    let initial_state = State {
+        true_color_enabled,
+        config: current_config.clone(),
+        theme: Theme::from_string(&current_config.theme),
+        colors,
+        ..Default::default()
+    };
+
+    Ok((config_manager, initial_state))
 }
 
 #[doc(hidden)]
@@ -299,22 +326,21 @@ fn main() -> Result<()> {
 
     let interface = get_default_interface()
         .ok_or_else(|| eyre!("Could not detect default network interface"))?;
-    let (config, mut store) = init(&args, &interface)?;
-    let initial_theme = store.get_state()?.theme;
+
+    let (config_manager, initial_state) = init(&args, &interface)?;
 
     let (renderer_tx, renderer_rx) = channel();
     let (main_tx, main_rx) = channel();
+    let (network_tx, network_rx) = channel();
 
-    register_state_listener(renderer_tx.clone(), &mut store);
-
-    let store = Arc::new(store);
-
-    // ignore handle here - we will forcefully exit instead of waiting
-    // for scan to finish
+    // start network monitoring thread
+    // no need to get handle and join - when main process exits
+    // everything should go with it including network monitoring thread
     start_network_monitoring_thread(
-        config,
+        initial_state.config.clone(),
         Arc::new(interface),
-        Arc::clone(&store),
+        main_tx.clone(),
+        network_rx,
     )?;
 
     if args.debug {
@@ -324,20 +350,18 @@ fn main() -> Result<()> {
     }
 
     // start separate thread for tui rendering process
-    let renderer_handle = start_renderer_thread(
-        main_tx,
-        renderer_rx,
-        Arc::clone(&store),
-        initial_theme,
-    );
+    // no need to get handle and join - when main process exits
+    // everything should go with it including renderer thread
+    start_renderer_thread(main_tx, renderer_rx, initial_state.clone());
 
     // loop / block and process incoming ipc messages in main thread
-    process_main_thread_events(renderer_tx, main_rx, Arc::clone(&store))?;
-
-    // wait for renderer thread to exit
-    renderer_handle
-        .join()
-        .map_err(error::report_from_thread_panic)?
+    start_main_process(
+        config_manager,
+        renderer_tx,
+        network_tx,
+        main_rx,
+        initial_state,
+    )
 }
 
 #[cfg(test)]

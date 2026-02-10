@@ -16,18 +16,17 @@ use ratatui::{
     },
     prelude::Backend,
 };
-use std::{cell::RefCell, io, sync::Arc};
+use std::{cell::RefCell, io, rc::Rc};
 
 use crate::{
     ipc::{
         message::{MainMessage, RendererMessage},
         renderer::RendererIpc,
     },
-    renderer::scroll_throttle::ScrollThrottle,
+    process::renderer::scroll_throttle::ScrollThrottle,
+    store::{Dispatcher, StateGetter, Store, action::Action, state::State},
     ui::{
         app::{App, Application},
-        colors::Theme,
-        store::{Dispatcher, StateGetter, Store, action::Action, state::State},
         views::traits::{CustomEventContext, CustomWidgetContext},
     },
 };
@@ -36,29 +35,26 @@ use crate::{
 ///
 /// Manages the terminal lifecycle (raw mode, alternate screen) and runs the
 /// render loop that draws UI and processes input events.
-pub struct Renderer<B: Backend + std::io::Write> {
+pub struct RendererProcess<B: Backend + std::io::Write> {
     terminal: RefCell<Terminal<B>>,
-    store: Arc<Store>,
+    store: Rc<Store>,
     app: Box<dyn Application>,
     ipc: RendererIpc,
     scroll_throttle: ScrollThrottle,
 }
 
-impl<B: Backend + std::io::Write> Renderer<B> {
+impl<B: Backend + std::io::Write> RendererProcess<B> {
     /// Creates a new renderer with the given terminal, theme, store, and IPC.
     pub fn new(
         terminal: Terminal<B>,
-        store: Arc<Store>,
         ipc: RendererIpc,
-        initial_theme: Theme,
+        store: Rc<Store>,
     ) -> Self {
+        let state = store.get_state();
         Self {
             terminal: RefCell::new(terminal),
-            store: Arc::clone(&store),
-            app: Box::new(App::new(
-                store as Arc<dyn Dispatcher>,
-                initial_theme,
-            )),
+            app: Box::new(App::new(state.theme)),
+            store,
             ipc,
             scroll_throttle: ScrollThrottle::default(),
         }
@@ -74,12 +70,12 @@ impl<B: Backend + std::io::Write> Renderer<B> {
 
     fn start_loop(&self) -> Result<()> {
         // render initial frame
-        let state = self.store.get_state()?;
+        let state = self.store.get_state();
         self.render_frame(&state)?;
 
         // now start event handling loop
         loop {
-            let state = self.store.get_state()?;
+            let mut state = self.store.get_state();
 
             // When paused, block on recv() to avoid busy-spinning.
             // No rendering or event polling needed while paused.
@@ -87,6 +83,9 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 match self.ipc.rx.recv() {
                     Ok(RendererMessage::ResumeUI) => {
                         self.restart()?;
+                    }
+                    Ok(RendererMessage::ActionSync(action)) => {
+                        self.store.dispatch(action.as_ref().to_owned());
                     }
                     Ok(_) => {
                         // Ignore PauseUI (duplicate) and
@@ -104,9 +103,19 @@ impl<B: Backend + std::io::Write> Renderer<B> {
             // of incoming device data as it's received
             if let Ok(ipc_msg) = self.ipc.rx.try_recv() {
                 match ipc_msg {
-                    RendererMessage::PauseUI => self.pause()?,
-                    RendererMessage::ResumeUI => self.restart()?,
-                    RendererMessage::ReRender => self.render_frame(&state)?,
+                    RendererMessage::PauseUI => {
+                        self.pause()?;
+                        continue;
+                    }
+                    RendererMessage::ResumeUI => {
+                        self.restart()?;
+                        continue;
+                    }
+                    RendererMessage::ActionSync(action) => {
+                        self.store.dispatch(action.as_ref().to_owned());
+                        state = self.store.get_state();
+                        self.render_frame(&state)?;
+                    }
                 }
             }
 
@@ -123,6 +132,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
 
                 let ctx = CustomEventContext {
                     state: &state,
+                    dispatcher: self.store.clone(),
                     ipc: self.ipc.tx.clone(),
                 };
 
@@ -131,6 +141,10 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                 // the 'q' key quit override. All quit operations now happen
                 // explicitly via ctrl-c or from within specific views.
                 self.app.process_event(&evt, &ctx)?;
+                // re-fetch state after event processing so render
+                // reflects any changes from dispatched actions
+                state = self.store.get_state();
+                self.render_frame(&state)?;
 
                 // do not allow overriding ctrl-c
                 if let CrossTermEvent::Key(key) = evt
@@ -141,8 +155,6 @@ impl<B: Backend + std::io::Write> Renderer<B> {
                     self.ipc.tx.send(MainMessage::Quit(None))?;
                     return Ok(());
                 }
-
-                self.render_frame(&state)?;
             }
         }
     }
@@ -159,6 +171,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
             .draw(|f| {
                 let ctx = CustomWidgetContext {
                     state,
+                    // dispatcher: self.store.clone(),
                     app_area: f.area(),
                 };
 
@@ -186,7 +199,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
 
     fn pause(&self) -> Result<()> {
         self.exit()?;
-        self.store.dispatch(Action::SetUIPaused(true))?;
+        self.store.dispatch(Action::SetUIPaused(true));
         self.ipc.tx.send(MainMessage::UIPaused)
     }
 
@@ -200,7 +213,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
         terminal
             .clear()
             .map_err(|e| eyre!("failed to clear terminal: {}", e))?;
-        self.store.dispatch(Action::SetUIPaused(false))?;
+        self.store.dispatch(Action::SetUIPaused(false));
         self.ipc.tx.send(MainMessage::UIResumed)
     }
 
@@ -214,3 +227,7 @@ impl<B: Backend + std::io::Write> Renderer<B> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "./process_tests.rs"]
+mod tests;

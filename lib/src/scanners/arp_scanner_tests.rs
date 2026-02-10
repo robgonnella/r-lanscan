@@ -3,15 +3,15 @@ use pnet::{
     packet::{arp, ethernet, ipv4, tcp},
     util::{self, MacAddr},
 };
-use std::sync::Arc;
 use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{net::Ipv4Addr, str::FromStr};
 
-use crate::network;
-use crate::packet::arp_packet::create_arp_reply;
 use crate::packet::mocks::{MockPacketReader, MockPacketSender};
 use crate::packet::syn_packet::create_syn_reply;
+use crate::packet::{Reader, arp_packet::create_arp_reply};
+use crate::{network, packet::Sender};
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
@@ -28,14 +28,14 @@ fn new() {
         Arc::new(Mutex::new(MockPacketSender::new()));
     let receiver: Arc<Mutex<dyn Reader>> =
         Arc::new(Mutex::new(MockPacketReader::new()));
+    let wire = Wire(sender, receiver);
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]).unwrap();
     let (tx, _) = channel();
 
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)
@@ -86,11 +86,11 @@ fn sends_and_reads_packets() {
 
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let wire = Wire(sender, receiver);
 
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)
@@ -170,11 +170,11 @@ fn ignores_unrelated_packets() {
     let (tx, rx) = channel();
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let wire = Wire(sender, receiver);
 
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)
@@ -241,10 +241,11 @@ fn reports_error_on_packet_reader_lock() {
 
     let _ = handle.join();
 
+    let wire = Wire(arc_sender, arc_receiver);
+
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)
@@ -277,6 +278,7 @@ fn reports_error_on_packet_read_error() {
 
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let wire = Wire(sender, receiver);
 
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
@@ -284,8 +286,7 @@ fn reports_error_on_packet_read_error() {
 
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)
@@ -315,6 +316,8 @@ fn reports_error_on_notifier_send_errors() {
 
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let wire = Wire(sender, receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
@@ -324,8 +327,7 @@ fn reports_error_on_notifier_send_errors() {
 
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)
@@ -353,6 +355,8 @@ fn reports_error_on_packet_sender_lock_errors() {
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let sender_clone = Arc::clone(&sender);
+    let wire = Wire(sender, receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
@@ -367,8 +371,7 @@ fn reports_error_on_packet_sender_lock_errors() {
 
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)
@@ -404,14 +407,15 @@ fn reports_error_on_packet_send_errors() {
 
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(sender, receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)
@@ -448,14 +452,15 @@ fn reports_errors_from_read_handle() {
 
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(sender, receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
     let (tx, rx) = channel();
 
     let scanner = ARPScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .source_port(54321_u16)
         .include_vendor(true)

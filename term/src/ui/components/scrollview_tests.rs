@@ -1,4 +1,4 @@
-use crate::ui::{components::table::DEFAULT_ITEM_HEIGHT, store::state::State};
+use crate::{store::state::State, ui::components::table::DEFAULT_ITEM_HEIGHT};
 
 use super::*;
 use insta::assert_snapshot;
@@ -13,6 +13,7 @@ fn renders_scrollview_component() {
     }
     let view = ScrollView::new(&text);
     let state = State::default();
+
     let mut terminal = Terminal::new(TestBackend::new(100, 100)).unwrap();
 
     terminal

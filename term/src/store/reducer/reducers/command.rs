@@ -2,7 +2,7 @@
 
 use std::process::Output;
 
-use crate::{ipc::message::Command, ui::store::state::State};
+use crate::{ipc::message::Command, store::state::State};
 
 /// Sets or clears the currently executing command.
 pub fn set_command_in_progress(state: &mut State, value: Option<Command>) {

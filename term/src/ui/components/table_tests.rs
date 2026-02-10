@@ -1,4 +1,4 @@
-use crate::ui::store::state::State;
+use crate::store::state::State;
 
 use super::*;
 use insta::assert_snapshot;
@@ -11,6 +11,7 @@ fn renders_table_component() {
     let col_sizes = vec![10];
     let table = Table::new(items, headers, col_sizes, 2);
     let state = State::default();
+
     let mut terminal = Terminal::new(TestBackend::new(100, 10)).unwrap();
 
     terminal

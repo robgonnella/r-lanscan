@@ -19,6 +19,12 @@ pub struct Colors {
     pub input_editing: Color,
 }
 
+impl Default for Colors {
+    fn default() -> Self {
+        Colors::new(&tailwind::BLUE, true)
+    }
+}
+
 impl Colors {
     /// Creates a color palette from the given tailwind palette, falling back
     /// to basic colors if true color is not supported.
@@ -58,8 +64,9 @@ impl Colors {
 }
 
 /// Available color themes for the application.
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, Copy, Clone)]
 pub enum Theme {
+    #[default]
     Blue,
     Emerald,
     Indigo,

@@ -22,7 +22,7 @@ pub struct DeviceConfig {
 }
 
 /// Application configuration for a network (CIDR).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     pub id: String,
     pub cidr: String,

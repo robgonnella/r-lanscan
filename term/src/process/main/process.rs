@@ -1,91 +1,44 @@
 //! Processes UI events and executes external commands.
 
 use color_eyre::eyre::{Result, eyre};
+use derive_builder::Builder;
 use r_lanlib::scanners::Device;
 use std::{
+    cell::RefCell,
     io::{BufReader, Read},
-    process,
-    sync::{Arc, RwLock},
+    rc::Rc,
     time::{Duration, Instant},
 };
 
 use crate::{
-    config::DeviceConfig,
+    config::{ConfigManager, DeviceConfig},
     ipc::{
         main::MainIpc,
-        message::{Command as AppCommand, MainMessage, RendererMessage},
+        message::{
+            Command as AppCommand, MainMessage, NetworkMessage, RendererMessage,
+        },
     },
+    process::main::ctrl_c::CtrlCHandler,
     shell::traits::{BrowseArgs, ShellExecutor},
-    ui::store::{Dispatcher, StateGetter, Store, action::Action},
+    store::{Dispatcher, StateGetter, Store, action::Action},
 };
 
-#[derive(Default)]
-pub struct CtrlCHandler {
-    block: Arc<RwLock<bool>>,
-}
-
-impl CtrlCHandler {
-    pub fn intercept(&self) -> Result<()> {
-        // captures ctrl-c only in main thread so when we drop down to shell
-        // commands like ssh, we will pause the key handler for ctrl-c in app
-        // and capture ctrl-c here to prevent exiting app and just let ctrl-c
-        // be handled by the command being executed, which should return us
-        // to our app where we can restart our ui and key-handlers
-        let block = Arc::clone(&self.block);
-
-        ctrlc::set_handler(move || {
-            if let Ok(blocked) = block.read() {
-                if *blocked {
-                    println!("captured ctrl-c!");
-                } else {
-                    process::exit(1);
-                }
-            } else {
-                process::exit(1);
-            }
-        })
-        .map_err(|err| eyre!("failed to set ctrl-c handler: {}", err))
-    }
-
-    pub fn block(&self) -> Result<()> {
-        let mut blocked = self.block.write().map_err(|err| {
-            eyre!("failed to get write lock on ctrl-c block setting: {}", err)
-        })?;
-        *blocked = true;
-        Ok(())
-    }
-
-    pub fn unblock(&self) -> Result<()> {
-        let mut blocked = self.block.write().map_err(|err| {
-            eyre!("failed to get write lock on ctrl-c block setting: {}", err)
-        })?;
-        *blocked = false;
-        Ok(())
-    }
-}
-
 /// Runs the event loop, handling UI pause/resume and command execution.
-pub struct MainEventHandler {
-    store: Arc<Store>,
+#[derive(Builder)]
+#[builder(pattern = "owned")]
+pub struct MainProcess {
+    config_manager: RefCell<ConfigManager>,
+    store: Rc<Store>,
     executor: Box<dyn ShellExecutor>,
     ipc: MainIpc,
+    #[builder(default)]
     ctrlc_handler: CtrlCHandler,
 }
 
-impl MainEventHandler {
-    /// Creates a new event handler with the given store, shell executor, and
-    /// IPC channels.
-    pub fn new(
-        store: Arc<Store>,
-        executor: Box<dyn ShellExecutor>,
-        ipc: MainIpc,
-    ) -> Self {
-        Self {
-            store,
-            executor,
-            ipc,
-            ctrlc_handler: CtrlCHandler::default(),
-        }
+impl MainProcess {
+    /// Creates a new builder for main process
+    pub fn builder() -> MainProcessBuilder {
+        MainProcessBuilder::default()
     }
 
     /// Runs the main event loop, blocking until a quit message is received.
@@ -94,17 +47,50 @@ impl MainEventHandler {
         self.ctrlc_handler.intercept()?;
         loop {
             if let Ok(evt) = self.ipc.rx.recv() {
+                log::info!("received event --> {:#?}", evt);
                 // event loop
                 match evt {
                     MainMessage::ExecCommand(cmd) => {
-                        let _ = self.handle_cmd(cmd);
+                        self.handle_cmd(cmd)?;
                     }
                     MainMessage::Quit(error) => {
+                        self.ipc.network_tx.send(NetworkMessage::Quit)?;
                         if let Some(message) = error {
                             return Err(eyre!(message));
                         } else {
                             return Ok(());
                         }
+                    }
+                    MainMessage::ArpStart => {
+                        self.store.dispatch(Action::UpdateMessage(Some(
+                            "ARP scanning in process...".into(),
+                        )));
+                    }
+                    MainMessage::ArpUpdate(device) => {
+                        self.store.dispatch(Action::AddDevice(device));
+                    }
+                    MainMessage::ArpDone => {
+                        self.store.dispatch(Action::Log(
+                            "ARP scanning complete".into(),
+                        ));
+                    }
+                    MainMessage::SynStart => {
+                        self.store.dispatch(Action::UpdateMessage(Some(
+                            "SYN scanning in process...".into(),
+                        )));
+                    }
+                    MainMessage::SynUpdate(device) => {
+                        self.store.dispatch(Action::AddDevice(device));
+                    }
+                    MainMessage::SynDone => {
+                        self.store.dispatch(Action::UpdateMessage(None));
+                    }
+                    MainMessage::FullScanResult(devices) => {
+                        self.store.dispatch(Action::UpdateAllDevices(devices));
+                    }
+                    MainMessage::ActionSync(action) => {
+                        self.store.dispatch(action.as_ref().to_owned());
+                        self.handle_post_action_sync(action)?;
                     }
                     _ => {}
                 }
@@ -112,8 +98,36 @@ impl MainEventHandler {
         }
     }
 
+    fn handle_post_action_sync(&self, action: Box<Action>) -> Result<()> {
+        let new_config = if let Action::Sync(act) = action.as_ref() {
+            match act.as_ref() {
+                Action::UpdateConfig(_) => {
+                    Some(self.store.get_state().config.clone())
+                }
+                Action::UpdateDeviceConfig(_) => {
+                    Some(self.store.get_state().config.clone())
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        if let Some(config) = new_config {
+            self.config_manager
+                .borrow_mut()
+                .update_config(config.clone())?;
+
+            self.ipc
+                .network_tx
+                .send(NetworkMessage::ConfigUpdate(config))?;
+        }
+
+        Ok(())
+    }
+
     fn pause_ui(&self) -> Result<()> {
-        self.ipc.tx.send(RendererMessage::PauseUI)?;
+        self.ipc.renderer_tx.send(RendererMessage::PauseUI)?;
         let start = Instant::now();
         let timeout = Duration::from_millis(5000);
         loop {
@@ -145,7 +159,7 @@ impl MainEventHandler {
     }
 
     fn resume_ui(&self) -> Result<()> {
-        self.ipc.tx.send(RendererMessage::ResumeUI)?;
+        self.ipc.renderer_tx.send(RendererMessage::ResumeUI)?;
         let start = Instant::now();
         let timeout = Duration::from_millis(5000);
         loop {
@@ -192,15 +206,15 @@ impl MainEventHandler {
                         let mut stderr_reader = BufReader::new(stderr);
                         stderr_reader.read_to_string(&mut stderr_output)?;
                         self.store
-                            .dispatch(Action::SetError(Some(stderr_output)))?;
+                            .dispatch(Action::SetError(Some(stderr_output)));
                     } else {
                         let err = String::from("ssh command failed");
-                        self.store.dispatch(Action::SetError(Some(err)))?;
+                        self.store.dispatch(Action::SetError(Some(err)));
                     }
                 }
             }
             Err(e) => {
-                self.store.dispatch(Action::SetError(Some(e.to_string())))?;
+                self.store.dispatch(Action::SetError(Some(e.to_string())));
             }
         }
 
@@ -218,12 +232,11 @@ impl MainEventHandler {
                 self.store.dispatch(Action::UpdateCommandOutput((
                     cmd.clone(),
                     output,
-                )))?;
-                self.store.dispatch(Action::SetCommandInProgress(None))?;
+                )));
+                self.store.dispatch(Action::SetCommandInProgress(None));
             }
             Err(err) => {
-                self.store
-                    .dispatch(Action::SetError(Some(err.to_string())))?;
+                self.store.dispatch(Action::SetError(Some(err.to_string())));
             }
         }
 
@@ -243,15 +256,15 @@ impl MainEventHandler {
                         let mut stderr_reader = BufReader::new(stderr);
                         stderr_reader.read_to_string(&mut stderr_output)?;
                         self.store
-                            .dispatch(Action::SetError(Some(stderr_output)))?;
+                            .dispatch(Action::SetError(Some(stderr_output)));
                     } else {
                         let err = String::from("lynx command failed");
-                        self.store.dispatch(Action::SetError(Some(err)))?;
+                        self.store.dispatch(Action::SetError(Some(err)));
                     }
                 }
             }
             Err(e) => {
-                self.store.dispatch(Action::SetError(Some(e.to_string())))?;
+                self.store.dispatch(Action::SetError(Some(e.to_string())));
             }
         }
 
@@ -259,14 +272,14 @@ impl MainEventHandler {
     }
 
     fn handle_cmd(&self, cmd: AppCommand) -> Result<()> {
-        let state = self.store.get_state()?;
+        let state = self.store.get_state();
 
         if state.cmd_in_progress.is_some() {
             return Ok(());
         }
 
         self.store
-            .dispatch(Action::SetCommandInProgress(Some(cmd.clone())))?;
+            .dispatch(Action::SetCommandInProgress(Some(cmd.clone())));
 
         match &cmd {
             AppCommand::Ssh(device, device_config) => {
@@ -278,12 +291,12 @@ impl MainEventHandler {
             AppCommand::Browse(args) => self.handle_browse(args)?,
         }
 
-        self.store.dispatch(Action::SetCommandInProgress(None))?;
+        self.store.dispatch(Action::SetCommandInProgress(None));
 
         Ok(())
     }
 }
 
 #[cfg(test)]
-#[path = "./main_event_handler_tests.rs"]
-mod tests;
+#[path = "process_tests.rs"]
+mod process_tests;

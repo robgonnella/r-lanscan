@@ -1,29 +1,15 @@
 use insta::assert_snapshot;
-use nanoid::nanoid;
 use ratatui::{Terminal, backend::TestBackend};
-use std::{collections::HashMap, fs, sync::Mutex};
+use std::collections::HashMap;
 
 use crate::{
-    config::{Config, ConfigManager},
-    ui::store::{StateGetter, Store},
+    config::Config,
+    store::{StateGetter, Store, reducer::StoreReducer},
 };
 
 use super::*;
 
-fn setup() -> (ConfigView, Arc<Store>, String) {
-    fs::create_dir_all("generated").unwrap();
-    let tmp_path = format!("generated/{}.yml", nanoid!());
-    let user = "user".to_string();
-    let identity = "/home/user/.ssh/id_rsa".to_string();
-    let cidr = "192.168.1.1/24".to_string();
-    let config_manager = ConfigManager::builder()
-        .default_user(user.clone())
-        .default_identity(identity.clone())
-        .default_cidr(cidr.clone())
-        .path(tmp_path.clone())
-        .build()
-        .unwrap();
-    let conf_manager = Arc::new(Mutex::new(config_manager));
+fn setup() -> (ConfigView, Store) {
     let config = Config {
         id: "default".to_string(),
         cidr: "192.168.1.1/24".to_string(),
@@ -35,24 +21,17 @@ fn setup() -> (ConfigView, Arc<Store>, String) {
         theme: "Blue".to_string(),
     };
     let theme = Theme::from_string(&config.theme);
-    let store = Arc::new(Store::new(conf_manager, config.clone()));
-    store.dispatch(Action::CreateAndSetConfig(config)).unwrap();
-    (
-        ConfigView::new(Arc::clone(&store) as Arc<dyn Dispatcher>, theme),
-        store,
-        tmp_path,
-    )
-}
 
-fn tear_down(conf_path: String) {
-    fs::remove_file(conf_path).unwrap();
+    let store = Store::new(State::default(), StoreReducer::boxed());
+
+    (ConfigView::new(theme), store)
 }
 
 #[test]
 fn test_config_view() {
-    let (conf_view, store, conf_path) = setup();
+    let (conf_view, store) = setup();
     let mut terminal = Terminal::new(TestBackend::new(130, 15)).unwrap();
-    let state = store.get_state().unwrap();
+    let state = store.get_state();
 
     terminal
         .draw(|frame| {
@@ -68,5 +47,4 @@ fn test_config_view() {
         .unwrap();
 
     assert_snapshot!(terminal.backend());
-    tear_down(conf_path);
 }

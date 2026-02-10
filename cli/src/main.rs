@@ -345,8 +345,7 @@ fn main() -> Result<()> {
 
     let arp = ARPScanner::builder()
         .interface(Arc::clone(&interface))
-        .packet_sender(Arc::clone(&wire.0))
-        .packet_reader(Arc::clone(&wire.1))
+        .wire(wire.clone())
         .targets(
             IPTargets::new(args.targets.clone())
                 .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
@@ -368,8 +367,7 @@ fn main() -> Result<()> {
 
     let syn = SYNScanner::builder()
         .interface(interface)
-        .packet_sender(wire.0)
-        .packet_reader(wire.1)
+        .wire(wire)
         .targets(arp_results.clone())
         .ports(
             PortTargets::new(args.ports.clone())

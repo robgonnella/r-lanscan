@@ -68,8 +68,7 @@ fn main() {
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_sender(wire.0)
-        .packet_reader(wire.1)
+        .wire(wire)
         .targets(devices)
         .ports(port_targets)
         .source_port(source_port)

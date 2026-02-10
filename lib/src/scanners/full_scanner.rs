@@ -2,7 +2,7 @@
 
 use derive_builder::Builder;
 use std::{
-    sync::{Arc, Mutex, mpsc},
+    sync::{Arc, mpsc},
     thread::JoinHandle,
     time::Duration,
 };
@@ -10,7 +10,7 @@ use std::{
 use crate::{
     error::Result,
     network::NetworkInterface,
-    packet::{Reader, Sender},
+    packet::wire::Wire,
     targets::{ips::IPTargets, ports::PortTargets},
 };
 
@@ -25,10 +25,8 @@ use super::{
 pub struct FullScanner {
     /// Network interface to use for scanning
     interface: Arc<NetworkInterface>,
-    /// Packet reader for receiving responses
-    packet_reader: Arc<Mutex<dyn Reader>>,
-    /// Packet sender for transmitting packets
-    packet_sender: Arc<Mutex<dyn Sender>>,
+    /// Wire for reading and sending packets on the wire
+    wire: Wire,
     /// IP targets to scan for device discovery
     targets: Arc<IPTargets>,
     /// Port targets to scan on discovered devices
@@ -58,8 +56,7 @@ impl FullScanner {
 
         let arp = ARPScanner::builder()
             .interface(Arc::clone(&self.interface))
-            .packet_reader(Arc::clone(&self.packet_reader))
-            .packet_sender(Arc::clone(&self.packet_sender))
+            .wire(self.wire.clone())
             .targets(Arc::clone(&self.targets))
             .source_port(self.source_port)
             .include_vendor(self.vendor)
@@ -96,8 +93,7 @@ impl Scanner for FullScanner {
 
         let syn = SYNScanner::builder()
             .interface(Arc::clone(&self.interface))
-            .packet_reader(Arc::clone(&self.packet_reader))
-            .packet_sender(Arc::clone(&self.packet_sender))
+            .wire(self.wire.clone())
             .targets(syn_targets)
             .ports(Arc::clone(&self.ports))
             .source_port(self.source_port)
