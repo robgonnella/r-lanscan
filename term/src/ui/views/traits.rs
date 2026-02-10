@@ -1,20 +1,24 @@
 //! Traits for UI components, views, and event handling.
 
+use std::rc::Rc;
+
 use color_eyre::eyre::Result;
 use ratatui::{crossterm::event::Event as CrossTermEvent, layout::Rect};
 
 use crate::{
     ipc::{message::MainMessage, traits::IpcSender},
-    ui::store::state::State,
+    store::{Dispatcher, state::State},
 };
 
 /// Context passed to widgets during rendering and event handling.
 pub struct CustomEventContext<'a> {
     // app state
     pub state: &'a State,
+    // action dispatcher
+    pub dispatcher: Rc<dyn Dispatcher>,
     // event producer - this how components and views can communicate user
     // behavior back to main loop to perform actions that aren't related to
-    // state - executing a shell command
+    // state like executing a shell command
     pub ipc: Box<dyn IpcSender<MainMessage>>,
 }
 
@@ -31,6 +35,8 @@ pub trait EventHandler {
 pub struct CustomWidgetContext<'a> {
     // app state
     pub state: &'a State,
+    // // action dispatcher
+    // pub dispatcher: Rc<dyn Dispatcher>,
     // total area for the entire application - useful for calculating
     // popover areas
     pub app_area: Rect,

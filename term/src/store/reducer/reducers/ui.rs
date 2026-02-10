@@ -1,8 +1,8 @@
 //! UI state reducers for pausing, errors, views, and themes.
 
-use crate::ui::{
-    colors::{Colors, Theme},
+use crate::{
     store::state::State,
+    ui::colors::{Colors, Theme},
 };
 
 /// Sets whether the UI is paused (for shell command execution).

@@ -5,7 +5,7 @@ use pnet::packet::{Packet, ethernet, ip, ipv4, tcp};
 use std::{
     collections::HashMap,
     net::Ipv4Addr,
-    sync::{self, Arc, LazyLock, Mutex, mpsc},
+    sync::{self, Arc, LazyLock, mpsc},
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -14,8 +14,8 @@ use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
     packet::{
-        self, Reader, Sender, rst_packet::RstPacketBuilder,
-        syn_packet::SynPacketBuilder,
+        self, rst_packet::RstPacketBuilder, syn_packet::SynPacketBuilder,
+        wire::Wire,
     },
     scanners::{PortSet, Scanning, heartbeat::HeartBeat},
     targets::ports::PortTargets,
@@ -57,10 +57,8 @@ static SERVICES: LazyLock<HashMap<u16, &str>> = LazyLock::new(|| {
 pub struct SYNScanner {
     /// Network interface to use for scanning
     interface: Arc<NetworkInterface>,
-    /// Packet reader for receiving SYN-ACK responses
-    packet_reader: Arc<Mutex<dyn Reader>>,
-    /// Packet sender for transmitting SYN packets
-    packet_sender: Arc<Mutex<dyn Sender>>,
+    /// Wire for reading and sending packets on the wire
+    wire: Wire,
     /// Devices to scan for open ports
     targets: Vec<Device>,
     /// Port targets to scan on each device
@@ -108,7 +106,7 @@ impl SYNScanner {
                 }))
                 .map_err(RLanLibError::from_channel_send_error)?;
 
-            let mut sender = self.packet_sender.lock()?;
+            let mut sender = self.wire.0.lock()?;
 
             // scan device @ port
             sender.send(&pkt_buf).map_err(|e| RLanLibError::Scan {
@@ -180,7 +178,7 @@ impl SYNScanner {
 
         let rst_packet = rst_packet.to_raw();
 
-        let mut rst_sender = self.packet_sender.lock()?;
+        let mut rst_sender = self.wire.0.lock()?;
 
         log::debug!("sending RST packet to {}:{}", device.ip, port);
 
@@ -217,13 +215,13 @@ impl SYNScanner {
             .source_mac(self.interface.mac)
             .source_ipv4(self.interface.ipv4)
             .source_port(self.source_port)
-            .packet_sender(Arc::clone(&self.packet_sender))
+            .packet_sender(Arc::clone(&self.wire.0))
             .build()?;
 
         let heart_handle = heartbeat.start_in_thread(heartbeat_rx)?;
 
         Ok(thread::spawn(move || -> Result<()> {
-            let mut reader = self_clone.packet_reader.lock()?;
+            let mut reader = self_clone.wire.1.lock()?;
 
             // Build a HashMap for O(1) device lookups instead of O(n) linear search
             let device_map: HashMap<Ipv4Addr, Device> = self_clone

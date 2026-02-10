@@ -1,10 +1,14 @@
 //! Event and command type definitions.
 
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display, net::Ipv4Addr};
 
 use r_lanlib::scanners::Device;
 
-use crate::{config::DeviceConfig, shell::traits::BrowseArgs};
+use crate::{
+    config::{Config, DeviceConfig},
+    shell::traits::BrowseArgs,
+    store::action::Action,
+};
 
 /// External commands that can be executed (SSH, traceroute, browse).
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -24,13 +28,37 @@ impl Display for Command {
     }
 }
 
+#[derive(Debug)]
+pub enum NetworkMessage {
+    /// Instructs network thread to quit
+    Quit,
+    /// Informs network thread that user updated config
+    ConfigUpdate(Config),
+}
+
 /// Messages sent from the renderer to the main event handler.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum MainMessage {
+    /// State updates from the renderer thread
+    ActionSync(Box<Action>),
     /// UI has been paused (ready for shell command).
     UIPaused,
     /// UI has resumed after shell command.
     UIResumed,
+    /// Informs that ARP scanning is beginning
+    ArpStart,
+    /// Network ARP update
+    ArpUpdate(Device),
+    /// Informs that ARP scanning finished
+    ArpDone,
+    /// Informs that SYN scanning is beginning
+    SynStart,
+    /// Network SYN update
+    SynUpdate(Device),
+    /// Informs that SYN scanning finished
+    SynDone,
+    /// Sends all the compiled results from a full round of scanning ARP + SYN
+    FullScanResult(HashMap<Ipv4Addr, Device>),
     /// Request to execute an external command.
     ExecCommand(Command),
     /// Request to quit the application.
@@ -38,14 +66,14 @@ pub enum MainMessage {
 }
 
 /// Messages sent from the main event handler to the renderer.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum RendererMessage {
+    /// State updates from the main thread
+    ActionSync(Box<Action>),
     /// Request the renderer to pause (exit raw mode for shell command).
     PauseUI,
     /// Request the renderer to resume after shell command.
     ResumeUI,
-    /// Instructs renderer process that it needs to redraw
-    ReRender,
 }
 
 #[cfg(test)]

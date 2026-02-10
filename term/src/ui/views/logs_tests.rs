@@ -1,60 +1,27 @@
 use insta::assert_snapshot;
-use nanoid::nanoid;
 use ratatui::{Terminal, backend::TestBackend};
-use std::{
-    collections::HashMap,
-    fs,
-    sync::{Arc, Mutex},
-};
 
-use crate::{
-    config::{Config, ConfigManager},
-    ui::store::{Dispatcher, StateGetter, Store, action::Action},
+use crate::store::{
+    Dispatcher, StateGetter, Store, action::Action, reducer::StoreReducer,
+    state::State,
 };
 
 use super::*;
 
-fn setup() -> (LogsView, Arc<Store>, String) {
-    fs::create_dir_all("generated").unwrap();
-    let tmp_path = format!("generated/{}.yml", nanoid!());
-    let user = "user".to_string();
-    let identity = "/home/user/.ssh/id_rsa".to_string();
-    let cidr = "192.168.1.1/24".to_string();
-    let config_manager = ConfigManager::builder()
-        .default_user(user.clone())
-        .default_identity(identity.clone())
-        .default_cidr(cidr.clone())
-        .path(tmp_path.clone())
-        .build()
-        .unwrap();
-    let conf_manager = Arc::new(Mutex::new(config_manager));
-    let config = Config {
-        id: "default".to_string(),
-        cidr: "192.168.1.1/24".to_string(),
-        default_ssh_identity: "id_rsa".to_string(),
-        default_ssh_port: 22,
-        default_ssh_user: "user".to_string(),
-        device_configs: HashMap::new(),
-        ports: vec![],
-        theme: "Blue".to_string(),
-    };
-    let store = Arc::new(Store::new(conf_manager, config.clone()));
+fn setup() -> (LogsView, Store) {
+    let store = Store::new(State::default(), StoreReducer::boxed());
 
-    store.dispatch(Action::Log("test log 1".into())).unwrap();
-    store.dispatch(Action::Log("test log 2".into())).unwrap();
+    store.dispatch(Action::Log("test log 1".into()));
+    store.dispatch(Action::Log("test log 2".into()));
 
-    (LogsView::new(), store, tmp_path)
-}
-
-fn tear_down(conf_path: String) {
-    fs::remove_file(conf_path).unwrap();
+    (LogsView::new(), store)
 }
 
 #[test]
 fn test_logs_view() {
-    let (logs_view, store, conf_path) = setup();
+    let (logs_view, store) = setup();
     let mut terminal = Terminal::new(TestBackend::new(130, 15)).unwrap();
-    let state = store.get_state().unwrap();
+    let state = store.get_state();
 
     terminal
         .draw(|frame| {
@@ -70,5 +37,4 @@ fn test_logs_view() {
         .unwrap();
 
     assert_snapshot!(terminal.backend());
-    tear_down(conf_path);
 }

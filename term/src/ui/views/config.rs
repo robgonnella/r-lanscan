@@ -1,14 +1,16 @@
 //! Configuration view for editing SSH defaults, theme, and scan ports.
 
-use crate::ui::{
-    colors::Theme,
-    components::{
-        field::Field,
-        header::Header,
-        input::{Input, InputState},
+use crate::{
+    store::{action::Action, state::State},
+    ui::{
+        colors::Theme,
+        components::{
+            field::Field,
+            header::Header,
+            input::{Input, InputState},
+        },
+        views::traits::CustomEventContext,
     },
-    store::{Dispatcher, action::Action, state::State},
-    views::traits::CustomEventContext,
 };
 use color_eyre::eyre::Result;
 use itertools::Itertools;
@@ -17,7 +19,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     widgets::Widget,
 };
-use std::{cell::RefCell, sync::Arc};
+use std::cell::RefCell;
 
 use super::traits::{
     CustomStatefulWidget, CustomWidget, CustomWidgetContext, CustomWidgetRef,
@@ -47,7 +49,6 @@ const FOCUS_ARRAY: [Focus; 5] = [
 
 /// View for editing global application settings.
 pub struct ConfigView {
-    dispatcher: Arc<dyn Dispatcher>,
     theme_index: RefCell<usize>,
     editing: RefCell<bool>,
     focus: RefCell<i8>,
@@ -60,7 +61,7 @@ pub struct ConfigView {
 
 impl ConfigView {
     /// Creates a new config view with the given dispatcher and initial theme.
-    pub fn new(dispatcher: Arc<dyn Dispatcher>, theme: Theme) -> Self {
+    pub fn new(theme: Theme) -> Self {
         let (idx, _) = THEMES
             .iter()
             .enumerate()
@@ -68,7 +69,6 @@ impl ConfigView {
             .unwrap_or((0, &THEMES[0]));
 
         Self {
-            dispatcher,
             theme_index: RefCell::new(idx),
             editing: RefCell::new(false),
             focus: RefCell::new(0),
@@ -95,25 +95,25 @@ impl ConfigView {
         }
     }
 
-    fn next_color(&self) -> Result<()> {
+    fn next_color(&self, ctx: &CustomEventContext) {
         let new_idx = *self.theme_index.borrow() + 1;
         *self.theme_index.borrow_mut() = new_idx % THEMES.len();
         let theme = THEMES[*self.theme_index.borrow()];
         self.theme_state.borrow_mut().value = theme.to_string();
-        self.dispatcher.dispatch(Action::PreviewTheme(theme))
+        ctx.dispatcher.dispatch(Action::PreviewTheme(theme));
     }
 
-    fn previous_color(&self) -> Result<()> {
+    fn previous_color(&self, ctx: &CustomEventContext) {
         let count = THEMES.len();
         let new_idx = *self.theme_index.borrow() + count - 1;
         *self.theme_index.borrow_mut() = new_idx % count;
         let theme = THEMES[*self.theme_index.borrow()];
         self.theme_state.borrow_mut().value = theme.to_string();
-        self.dispatcher.dispatch(Action::PreviewTheme(theme))
+        ctx.dispatcher.dispatch(Action::PreviewTheme(theme));
     }
 
-    fn set_config(&self, state: &State) -> Result<()> {
-        let mut config = state.config.clone();
+    fn set_config(&self, ctx: &CustomEventContext) {
+        let mut config = ctx.state.config.clone();
         config.theme = THEMES[*self.theme_index.borrow()].to_string();
         config.default_ssh_user = self.ssh_user_state.borrow().value.clone();
         let port = self
@@ -134,7 +134,7 @@ impl ConfigView {
             .split(",")
             .map_into()
             .collect();
-        self.dispatcher.dispatch(Action::UpdateConfig(config))
+        ctx.dispatcher.dispatch(Action::UpdateConfig(config));
     }
 
     fn render_label(
@@ -408,7 +408,7 @@ impl EventHandler for ConfigView {
                             if *self.editing.borrow()
                                 && self.theme_state.borrow().editing
                             {
-                                self.next_color()?;
+                                self.next_color(ctx);
                                 handled = true;
                             }
                         }
@@ -416,13 +416,13 @@ impl EventHandler for ConfigView {
                             if *self.editing.borrow()
                                 && self.theme_state.borrow().editing
                             {
-                                self.previous_color()?;
+                                self.previous_color(ctx);
                                 handled = true;
                             }
                         }
                         KeyCode::Enter => {
                             if *self.editing.borrow() {
-                                self.set_config(ctx.state)?;
+                                self.set_config(ctx);
                                 self.reset_input_state();
                                 *self.focus.borrow_mut() = 0;
                                 *self.editing.borrow_mut() = false;

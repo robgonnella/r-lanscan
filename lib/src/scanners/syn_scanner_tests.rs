@@ -3,11 +3,12 @@ use core::net;
 use pnet::packet::{arp, ethernet, ipv4, tcp};
 use pnet::util;
 use std::str::FromStr;
-use std::sync::Arc;
 use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::network;
+use crate::packet::{Reader, Sender};
 use crate::scanners::PortSet;
 use packet::arp_packet::create_arp_reply;
 use packet::mocks::{MockPacketReader, MockPacketSender};
@@ -24,10 +25,13 @@ const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 #[test]
 fn new() {
     let interface = Arc::new(network::get_default_interface().unwrap());
+
     let arc_receiver: Arc<Mutex<dyn Reader>> =
         Arc::new(Mutex::new(MockPacketReader::new()));
     let arc_sender: Arc<Mutex<dyn Sender>> =
         Arc::new(Mutex::new(MockPacketSender::new()));
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let devices: Vec<Device> = Vec::new();
     let ports = PortTargets::new(vec!["2000-8000".to_string()]).unwrap();
@@ -35,8 +39,7 @@ fn new() {
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices.clone())
         .ports(ports)
         .source_port(54321_u16)
@@ -94,6 +97,7 @@ fn sends_and_reads_packets() {
 
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(arc_sender, arc_receiver);
 
     let idle_timeout = Duration::from_secs(2);
     let devices: Vec<Device> = vec![device.clone()];
@@ -102,8 +106,7 @@ fn sends_and_reads_packets() {
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -234,14 +237,15 @@ fn ignores_unrelated_packets() {
 
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
 
     let (tx, rx) = channel();
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -308,6 +312,8 @@ fn reports_error_on_packet_reader_lock() {
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let arc_receiver_clone = Arc::clone(&arc_receiver);
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let (tx, _rx) = channel();
 
@@ -321,8 +327,7 @@ fn reports_error_on_packet_reader_lock() {
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -386,6 +391,8 @@ fn reports_error_on_rst_packet_sender_lock() {
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let arc_sender_clone = Arc::clone(&arc_sender);
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let (tx, _rx) = channel();
 
@@ -399,8 +406,7 @@ fn reports_error_on_rst_packet_sender_lock() {
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -466,6 +472,8 @@ fn reports_error_on_rst_packet_send_errors() {
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let arc_sender_clone = Arc::clone(&arc_sender);
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let (tx, _rx) = channel();
 
@@ -479,8 +487,7 @@ fn reports_error_on_rst_packet_send_errors() {
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -527,13 +534,14 @@ fn reports_error_on_packet_read_error() {
 
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let (tx, _rx) = channel();
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -577,6 +585,8 @@ fn reports_error_on_notifier_send_errors() {
 
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let (tx, rx) = channel();
 
@@ -585,8 +595,7 @@ fn reports_error_on_notifier_send_errors() {
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -626,6 +635,8 @@ fn reports_error_on_packet_sender_lock_errors() {
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let arc_sender_clone = Arc::clone(&arc_sender);
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let (tx, rx) = channel();
 
@@ -639,8 +650,7 @@ fn reports_error_on_packet_sender_lock_errors() {
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -690,13 +700,14 @@ fn reports_error_on_packet_send_errors() {
 
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let (tx, rx) = channel();
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)
@@ -747,13 +758,14 @@ fn reports_errors_from_read_handle() {
 
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(arc_sender, arc_receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let (tx, rx) = channel();
 
     let scanner = SYNScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(devices)
         .ports(ports)
         .source_port(54321_u16)

@@ -12,20 +12,22 @@ use ratatui::{
         Widget,
     },
 };
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
 use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
-use crate::ui::{
-    colors::Theme,
-    components::{footer::InfoFooter, popover::get_popover_area},
-    store::{Dispatcher, action::Action, state::State},
-    views::{
-        config::ConfigView,
-        devices::DevicesView,
-        logs::LogsView,
-        traits::{
-            CustomEventContext, CustomWidget, CustomWidgetContext,
-            CustomWidgetRef, EventHandler, View,
+use crate::{
+    store::{action::Action, state::State},
+    ui::{
+        colors::Theme,
+        components::{footer::InfoFooter, popover::get_popover_area},
+        views::{
+            config::ConfigView,
+            devices::DevicesView,
+            logs::LogsView,
+            traits::{
+                CustomEventContext, CustomWidget, CustomWidgetContext,
+                CustomWidgetRef, EventHandler, View,
+            },
         },
     },
 };
@@ -67,7 +69,6 @@ const DEFAULT_PADDING: Padding = Padding::horizontal(2);
 
 /// Root widget that manages views, handles global events, and renders layout.
 pub struct App {
-    dispatcher: Arc<dyn Dispatcher>,
     selected_tab: RefCell<SelectedTab>,
     selected_view: RefCell<Rc<dyn View>>,
     devices_view: Rc<DevicesView>,
@@ -77,13 +78,11 @@ pub struct App {
 
 impl App {
     /// Creates a new app with the given theme and dispatcher.
-    pub fn new(dispatcher: Arc<dyn Dispatcher>, theme: Theme) -> Self {
-        let devices_view = Rc::new(DevicesView::new(Arc::clone(&dispatcher)));
-        let config_view =
-            Rc::new(ConfigView::new(Arc::clone(&dispatcher), theme));
+    pub fn new(theme: Theme) -> Self {
+        let devices_view = Rc::new(DevicesView::new());
+        let config_view = Rc::new(ConfigView::new(theme));
         let logs_view = Rc::new(LogsView::new());
         Self {
-            dispatcher: Arc::clone(&dispatcher),
             selected_tab: RefCell::new(SelectedTab::Devices),
             selected_view: RefCell::new(devices_view.clone()),
             devices_view,
@@ -395,7 +394,7 @@ impl EventHandler for App {
             && let CrossTermEvent::Key(key) = evt
             && key.code == KeyCode::Enter
         {
-            self.dispatcher.dispatch(Action::SetError(None))?;
+            ctx.dispatcher.dispatch(Action::SetError(None));
             return Ok(true);
         }
 
@@ -405,17 +404,8 @@ impl EventHandler for App {
             let result = view.process_event(evt, ctx);
 
             if let Err(err) = result {
-                if let Err(dispatch_err) = self
-                    .dispatcher
-                    .dispatch(Action::SetError(Some(err.to_string())))
-                {
-                    // if we can't dispatch and we can't send messages there's
-                    // no way out. So here we use ? and let renderer process
-                    // crash. The user will have to ctrl-c to exit main process
-                    ctx.ipc.send(crate::ipc::message::MainMessage::Quit(
-                        Some(dispatch_err.to_string()),
-                    ))?;
-                }
+                ctx.dispatcher
+                    .dispatch(Action::SetError(Some(err.to_string())));
                 return Ok(true);
             }
 

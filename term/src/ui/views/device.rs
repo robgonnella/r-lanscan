@@ -4,13 +4,13 @@ use crate::{
     config::DeviceConfig,
     ipc::message::{Command, MainMessage},
     shell::traits::BrowseArgs,
+    store::{action::Action, state::State},
     ui::{
         components::{
             header::Header,
             input::{Input, InputState},
             popover::get_popover_area,
         },
-        store::{Dispatcher, action::Action, state::State},
         views::traits::CustomEventContext,
     },
 };
@@ -23,7 +23,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Clear, Padding, Paragraph, Widget, Wrap},
 };
-use std::{cell::RefCell, sync::Arc};
+use std::cell::RefCell;
 
 use super::traits::{
     CustomStatefulWidget, CustomWidget, CustomWidgetContext, CustomWidgetRef,
@@ -53,7 +53,6 @@ const FOCUS_BROWSER_ARRAY: [FocusBrowser; 2] =
 
 /// View for displaying device details and executing SSH, traceroute, browse.
 pub struct DeviceView {
-    dispatcher: Arc<dyn Dispatcher>,
     device: Device,
     device_config: DeviceConfig,
     editing_ssh: RefCell<bool>,
@@ -69,13 +68,8 @@ pub struct DeviceView {
 
 impl DeviceView {
     /// Creates a new device view with the given dispatcher.
-    pub fn new(
-        dispatcher: Arc<dyn Dispatcher>,
-        device: Device,
-        device_config: DeviceConfig,
-    ) -> Self {
+    pub fn new(device: Device, device_config: DeviceConfig) -> Self {
         Self {
-            dispatcher,
             device,
             device_config,
             editing_ssh: RefCell::new(false),
@@ -619,8 +613,8 @@ impl EventHandler for DeviceView {
                                 self.reset_input_state();
                                 return Ok(true);
                             } else {
-                                self.dispatcher
-                                    .dispatch(Action::ClearCommandOutput)?;
+                                ctx.dispatcher
+                                    .dispatch(Action::ClearCommandOutput);
                                 // allow this one to bubble up to next layer
                                 return Ok(false);
                             }
@@ -702,9 +696,9 @@ impl EventHandler for DeviceView {
                                     .borrow()
                                     .value
                                     .clone();
-                                self.dispatcher.dispatch(
+                                ctx.dispatcher.dispatch(
                                     Action::UpdateDeviceConfig(device_config),
-                                )?;
+                                );
                                 self.reset_input_state();
                                 return Ok(true);
                             }

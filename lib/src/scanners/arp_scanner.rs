@@ -4,7 +4,7 @@ use derive_builder::Builder;
 use pnet::packet::{Packet, arp, ethernet};
 use std::{
     net::Ipv4Addr,
-    sync::{self, Arc, Mutex},
+    sync::{self, Arc},
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -13,7 +13,7 @@ use threadpool::ThreadPool;
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{self, Reader, Sender, arp_packet::ArpPacketBuilder},
+    packet::{self, arp_packet::ArpPacketBuilder, wire::Wire},
     scanners::{Device, PortSet, Scanning},
     targets::ips::IPTargets,
 };
@@ -26,10 +26,8 @@ use super::{ScanMessage, Scanner, heartbeat::HeartBeat};
 pub struct ARPScanner {
     /// Network interface to use for scanning
     interface: Arc<NetworkInterface>,
-    /// Packet reader for receiving ARP replies
-    packet_reader: Arc<Mutex<dyn Reader>>,
-    /// Packet sender for transmitting ARP requests
-    packet_sender: Arc<Mutex<dyn Sender>>,
+    /// Wire for reading and sending packets on the wire
+    wire: Wire,
     /// IP targets to scan
     targets: Arc<IPTargets>,
     /// Source port for packet listener and incoming packet identification
@@ -72,7 +70,7 @@ impl ARPScanner {
             }))
             .map_err(RLanLibError::from_channel_send_error)?;
 
-        let mut pkt_sender = self.packet_sender.lock()?;
+        let mut pkt_sender = self.wire.0.lock()?;
 
         // Send to the broadcast address
         pkt_sender.send(&pkt_buf)?;
@@ -151,7 +149,7 @@ impl ARPScanner {
             .source_mac(self.interface.mac)
             .source_ipv4(self.interface.ipv4)
             .source_port(self.source_port)
-            .packet_sender(Arc::clone(&self.packet_sender))
+            .packet_sender(Arc::clone(&self.wire.0))
             .build()?;
 
         heartbeat.start_in_thread(heartbeat_rx)?;
@@ -159,7 +157,7 @@ impl ARPScanner {
         let self_clone = self.clone();
 
         Ok(thread::spawn(move || -> Result<()> {
-            let mut reader = self_clone.packet_reader.lock()?;
+            let mut reader = self_clone.wire.1.lock()?;
             // Use a bounded thread pool for DNS/vendor lookups to prevent
             // spawning thousands of threads on large networks
             let lookup_pool = ThreadPool::new(8);

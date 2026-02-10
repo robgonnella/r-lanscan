@@ -7,13 +7,13 @@ use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
 };
-use std::{cell::RefCell, sync::Arc};
+use std::cell::RefCell;
 
 use crate::{
     config::DeviceConfig,
+    store::state::State,
     ui::{
         components::table::{DEFAULT_ITEM_HEIGHT, Table},
-        store::{Dispatcher, state::State},
         views::{device::DeviceView, traits::CustomEventContext},
     },
 };
@@ -22,7 +22,6 @@ use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 /// Main view showing all discovered devices in a selectable table.
 pub struct DevicesView {
-    dispatcher: Arc<dyn Dispatcher>,
     selected_device: RefCell<Option<Device>>,
     device_view: RefCell<Option<RefCell<DeviceView>>>,
     table: RefCell<Table>,
@@ -30,9 +29,8 @@ pub struct DevicesView {
 
 impl DevicesView {
     /// Creates a new devices view with the given dispatcher.
-    pub fn new(dispatcher: Arc<dyn Dispatcher>) -> Self {
+    pub fn new() -> Self {
         Self {
-            dispatcher,
             selected_device: RefCell::new(None),
             device_view: RefCell::new(None),
             table: RefCell::new(Table::new(
@@ -134,11 +132,7 @@ impl DevicesView {
         state: &State,
     ) -> DeviceView {
         let (device, device_config) = self.get_selected_device(selected, state);
-        DeviceView::new(
-            Arc::clone(&self.dispatcher),
-            device.clone(),
-            device_config,
-        )
+        DeviceView::new(device.clone(), device_config)
     }
 }
 

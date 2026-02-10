@@ -3,15 +3,18 @@ use pnet::{
     packet::{arp, ethernet, ipv4, tcp},
     util,
 };
-use std::net;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
 use std::time::Duration;
+use std::{net, sync::Mutex};
 
-use crate::packet::arp_packet::create_arp_reply;
-use crate::packet::mocks::{MockPacketReader, MockPacketSender};
 use crate::packet::syn_packet::create_syn_reply;
+use crate::packet::{Reader, arp_packet::create_arp_reply};
+use crate::packet::{
+    Sender,
+    mocks::{MockPacketReader, MockPacketSender},
+};
 use crate::scanners::Port;
 use crate::{network, scanners::PortSet};
 
@@ -26,10 +29,13 @@ const PKT_TOTAL_SYN_SIZE: usize = PKT_ETH_SIZE + PKT_IP4_SIZE + PKT_TCP_SIZE;
 #[test]
 fn new() {
     let interface = Arc::new(network::get_default_interface().unwrap());
+
     let sender: Arc<Mutex<dyn Sender>> =
         Arc::new(Mutex::new(MockPacketSender::new()));
     let receiver: Arc<Mutex<dyn Reader>> =
         Arc::new(Mutex::new(MockPacketReader::new()));
+    let wire = Wire(sender, receiver);
+
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.0/24".to_string()]).unwrap();
     let ports = PortTargets::new(vec!["2000-8000".to_string()]).unwrap();
@@ -37,8 +43,7 @@ fn new() {
 
     let scanner = FullScanner::builder()
         .interface(interface)
-        .packet_reader(receiver)
-        .packet_sender(sender)
+        .wire(wire)
         .targets(targets)
         .ports(ports)
         .host(true)
@@ -117,6 +122,7 @@ fn sends_and_reads_packets() {
 
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
     let arc_sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let wire = Wire(arc_sender, arc_receiver);
 
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec!["192.168.1.2".to_string()]).unwrap();
@@ -125,8 +131,7 @@ fn sends_and_reads_packets() {
 
     let scanner = FullScanner::builder()
         .interface(interface)
-        .packet_reader(arc_receiver)
-        .packet_sender(arc_sender)
+        .wire(wire)
         .targets(targets)
         .ports(ports)
         .host(true)

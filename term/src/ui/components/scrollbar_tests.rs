@@ -1,4 +1,4 @@
-use crate::ui::store::state::State;
+use crate::store::state::State;
 
 use super::*;
 use insta::assert_snapshot;

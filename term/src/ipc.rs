@@ -5,5 +5,6 @@
 
 pub mod main;
 pub mod message;
+pub mod network;
 pub mod renderer;
 pub mod traits;
