@@ -1,3 +1,21 @@
+# [0.7.0](https://github.com/robgonnella/r-lanscan/compare/v0.6.0...v0.7.0) - 2026-02-07
+
+### 🚀 Features
+
+- _(term)_ redesign UI [_(5361ec6)_](https://github.com/robgonnella/r-lanscan/commit/5361ec6b3054f77b21ee60e80b1a2797ac69cf9b)
+
+### 🐛 Bug Fixes
+
+- fixes ui message [_(e9117a3)_](https://github.com/robgonnella/r-lanscan/commit/e9117a3d187f775013ff2119891ade04201d95e6)
+
+- _(term)_ renders popover when executing commands [_(c0f7076)_](https://github.com/robgonnella/r-lanscan/commit/c0f7076b8b7caa64854f4feb684c3a1947bb0f52)
+
+- _(term)_ fixes issues with pausing and resuming ui [_(e159b6e)_](https://github.com/robgonnella/r-lanscan/commit/e159b6ee972e51ef2fe5d5ac2fde27283259d02a)
+
+### 🚜 Refactor
+
+- _(term)_ major refactor of r-lanterm [_(19a5813)_](https://github.com/robgonnella/r-lanscan/commit/19a581363d1913dde89c8f6b9124fef9e0dfd735)
+
 # [0.6.0](https://github.com/robgonnella/r-lanscan/releases/tag/v0.6.0) - 2026-01-31
 
 ### 🚀 Features
