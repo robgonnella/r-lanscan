@@ -63,7 +63,7 @@ impl MainProcess {
                     }
                     MainMessage::ArpStart => {
                         self.store.dispatch(Action::UpdateMessage(Some(
-                            "ARP scanning in process...".into(),
+                            "ARP scanning in progress...".into(),
                         )));
                     }
                     MainMessage::ArpUpdate(device) => {
@@ -76,7 +76,7 @@ impl MainProcess {
                     }
                     MainMessage::SynStart => {
                         self.store.dispatch(Action::UpdateMessage(Some(
-                            "SYN scanning in process...".into(),
+                            "SYN scanning in progress...".into(),
                         )));
                     }
                     MainMessage::SynUpdate(device) => {
