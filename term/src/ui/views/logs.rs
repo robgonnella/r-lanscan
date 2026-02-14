@@ -3,20 +3,17 @@ use color_eyre::eyre::Result;
 use ratatui::{
     crossterm::event::{Event, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
+    style::{Modifier, Style},
     widgets::{ScrollDirection, ScrollbarState},
 };
 use std::cell::RefCell;
 
 use crate::ui::{
-    components::{
-        header::Header, scrollview::ScrollView, table::DEFAULT_ITEM_HEIGHT,
-    },
+    components::{scrollview::ScrollView, table::DEFAULT_ITEM_HEIGHT},
     views::traits::{CustomEventContext, CustomStatefulWidget},
 };
 
-use super::traits::{
-    CustomWidget, CustomWidgetContext, CustomWidgetRef, EventHandler, View,
-};
+use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 /// View for editing global application settings.
 #[derive(Default)]
@@ -31,16 +28,6 @@ impl LogsView {
                 DEFAULT_ITEM_HEIGHT,
             )),
         }
-    }
-
-    fn render_label(
-        &self,
-        area: Rect,
-        buf: &mut ratatui::prelude::Buffer,
-        ctx: &CustomWidgetContext,
-    ) {
-        let header = Header::new("Logs".to_string());
-        header.render(area, buf, ctx);
     }
 
     pub fn render_logs(
@@ -63,7 +50,11 @@ impl LogsView {
             .content_length(ctx.state.logs.len() * DEFAULT_ITEM_HEIGHT)
             .viewport_content_length(area.height.into());
 
-        let view = ScrollView::new(&text);
+        let view = ScrollView::new(&text).style(
+            Style::default()
+                .fg(ctx.state.colors.light_gray)
+                .add_modifier(Modifier::BOLD),
+        );
 
         view.render(area, buf, &mut scroll_state, ctx);
     }
@@ -78,17 +69,12 @@ impl CustomWidgetRef for LogsView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) -> Result<()> {
-        let [label_area, _, logs_area] = Layout::vertical([
-            Constraint::Length(1), // label
+        let [_, logs_area] = Layout::vertical([
             Constraint::Length(1), // spacer
             Constraint::Min(1),    // logs
         ])
         .areas(area);
 
-        let label_rects =
-            Layout::horizontal([Constraint::Length(20)]).split(label_area);
-
-        self.render_label(label_rects[0], buf, ctx);
         self.render_logs(logs_area, buf, ctx);
         Ok(())
     }

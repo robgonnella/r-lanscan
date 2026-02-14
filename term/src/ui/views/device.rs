@@ -9,6 +9,7 @@ use crate::{
         components::{
             header::Header,
             input::{Input, InputState},
+            label::Label,
             popover::get_popover_area,
         },
         views::traits::CustomEventContext,
@@ -19,7 +20,7 @@ use r_lanlib::scanners::Device;
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    style::{Modifier, Style},
+    style::Style,
     text::{Line, Span},
     widgets::{Block, BorderType, Clear, Padding, Paragraph, Widget, Wrap},
 };
@@ -108,25 +109,16 @@ impl DeviceView {
         self.device_config = device_config;
     }
 
-    fn render_label(
-        &self,
-        area: Rect,
-        buf: &mut ratatui::prelude::Buffer,
-        ctx: &CustomWidgetContext,
-    ) {
-        let [label_area, _] =
-            Layout::horizontal([Constraint::Length(25), Constraint::Min(0)])
-                .areas(area);
-
-        let header_style = Style::default()
-            .fg(ctx.state.colors.text)
-            .bg(ctx.state.colors.row_header_bg)
-            .add_modifier(Modifier::BOLD);
-
-        Paragraph::new(format!("Device: {}", self.device.ip))
-            .style(header_style)
-            .render(label_area, buf);
-    }
+    // fn render_label(
+    //     &self,
+    //     area: Rect,
+    //     buf: &mut ratatui::prelude::Buffer,
+    //     ctx: &CustomWidgetContext,
+    // ) {
+    //     let device_label =
+    //         Label::new(format!("Device: {}", self.device.ip), 25);
+    //     device_label.render(area, buf, ctx);
+    // }
 
     fn render_device_ssh_config(
         &self,
@@ -143,38 +135,40 @@ impl DeviceView {
                 self.device_config.ssh_identity_file.clone();
         }
 
-        let rects = Layout::vertical([
-            Constraint::Length(1), // header
-            Constraint::Length(1), // spacer
-            Constraint::Length(1), // user
-            Constraint::Length(1), // spacer
-            Constraint::Length(1), // port
-            Constraint::Length(1), // spacer
-            Constraint::Length(1), // identity
-            Constraint::Length(1), // spacer
-        ])
-        .split(area);
+        let [label_area, _, user_area, _, port_area, _, identity_area, _] =
+            Layout::vertical([
+                Constraint::Length(1), // label
+                Constraint::Length(1), // spacer
+                Constraint::Length(1), // user
+                Constraint::Length(1), // spacer
+                Constraint::Length(1), // port
+                Constraint::Length(1), // spacer
+                Constraint::Length(1), // identity
+                Constraint::Length(1), // spacer
+            ])
+            .areas(area);
 
-        let header = Header::new("SSH Config".to_string());
+        let label = Label::new("SSH Config".to_string());
         let ssh_user_input = Input::new("User");
         let ssh_port_input = Input::new("Port");
         let ssh_identity_input = Input::new("Identity");
 
-        header.render(rects[0], buf, ctx);
+        label.render(label_area, buf, ctx);
+
         ssh_user_input.render(
-            rects[2],
+            user_area,
             buf,
             &mut self.ssh_user_state.borrow_mut(),
             ctx,
         );
         ssh_port_input.render(
-            rects[4],
+            port_area,
             buf,
             &mut self.ssh_port_state.borrow_mut(),
             ctx,
         );
         ssh_identity_input.render(
-            rects[6],
+            identity_area,
             buf,
             &mut self.ssh_identity_state.borrow_mut(),
             ctx,
@@ -187,7 +181,7 @@ impl DeviceView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        let [header_area, _, info_area] = Layout::vertical([
+        let [label_area, _, info_area] = Layout::vertical([
             Constraint::Length(1), // header
             Constraint::Length(1), // spacer
             Constraint::Min(1),    // info
@@ -236,14 +230,14 @@ impl DeviceView {
         ])
         .areas(info_area);
 
-        let header = Header::new("Info".to_string());
+        let label = Label::new("Info".to_string());
         let host = Line::from(host_str);
         let ip = Line::from(ip_str);
         let mac = Line::from(mac_str);
         let vendor = Line::from(vendor_str);
         let open_ports = Paragraph::new(vec![Line::from(open_ports_str)])
             .wrap(Wrap { trim: true });
-        header.render(header_area, buf, ctx);
+        label.render(label_area, buf, ctx);
         host.render(host_area, buf);
         ip.render(ip_area, buf);
         mac.render(mac_area, buf);
@@ -568,18 +562,15 @@ impl CustomWidgetRef for DeviceView {
         ])
         .areas(area);
 
-        let [label_area, _, ssh_area, _, info_area] = Layout::vertical([
-            Constraint::Length(1),       // label
-            Constraint::Length(2),       // spacer
-            Constraint::Length(8),       // ssh info
-            Constraint::Length(1),       // spacer
-            Constraint::Percentage(100), // device info
+        let [ssh_area, info_area] = Layout::vertical([
+            Constraint::Length(12), // ssh info
+            Constraint::Min(0),     // device info
         ])
         .areas(left_area);
 
         let popover_area = get_popover_area(ctx.app_area, 40, 30);
 
-        self.render_label(label_area, buf, ctx);
+        // self.render_label(label_area, buf, ctx);
         self.render_device_ssh_config(ssh_area, buf, ctx);
         self.render_device_info(info_area, buf, ctx);
         self.render_cmd_output(right_area, buf, ctx);

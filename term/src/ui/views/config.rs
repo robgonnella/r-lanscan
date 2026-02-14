@@ -6,8 +6,8 @@ use crate::{
         colors::Theme,
         components::{
             field::Field,
-            header::Header,
             input::{Input, InputState},
+            label::Label,
         },
         views::traits::CustomEventContext,
     },
@@ -143,8 +143,8 @@ impl ConfigView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        let header = Header::new("Config".to_string());
-        header.render(area, buf, ctx);
+        let config_label = Label::new("Global Config".into());
+        config_label.render(area, buf, ctx);
     }
 
     fn render_network(
@@ -343,7 +343,19 @@ impl CustomWidgetRef for ConfigView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) -> Result<()> {
-        let view_rects = Layout::vertical([
+        let [
+            _,
+            label_area,
+            _,
+            network_area,
+            _,
+            ssh_area,
+            _,
+            theme_area,
+            _,
+            ports_area,
+        ] = Layout::vertical([
+            Constraint::Length(1), // spacer
             Constraint::Length(1), // label
             Constraint::Length(1), // spacer
             Constraint::Length(1), // network
@@ -354,16 +366,13 @@ impl CustomWidgetRef for ConfigView {
             Constraint::Length(1), // spacer
             Constraint::Min(1),    // ports
         ])
-        .split(area);
+        .areas(area);
 
-        let label_rects =
-            Layout::horizontal([Constraint::Length(20)]).split(view_rects[0]);
-
-        self.render_label(label_rects[0], buf, ctx);
-        self.render_network(view_rects[2], buf, ctx);
-        self.render_ssh(view_rects[4], buf, ctx.state, ctx);
-        self.render_theme(view_rects[6], buf, ctx);
-        self.render_ports(view_rects[8], buf, ctx);
+        self.render_label(label_area, buf, ctx);
+        self.render_network(network_area, buf, ctx);
+        self.render_ssh(ssh_area, buf, ctx.state, ctx);
+        self.render_theme(theme_area, buf, ctx);
+        self.render_ports(ports_area, buf, ctx);
         Ok(())
     }
 }
