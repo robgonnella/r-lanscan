@@ -129,7 +129,7 @@ impl NetworkProcess {
         &self,
         scanner: SYNScanner,
         rx: Receiver<ScanMessage>,
-    ) -> Result<HashMap<Ipv4Addr, Device>> {
+    ) -> Result<()> {
         self.ipc.tx.send(MainMessage::SynStart)?;
 
         // force include arp devices that were detected before but were
@@ -162,18 +162,6 @@ impl NetworkProcess {
                 }
                 ScanMessage::SYNScanDevice(device) => {
                     self.ipc.tx.send(MainMessage::SynUpdate(device.clone()))?;
-                    let result = syn_results.get_mut(&device.ip);
-                    match result {
-                        Some(d) => {
-                            d.open_ports.0.extend(device.open_ports.0);
-                        }
-                        None => {
-                            log::error!(
-                                "received syn result for unknown device: {:?}",
-                                device
-                            );
-                        }
-                    }
                 }
                 _ => {}
             }
@@ -181,9 +169,7 @@ impl NetworkProcess {
 
         handle.join().map_err(error::report_from_thread_panic)??;
 
-        self.ipc.tx.send(MainMessage::SynDone)?;
-
-        Ok(syn_results)
+        self.ipc.tx.send(MainMessage::SynDone)
     }
 }
 
@@ -238,9 +224,7 @@ impl NetworkMonitor for NetworkProcess {
                 .notifier(tx.clone())
                 .build()?;
 
-            let results = self.process_syn(syn_scanner, rx)?;
-
-            self.ipc.tx.send(MainMessage::FullScanResult(results))?;
+            self.process_syn(syn_scanner, rx)?;
 
             thread::sleep(time::Duration::from_secs(15));
         }

@@ -1,8 +1,7 @@
 //! Event and command type definitions.
 
-use std::{collections::HashMap, fmt::Display, net::Ipv4Addr};
-
 use r_lanlib::scanners::Device;
+use std::fmt::Display;
 
 use crate::{
     config::{Config, DeviceConfig},
@@ -57,8 +56,6 @@ pub enum MainMessage {
     SynUpdate(Device),
     /// Informs that SYN scanning finished
     SynDone,
-    /// Sends all the compiled results from a full round of scanning ARP + SYN
-    FullScanResult(HashMap<Ipv4Addr, Device>),
     /// Request to execute an external command.
     ExecCommand(Command),
     /// Request to quit the application.

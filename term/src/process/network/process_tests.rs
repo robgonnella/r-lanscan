@@ -337,7 +337,7 @@ fn process_arp_sends_messages_and_updates_history() {
 }
 
 #[test]
-fn process_syn_sends_messages_and_returns_results() {
+fn process_syn_sends_messages() {
     let mut seq = Sequence::new();
     let mut mock_sender = MockIpcSender::<MainMessage>::new();
     let mock_receiver = MockIpcReceiver::<NetworkMessage>::new();
@@ -400,13 +400,5 @@ fn process_syn_sends_messages_and_returns_results() {
         .build()
         .unwrap();
 
-    let result = process.process_syn(scanner, rx);
-    assert!(result.is_ok());
-
-    let devices = result.unwrap();
-    assert_eq!(devices.len(), 1);
-
-    let found = devices.get(&device.ip).unwrap();
-    assert_eq!(found.ip, device.ip);
-    assert!(found.open_ports.0.contains(&port));
+    process.process_syn(scanner, rx).unwrap();
 }

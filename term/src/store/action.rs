@@ -1,6 +1,6 @@
 //! Action types for state transitions.
 
-use std::{collections::HashMap, net::Ipv4Addr, process::Output};
+use std::process::Output;
 
 use r_lanlib::scanners::Device;
 
@@ -21,7 +21,6 @@ pub enum Action {
     ClearCommandOutput,
     UpdateMessage(Option<String>),
     PreviewTheme(Theme),
-    UpdateAllDevices(HashMap<Ipv4Addr, Device>),
     AddDevice(Device),
     UpdateConfig(Config),
     UpdateDeviceConfig(DeviceConfig),

@@ -22,7 +22,7 @@ use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
 
 /// Main view showing all discovered devices in a selectable table.
 pub struct DevicesView {
-    selected_device: RefCell<Option<Device>>,
+    selected_device: RefCell<Option<(Device, DeviceConfig)>>,
     device_view: RefCell<Option<RefCell<DeviceView>>>,
     table: RefCell<Table>,
 }
@@ -56,13 +56,34 @@ impl DevicesView {
         self.table.borrow_mut().previous();
     }
 
-    fn set_selected(&self, i: usize, state: &State) -> Result<()> {
-        if !state.sorted_device_list.is_empty()
-            && i < state.sorted_device_list.len()
+    fn get_device_config(
+        &self,
+        device: &Device,
+        state: &State,
+    ) -> DeviceConfig {
+        if let Some(dev_conf) =
+            state.config.device_configs.get(&device.mac.to_string())
         {
-            let device_view = self.get_new_device_view(i, state);
+            dev_conf.clone()
+        } else {
+            DeviceConfig {
+                id: device.mac.to_string(),
+                ssh_identity_file: state.config.default_ssh_identity.clone(),
+                ssh_port: state.config.default_ssh_port,
+                ssh_user: state.config.default_ssh_user.clone(),
+            }
+        }
+    }
+
+    fn set_selected(&self, i: usize, state: &State) -> Result<()> {
+        let list = state.device_list();
+
+        if !list.is_empty() && i < list.len() {
+            let device = list[i].clone();
+            let device_config = self.get_device_config(&device, state);
             self.selected_device
-                .replace(Some(state.sorted_device_list[i].clone()));
+                .replace(Some((device.clone(), device_config.clone())));
+            let device_view = DeviceView::new(device, device_config);
             self.device_view.replace(Some(RefCell::new(device_view)));
         }
 
@@ -75,7 +96,7 @@ impl DevicesView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) -> Result<()> {
-        let devices = ctx.state.sorted_device_list.clone();
+        let devices = ctx.state.device_list();
 
         let items = devices
             .iter()
@@ -101,38 +122,6 @@ impl DevicesView {
         self.table.borrow_mut().update_items(items);
 
         self.table.borrow().render_ref(area, buf, ctx)
-    }
-
-    fn get_selected_device(
-        &self,
-        selected: usize,
-        state: &State,
-    ) -> (Device, DeviceConfig) {
-        let device = state.sorted_device_list[selected].clone();
-
-        let device_config = if let Some(device_config) =
-            state.config.device_configs.get(&device.mac.to_string())
-        {
-            device_config.clone()
-        } else {
-            DeviceConfig {
-                id: device.mac.to_string(),
-                ssh_identity_file: state.config.default_ssh_identity.clone(),
-                ssh_port: state.config.default_ssh_port,
-                ssh_user: state.config.default_ssh_user.clone(),
-            }
-        };
-
-        (device, device_config)
-    }
-
-    fn get_new_device_view(
-        &self,
-        selected: usize,
-        state: &State,
-    ) -> DeviceView {
-        let (device, device_config) = self.get_selected_device(selected, state);
-        DeviceView::new(device.clone(), device_config)
     }
 }
 
@@ -162,18 +151,18 @@ impl CustomWidgetRef for DevicesView {
         ctx: &CustomWidgetContext,
     ) -> Result<()> {
         let view_rects =
-            Layout::vertical([Constraint::Length(1), Constraint::Min(5)])
+            Layout::vertical([Constraint::Length(1), Constraint::Min(0)])
                 .split(area);
 
-        if let Some(selected) = self.table.borrow_mut().selected()
-            && let Some(view) = self.device_view.borrow().as_ref()
+        if let Some(view) = self.device_view.borrow().as_ref()
+            && let Some(selected) = self.selected_device.borrow().as_ref()
+            && let Some(device) = ctx.state.device_map.get(&selected.0.ip)
         {
             // scoped to drop mutable borrow before borrowing again
             {
-                let (device, device_config) =
-                    self.get_selected_device(selected, ctx.state);
-                let mut borrowed = view.borrow_mut();
-                borrowed.update_device(device, device_config);
+                let device_config = self.get_device_config(device, ctx.state);
+                view.borrow_mut()
+                    .update_device(device.to_owned(), device_config);
             }
             view.borrow().render_ref(view_rects[1], buf, ctx)
         } else {
