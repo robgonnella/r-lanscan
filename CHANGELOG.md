@@ -1,3 +1,13 @@
+# [0.7.1](https://github.com/robgonnella/r-lanscan/compare/v0.7.0...v0.7.1) - 2026-02-14
+
+### 🐛 Bug Fixes
+
+- _(term)_ fixes issue with in device view [_(ab0bcc0)_](https://github.com/robgonnella/r-lanscan/commit/ab0bcc0defdcd888fb8cd69eaf7bb7f492cf8076)
+
+- _(term)_ set max hops to 5 for traceroute cmd [_(80a5d17)_](https://github.com/robgonnella/r-lanscan/commit/80a5d17f281b1cf23fea767f3cbc09f60ac0de2b)
+
+- _(term)_ improves labels in tui views [_(86adc14)_](https://github.com/robgonnella/r-lanscan/commit/86adc14edce5acf8444e5092b039290fb6aeffab)
+
 # [0.7.0](https://github.com/robgonnella/r-lanscan/compare/v0.6.0...v0.7.0) - 2026-02-07
 
 ### 🚀 Features
