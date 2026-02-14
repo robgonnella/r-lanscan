@@ -55,10 +55,6 @@ impl Reducer for StoreReducer {
             }
 
             // Device actions
-            Action::UpdateAllDevices(devices) => {
-                self.log_action("UpdateAllDevices", &devices, state);
-                reducers::device::update_all_devices(state, devices);
-            }
             Action::AddDevice(device) => {
                 self.log_action("AddDevice", &device, state);
                 reducers::device::add_device(state, device);

@@ -92,45 +92,6 @@ fn test_update_config() {
 }
 
 #[test]
-fn test_update_all_devices() {
-    let (mut state, reducer) = setup();
-
-    let dev1 = Device {
-        hostname: "dev1".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 2),
-        mac: MacAddr::default(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        vendor: "dev1_vendor".to_string(),
-    };
-
-    let dev2 = Device {
-        hostname: "dev2".to_string(),
-        ip: Ipv4Addr::new(10, 10, 10, 1),
-        mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        vendor: "dev2_vendor".to_string(),
-    };
-
-    let mut expected_devices = HashMap::new();
-    expected_devices.insert(dev1.ip, dev1.clone());
-    expected_devices.insert(dev2.ip, dev2.clone());
-
-    reducer.reduce(
-        &mut state,
-        Action::UpdateAllDevices(expected_devices.clone()),
-    );
-
-    let devices = state.sorted_device_list;
-
-    assert_eq!(devices.len(), 2);
-    // sorted by IP so dev2 should be 1st
-    assert_eq!(devices[0], dev2);
-    assert_eq!(devices[1], dev1);
-}
-
-#[test]
 fn test_add_device() {
     let (mut state, reducer) = setup();
 
@@ -144,8 +105,9 @@ fn test_add_device() {
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev3.clone()));
-    let devices = state.sorted_device_list;
-    assert_eq!(devices, vec![dev3]);
+    let device = state.device_map.get(&dev3.ip).unwrap();
+
+    assert_eq!(device, &dev3);
 }
 
 #[test]
@@ -236,17 +198,17 @@ fn test_updates_device_with_new_info() {
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
-    let devices = state.sorted_device_list.clone();
 
-    assert_eq!(devices.len(), 1);
+    assert_eq!(state.device_map.len(), 1);
 
     dev.open_ports.0.insert(port.clone());
 
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
-    let devices = state.sorted_device_list;
 
-    assert_eq!(devices.len(), 1);
-    assert_eq!(devices[0], dev);
-    assert_eq!(devices[0].open_ports.0.len(), 1);
-    assert!(devices[0].open_ports.0.contains(&port));
+    let device = state.device_map.get(&dev.ip).unwrap();
+
+    assert_eq!(state.device_map.len(), 1);
+    assert_eq!(device, &dev);
+    assert_eq!(device.open_ports.0.len(), 1);
+    assert!(device.open_ports.0.contains(&port));
 }

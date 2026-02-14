@@ -1,7 +1,7 @@
 //! Application state definitions.
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{BTreeMap, VecDeque},
     net::Ipv4Addr,
     process::Output,
 };
@@ -24,8 +24,7 @@ pub struct State {
     pub error: Option<String>,
     pub logs: VecDeque<String>,
     pub config: Config,
-    pub device_map: HashMap<Ipv4Addr, Device>,
-    pub sorted_device_list: Vec<Device>,
+    pub device_map: BTreeMap<Ipv4Addr, Device>,
     pub colors: Colors,
     pub message: Option<String>,
     pub cmd_in_progress: Option<Command>,
@@ -43,7 +42,6 @@ impl Default for State {
             logs: VecDeque::with_capacity(MAX_LOGS),
             config: Default::default(),
             device_map: Default::default(),
-            sorted_device_list: Default::default(),
             colors: Default::default(),
             message: Default::default(),
             cmd_in_progress: Default::default(),
@@ -53,8 +51,13 @@ impl Default for State {
     }
 }
 
-#[cfg(test)]
 impl State {
+    /// Returns list of devices sorted by IP
+    pub fn device_list(&self) -> Vec<&Device> {
+        self.device_map.values().collect()
+    }
+
+    #[cfg(test)]
     pub fn default() -> Self {
         let user = "user".to_string();
         let identity = "/home/user/.ssh/id_rsa".to_string();
@@ -74,8 +77,7 @@ impl State {
             error: None,
             logs: VecDeque::with_capacity(MAX_LOGS),
             config,
-            device_map: HashMap::new(),
-            sorted_device_list: vec![],
+            device_map: BTreeMap::new(),
             colors,
             message: None,
             cmd_in_progress: None,
@@ -84,3 +86,7 @@ impl State {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "./state_tests.rs"]
+mod tests;

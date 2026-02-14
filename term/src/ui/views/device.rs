@@ -109,17 +109,6 @@ impl DeviceView {
         self.device_config = device_config;
     }
 
-    // fn render_label(
-    //     &self,
-    //     area: Rect,
-    //     buf: &mut ratatui::prelude::Buffer,
-    //     ctx: &CustomWidgetContext,
-    // ) {
-    //     let device_label =
-    //         Label::new(format!("Device: {}", self.device.ip), 25);
-    //     device_label.render(area, buf, ctx);
-    // }
-
     fn render_device_ssh_config(
         &self,
         area: Rect,

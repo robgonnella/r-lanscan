@@ -85,9 +85,6 @@ impl MainProcess {
                     MainMessage::SynDone => {
                         self.store.dispatch(Action::UpdateMessage(None));
                     }
-                    MainMessage::FullScanResult(devices) => {
-                        self.store.dispatch(Action::UpdateAllDevices(devices));
-                    }
                     MainMessage::ActionSync(action) => {
                         self.store.dispatch(action.as_ref().to_owned());
                         self.handle_post_action_sync(action)?;

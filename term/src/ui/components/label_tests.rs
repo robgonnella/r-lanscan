@@ -5,7 +5,7 @@ use insta::assert_snapshot;
 use ratatui::{Terminal, backend::TestBackend};
 
 #[test]
-fn renders_header_component() {
+fn renders_label_component() {
     let header = Label::new("Test".to_string());
     let mut terminal = Terminal::new(TestBackend::new(100, 3)).unwrap();
     let state = State::default();
