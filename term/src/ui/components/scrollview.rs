@@ -2,6 +2,7 @@
 
 use ratatui::{
     layout::{Constraint, Layout, Rect},
+    style::Style,
     widgets::{Paragraph, ScrollbarState, Widget, Wrap},
 };
 
@@ -12,12 +13,21 @@ use super::scrollbar::ScrollBar;
 /// Scrollable text view
 pub struct ScrollView<'a> {
     text: &'a str,
+    element_style: Option<Style>,
 }
 
 impl<'a> ScrollView<'a> {
     /// Creates a new scroll-view using given lines of text
     pub fn new(text: &'a str) -> Self {
-        Self { text }
+        Self {
+            text,
+            element_style: None,
+        }
+    }
+
+    pub fn style(mut self, style: Style) -> Self {
+        self.element_style = Some(style);
+        self
     }
 }
 
@@ -38,9 +48,13 @@ impl CustomStatefulWidget for ScrollView<'_> {
 
         let position = state.get_position() as u16;
 
-        let p = Paragraph::new(self.text)
+        let mut p = Paragraph::new(self.text)
             .wrap(Wrap { trim: true })
             .scroll((position, 0));
+
+        if let Some(style) = self.element_style.as_ref() {
+            p = p.style(*style);
+        }
 
         p.render(content_area, buf);
 

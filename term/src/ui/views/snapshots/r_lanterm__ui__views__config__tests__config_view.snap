@@ -2,7 +2,8 @@
 source: term/src/ui/views/./config_tests.rs
 expression: terminal.backend()
 ---
-"Config                                                                                                                            "
+"                                                                                                                                  "
+"Global Config                                                                                                                     "
 "                                                                                                                                  "
 "Network: 192.168.1.1/24                                                                                                           "
 "                                                                                                                                  "
@@ -15,5 +16,4 @@ expression: terminal.backend()
 "Theme <->: Blue                                                                                                                   "
 "                                                                                                                                  "
 "Scanning Ports: 22,80,443,2000-9999,27017                                                                                         "
-"                                                                                                                                  "
 "                                                                                                                                  "

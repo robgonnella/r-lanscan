@@ -1,0 +1,7 @@
+---
+source: term/src/ui/components/./label_tests.rs
+expression: terminal.backend()
+---
+"Test                                                                                                "
+"                                                                                                    "
+"                                                                                                    "

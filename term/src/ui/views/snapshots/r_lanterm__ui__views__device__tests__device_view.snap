@@ -2,9 +2,6 @@
 source: term/src/ui/views/./device_tests.rs
 expression: terminal.backend()
 ---
-"Device: 10.10.10.1                                                                                                                "
-"                                                                                                                                  "
-"                                                                                                                                  "
 "SSH Config                                                                                                                        "
 "                                                                                                                                  "
 "User: user                                                                                                                        "
@@ -12,6 +9,9 @@ expression: terminal.backend()
 "Port: 22                                                                                                                          "
 "                                                                                                                                  "
 "Identity: /home/user/.ssh/id_rsa                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
 "                                                                                                                                  "
 "                                                                                                                                  "
 "Info                                                                                                                              "
