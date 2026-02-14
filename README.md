@@ -14,7 +14,7 @@ improved performance, safety, and usability.
 
 # Demo
 
-![](./assets/r-lanterm.gif)
+![](https://vhs.charm.sh/vhs-6Ibax6wQjsUOZmR8pDOcGk.gif)
 
 ## Features
 
