@@ -60,6 +60,8 @@ impl ShellExecutor for Shell {
             .arg("2")
             .arg("-I")
             .arg("-v")
+            .arg("-m")
+            .arg("5")
             .arg(device.ip.to_string())
             .output()?;
         Ok(output)
