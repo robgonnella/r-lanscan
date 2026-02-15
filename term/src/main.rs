@@ -175,6 +175,35 @@ fn get_current_config(
         })
 }
 
+/// Monitors a generic join handle and notifies main thread if the thread exits
+#[doc(hidden)]
+fn monitor_thread(
+    name: String,
+    main_tx: Sender<MainMessage>,
+    handle: JoinHandle<Result<()>>,
+) {
+    thread::spawn(move || {
+        match handle.join() {
+            Err(_) => {
+                // Thread panicked
+                let _ = main_tx.send(MainMessage::Quit(Some(
+                    "{name} thread panicked".to_string(),
+                )));
+            }
+            Ok(Err(e)) => {
+                // Thread returned an error
+                let _ = main_tx.send(MainMessage::Quit(Some(format!(
+                    "{name} thread error: {}",
+                    e
+                ))));
+            }
+            Ok(Ok(())) => {
+                let _ = main_tx.send(MainMessage::Quit(None));
+            }
+        }
+    });
+}
+
 #[doc(hidden)]
 fn start_network_monitoring_thread(
     config: Config,
@@ -343,26 +372,7 @@ fn main() -> Result<()> {
 
     // Spawn a watchdog thread to detect network thread crashes
     let main_tx_network_watchdog = main_tx.clone();
-    thread::spawn(move || {
-        let result = network_handle.join();
-        match result {
-            Err(_) => {
-                // Thread panicked
-                let _ = main_tx_network_watchdog.send(MainMessage::Quit(Some(
-                    "Network thread panicked".to_string(),
-                )));
-            }
-            Ok(Err(e)) => {
-                // Thread returned an error
-                let _ = main_tx_network_watchdog.send(MainMessage::Quit(Some(
-                    format!("Network thread error: {}", e),
-                )));
-            }
-            Ok(Ok(())) => {
-                // Thread exited normally
-            }
-        }
-    });
+    monitor_thread("Network".into(), main_tx_network_watchdog, network_handle);
 
     if args.debug {
         let mut signals = Signals::new([SIGINT])?;
@@ -378,27 +388,12 @@ fn main() -> Result<()> {
     );
 
     // Spawn a watchdog thread to detect renderer crashes
-    let main_tx_watchdog = main_tx.clone();
-    thread::spawn(move || {
-        let result = renderer_handle.join();
-        match result {
-            Err(_) => {
-                // Thread panicked
-                let _ = main_tx_watchdog.send(MainMessage::Quit(Some(
-                    "Renderer thread panicked".to_string(),
-                )));
-            }
-            Ok(Err(e)) => {
-                // Thread returned an error
-                let _ = main_tx_watchdog.send(MainMessage::Quit(Some(
-                    format!("Renderer thread error: {}", e),
-                )));
-            }
-            Ok(Ok(())) => {
-                // Thread exited normally
-            }
-        }
-    });
+    let main_tx_renderer_watchdog = main_tx.clone();
+    monitor_thread(
+        "Renderer".into(),
+        main_tx_renderer_watchdog,
+        renderer_handle,
+    );
 
     // loop / block and process incoming ipc messages in main thread
     start_main_process(
