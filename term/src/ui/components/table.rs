@@ -146,6 +146,48 @@ impl Table {
 
         i
     }
+
+    /// Calculates which row was clicked based on mouse position.
+    /// Returns None if the click was outside the table data area.
+    pub fn calculate_clicked_row(
+        &self,
+        click_y: u16,
+        table_area: Rect,
+    ) -> Option<usize> {
+        let header_height = if self.headers.is_some() { 1 } else { 0 };
+        let table_start_y = table_area.y + header_height;
+
+        if click_y < table_start_y {
+            return None;
+        }
+
+        let relative_y = click_y.saturating_sub(table_start_y);
+        let visible_row_idx = (relative_y / self.item_height as u16) as usize;
+
+        // Account for scroll offset - calculate which actual row this
+        // visible position corresponds to
+        let table_state = self.table_state.borrow();
+        let offset = table_state.offset();
+        let actual_row_idx = visible_row_idx + offset;
+
+        if actual_row_idx < self.items.len() {
+            Some(actual_row_idx)
+        } else {
+            None
+        }
+    }
+
+    /// Selects a specific row by index.
+    pub fn select(&mut self, index: usize) {
+        if index < self.items.len() {
+            self.table_state.borrow_mut().select(Some(index));
+            let new_scroll_state = self
+                .scroll_state
+                .borrow()
+                .position(index * self.item_height);
+            self.scroll_state = RefCell::new(new_scroll_state);
+        }
+    }
 }
 
 impl CustomWidgetRef for Table {

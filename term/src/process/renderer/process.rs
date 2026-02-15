@@ -6,7 +6,8 @@ use ratatui::{
     Terminal,
     crossterm::{
         event::{
-            self, Event as CrossTermEvent, KeyCode, KeyEventKind, KeyModifiers,
+            self, DisableMouseCapture, EnableMouseCapture,
+            Event as CrossTermEvent, KeyCode, KeyEventKind, KeyModifiers,
         },
         execute,
         terminal::{
@@ -192,7 +193,7 @@ impl<B: Backend + std::io::Write> RendererProcess<B> {
         // self.terminal.borrow_mut().backend_mut() will result in immediate
         // exit. I believe this is due to mutable borrow of backend being
         // quickly dropped after the call to execute?
-        execute!(io::stdout(), EnterAlternateScreen)
+        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)
             .wrap_err("failed to enter alternate screen")?;
         Ok(())
     }
@@ -206,7 +207,11 @@ impl<B: Backend + std::io::Write> RendererProcess<B> {
     fn restart(&self) -> Result<()> {
         let mut terminal = self.terminal.borrow_mut();
         enable_raw_mode()?;
-        execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+        execute!(
+            terminal.backend_mut(),
+            EnterAlternateScreen,
+            EnableMouseCapture
+        )?;
         terminal
             .hide_cursor()
             .map_err(|e| eyre!("failed to hide terminal cursor: {}", e))?;
@@ -220,7 +225,11 @@ impl<B: Backend + std::io::Write> RendererProcess<B> {
     fn exit(&self) -> Result<()> {
         let mut terminal = self.terminal.borrow_mut();
         disable_raw_mode()?;
-        execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
         terminal
             .show_cursor()
             .map_err(|e| eyre!("failed to show terminal cursor: {}", e))?;

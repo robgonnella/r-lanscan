@@ -4,7 +4,9 @@ use color_eyre::eyre::Result;
 use itertools::Itertools;
 use r_lanlib::scanners::Device;
 use ratatui::{
-    crossterm::event::{Event, KeyCode, KeyEventKind},
+    crossterm::event::{
+        Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind,
+    },
     layout::{Constraint, Layout, Rect},
 };
 use std::cell::RefCell;
@@ -25,6 +27,7 @@ pub struct DevicesView {
     selected_device: RefCell<Option<(Device, DeviceConfig)>>,
     device_view: RefCell<Option<RefCell<DeviceView>>>,
     table: RefCell<Table>,
+    table_area: RefCell<Option<Rect>>,
 }
 
 impl DevicesView {
@@ -45,6 +48,7 @@ impl DevicesView {
                 vec![25, 30, 30, 25, 20],
                 DEFAULT_ITEM_HEIGHT,
             )),
+            table_area: RefCell::new(None),
         }
     }
 
@@ -96,6 +100,9 @@ impl DevicesView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) -> Result<()> {
+        // Store the table area for mouse click handling
+        self.table_area.replace(Some(area));
+
         let devices = ctx.state.device_list();
 
         let items = devices
@@ -187,7 +194,40 @@ impl EventHandler for DevicesView {
         match evt {
             Event::FocusGained => {}
             Event::FocusLost => {}
-            Event::Mouse(_m) => {}
+            Event::Mouse(mouse) => {
+                // Handle scroll events
+                match mouse.kind {
+                    MouseEventKind::ScrollDown => {
+                        if !ctx.state.device_map.is_empty() {
+                            self.next();
+                            return Ok(true);
+                        }
+                    }
+                    MouseEventKind::ScrollUp => {
+                        if !ctx.state.device_map.is_empty() {
+                            self.previous();
+                            return Ok(true);
+                        }
+                    }
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        // Handle click to select row
+                        if let Some(area) = *self.table_area.borrow() {
+                            // Calculate clicked row, dropping borrow before select
+                            let row_idx_opt = {
+                                self.table
+                                    .borrow()
+                                    .calculate_clicked_row(mouse.row, area)
+                            };
+
+                            if let Some(row_idx) = row_idx_opt {
+                                self.table.borrow_mut().select(row_idx);
+                                return Ok(true);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
             Event::Paste(_s) => {}
             Event::Resize(_x, _y) => {}
             Event::Key(key) => {
