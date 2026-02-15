@@ -3,7 +3,10 @@
 use color_eyre::eyre::Result;
 use indoc::indoc;
 use ratatui::{
-    crossterm::event::{Event as CrossTermEvent, KeyCode, KeyEventKind},
+    crossterm::event::{
+        Event as CrossTermEvent, KeyCode, KeyEventKind, MouseButton,
+        MouseEventKind,
+    },
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style, Stylize},
     text::{Line, Text},
@@ -74,6 +77,7 @@ pub struct App {
     devices_view: Rc<DevicesView>,
     config_view: Rc<ConfigView>,
     logs_view: Rc<LogsView>,
+    tabs_area: RefCell<Option<Rect>>,
 }
 
 impl App {
@@ -88,6 +92,7 @@ impl App {
             devices_view,
             config_view,
             logs_view,
+            tabs_area: RefCell::new(None),
         }
     }
 
@@ -170,6 +175,9 @@ impl App {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
+        // Store the tabs area for click handling
+        self.tabs_area.replace(Some(area));
+
         let titles = SelectedTab::iter().map(|t| {
             Line::from(format!("{:^10}", t)).centered().style(
                 Style::new()
@@ -332,6 +340,31 @@ impl App {
 
         self.selected_view.replace(view);
     }
+
+    /// Calculates which tab was clicked based on mouse position.
+    /// Returns None if the click was outside the tabs area.
+    fn calculate_clicked_tab(
+        &self,
+        click_x: u16,
+        tabs_area: Rect,
+    ) -> Option<SelectedTab> {
+        if click_x < tabs_area.x {
+            return None;
+        }
+
+        let relative_x = click_x - tabs_area.x;
+        // Each tab is 10 chars wide + 1 space divider = 11 chars total
+        let tab_width = 11;
+        let tab_idx = (relative_x / tab_width) as usize;
+
+        SelectedTab::from_repr(tab_idx)
+    }
+
+    /// Selects a specific tab by its enum value.
+    fn select_tab(&self, tab: SelectedTab) {
+        self.selected_tab.replace(tab);
+        self.set_next_view();
+    }
 }
 
 impl CustomWidgetRef for App {
@@ -413,6 +446,20 @@ impl EventHandler for App {
                 && handled
             {
                 return Ok(handled);
+            }
+        }
+
+        // Handle mouse clicks on tabs
+        if let CrossTermEvent::Mouse(mouse) = evt
+            && mouse.kind == MouseEventKind::Down(MouseButton::Left)
+            && let Some(tabs_area) = *self.tabs_area.borrow()
+            && mouse.row == tabs_area.y
+        {
+            // Check if click is within tabs row
+            let tab_opt = self.calculate_clicked_tab(mouse.column, tabs_area);
+            if let Some(tab) = tab_opt {
+                self.select_tab(tab);
+                return Ok(true);
             }
         }
 

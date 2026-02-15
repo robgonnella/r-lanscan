@@ -1,7 +1,7 @@
 //! Scrollable view for displaying application logs.
 use color_eyre::eyre::Result;
 use ratatui::{
-    crossterm::event::{Event, KeyCode, KeyEventKind},
+    crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind},
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style},
     widgets::{ScrollDirection, ScrollbarState},
@@ -91,7 +91,28 @@ impl EventHandler for LogsView {
         match evt {
             Event::FocusGained => {}
             Event::FocusLost => {}
-            Event::Mouse(_m) => {}
+            Event::Mouse(mouse) => {
+                // Handle scroll events
+                match mouse.kind {
+                    MouseEventKind::ScrollDown => {
+                        if !ctx.state.logs.is_empty() {
+                            self.scroll_state
+                                .borrow_mut()
+                                .scroll(ScrollDirection::Forward);
+                        }
+                        handled = true;
+                    }
+                    MouseEventKind::ScrollUp => {
+                        if !ctx.state.logs.is_empty() {
+                            self.scroll_state
+                                .borrow_mut()
+                                .scroll(ScrollDirection::Backward);
+                        }
+                        handled = true;
+                    }
+                    _ => {}
+                }
+            }
             Event::Paste(_s) => {}
             Event::Resize(_x, _y) => {}
             Event::Key(key) => {

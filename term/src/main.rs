@@ -334,14 +334,35 @@ fn main() -> Result<()> {
     let (network_tx, network_rx) = channel();
 
     // start network monitoring thread
-    // no need to get handle and join - when main process exits
-    // everything should go with it including network monitoring thread
-    start_network_monitoring_thread(
+    let network_handle = start_network_monitoring_thread(
         initial_state.config.clone(),
         Arc::new(interface),
         main_tx.clone(),
         network_rx,
     )?;
+
+    // Spawn a watchdog thread to detect network thread crashes
+    let main_tx_network_watchdog = main_tx.clone();
+    thread::spawn(move || {
+        let result = network_handle.join();
+        match result {
+            Err(_) => {
+                // Thread panicked
+                let _ = main_tx_network_watchdog.send(MainMessage::Quit(Some(
+                    "Network thread panicked".to_string(),
+                )));
+            }
+            Ok(Err(e)) => {
+                // Thread returned an error
+                let _ = main_tx_network_watchdog.send(MainMessage::Quit(Some(
+                    format!("Network thread error: {}", e),
+                )));
+            }
+            Ok(Ok(())) => {
+                // Thread exited normally
+            }
+        }
+    });
 
     if args.debug {
         let mut signals = Signals::new([SIGINT])?;
@@ -350,9 +371,34 @@ fn main() -> Result<()> {
     }
 
     // start separate thread for tui rendering process
-    // no need to get handle and join - when main process exits
-    // everything should go with it including renderer thread
-    start_renderer_thread(main_tx, renderer_rx, initial_state.clone());
+    let renderer_handle = start_renderer_thread(
+        main_tx.clone(),
+        renderer_rx,
+        initial_state.clone(),
+    );
+
+    // Spawn a watchdog thread to detect renderer crashes
+    let main_tx_watchdog = main_tx.clone();
+    thread::spawn(move || {
+        let result = renderer_handle.join();
+        match result {
+            Err(_) => {
+                // Thread panicked
+                let _ = main_tx_watchdog.send(MainMessage::Quit(Some(
+                    "Renderer thread panicked".to_string(),
+                )));
+            }
+            Ok(Err(e)) => {
+                // Thread returned an error
+                let _ = main_tx_watchdog.send(MainMessage::Quit(Some(
+                    format!("Renderer thread error: {}", e),
+                )));
+            }
+            Ok(Ok(())) => {
+                // Thread exited normally
+            }
+        }
+    });
 
     // loop / block and process incoming ipc messages in main thread
     start_main_process(
