@@ -1,3 +1,9 @@
+# [0.8.0](https://github.com/robgonnella/r-lanscan/compare/v0.7.1...v0.8.0) - 2026-02-15
+
+### 🚀 Features
+
+- _(term)_ adds click handlers to tui [_(df97b05)_](https://github.com/robgonnella/r-lanscan/commit/df97b0552ec64113335149ab9d557873480bd137)
+
 # [0.7.1](https://github.com/robgonnella/r-lanscan/compare/v0.7.0...v0.7.1) - 2026-02-14
 
 ### 🐛 Bug Fixes
