@@ -10,10 +10,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style, Stylize},
     text::{Line, Text},
-    widgets::{
-        Block, BorderType, Clear as ClearWidget, Padding, Paragraph, Tabs,
-        Widget,
-    },
+    widgets::{Block, BorderType, Padding, Paragraph, Tabs, Widget},
 };
 use std::{cell::RefCell, rc::Rc};
 use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
@@ -22,7 +19,10 @@ use crate::{
     store::{action::Action, state::State},
     ui::{
         colors::Theme,
-        components::{footer::InfoFooter, popover::get_popover_area},
+        components::{
+            footer::InfoFooter,
+            popover::{base::Popover, simple::SimplePopover},
+        },
         views::{
             config::ConfigView,
             devices::DevicesView,
@@ -242,57 +242,36 @@ impl App {
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-    ) {
-        if let Some(msg) = state.error.as_ref() {
-            let block = Block::bordered()
-                .border_type(BorderType::Double)
-                .border_style(
-                    Style::new()
-                        .fg(state.colors.error)
-                        .bg(state.colors.buffer_bg),
-                )
-                .padding(Padding::uniform(2))
-                .style(Style::default().bg(state.colors.buffer_bg));
-            let inner_area = block.inner(area);
-            let [msg_area, exit_area] = Layout::vertical([
-                Constraint::Percentage(100), // msg
-                Constraint::Length(1),       // exit
-            ])
-            .areas(inner_area);
+        ctx: &CustomWidgetContext,
+    ) -> Result<()> {
+        if let Some(msg) = ctx.state.error.as_ref() {
+            let simple = SimplePopover::new(format!("Error: {}", msg))
+                .footer("Press enter to clear error")
+                .footer_centered();
 
-            let message = Line::from(format!("Error: {}", msg));
-            let exit = Paragraph::new("Press enter to clear error").centered();
-            ClearWidget.render(area, buf);
-            block.render(area, buf);
-            message.render(msg_area, buf);
-            exit.render(exit_area, buf);
+            Popover::new(&simple)
+                .border_color(ctx.state.colors.error)
+                .height(40)
+                .render_ref(area, buf, ctx)?;
         }
+
+        Ok(())
     }
 
     fn render_info_popover(
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
-        state: &State,
-    ) {
-        if let Some(msg) = state.popover_message.as_ref() {
-            let block = Block::bordered()
-                .border_type(BorderType::Double)
-                .border_style(
-                    Style::new()
-                        .fg(state.colors.border_color)
-                        .bg(state.colors.buffer_bg),
-                )
-                .padding(Padding::uniform(2))
-                .style(Style::default().bg(state.colors.buffer_bg));
-            let inner_area = block.inner(area);
-
-            let message = Paragraph::new(msg.to_string()).centered();
-            ClearWidget.render(area, buf);
-            block.render(area, buf);
-            message.render(inner_area, buf);
+        ctx: &CustomWidgetContext,
+    ) -> Result<()> {
+        if let Some(msg) = ctx.state.popover_message.as_ref() {
+            let simple = SimplePopover::new(msg).message_centered();
+            Popover::new(&simple)
+                .height(19)
+                .render_ref(area, buf, ctx)?;
         }
+
+        Ok(())
     }
 
     fn render_footer(
@@ -398,20 +377,11 @@ impl CustomWidgetRef for App {
         self.render_footer(&legend, override_legend, page_areas[2], buf, ctx);
 
         // render any popover messages if needed
-        self.render_info_popover(
-            get_popover_area(area, 50, 15),
-            buf,
-            ctx.state,
-        );
+        self.render_info_popover(area, buf, ctx)?;
 
         // popover when there are errors in the store
         // important to render this last so it properly layers on top
-        self.render_error_popover(
-            get_popover_area(area, 50, 40),
-            buf,
-            ctx.state,
-        );
-        // }
+        self.render_error_popover(area, buf, ctx)?;
 
         Ok(())
     }

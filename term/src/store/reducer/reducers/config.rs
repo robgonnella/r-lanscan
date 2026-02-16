@@ -21,3 +21,7 @@ pub fn update_device_config(state: &mut State, device_config: DeviceConfig) {
         .insert(device_config.id.clone(), device_config);
     state.config = config.clone();
 }
+
+pub fn remove_device_config(state: &mut State, id: String) {
+    state.config.device_configs.remove(&id);
+}
