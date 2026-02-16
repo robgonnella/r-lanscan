@@ -104,6 +104,9 @@ impl MainProcess {
                 Action::UpdateDeviceConfig(_) => {
                     Some(self.store.get_state().config.clone())
                 }
+                Action::RemoveDeviceConfig(_) => {
+                    Some(self.store.get_state().config.clone())
+                }
                 _ => None,
             }
         } else {

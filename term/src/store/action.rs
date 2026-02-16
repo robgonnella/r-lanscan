@@ -23,6 +23,7 @@ pub enum Action {
     PreviewTheme(Theme),
     AddDevice(Device),
     UpdateConfig(Config),
+    RemoveDeviceConfig(String),
     UpdateDeviceConfig(DeviceConfig),
     Sync(Box<Action>),
 }

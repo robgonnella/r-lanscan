@@ -69,6 +69,10 @@ impl Reducer for StoreReducer {
                 self.log_action("UpdateDeviceConfig", &device_config, state);
                 reducers::config::update_device_config(state, device_config);
             }
+            Action::RemoveDeviceConfig(id) => {
+                self.log_action("RemoveDeviceConfig", &id, state);
+                reducers::config::remove_device_config(state, id);
+            }
 
             // Command actions
             Action::SetCommandInProgress(value) => {

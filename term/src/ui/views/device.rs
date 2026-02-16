@@ -10,7 +10,9 @@ use crate::{
             header::Header,
             input::{Input, InputState},
             label::Label,
-            popover::get_popover_area,
+            popover::{
+                base::Popover, browse::BrowsePopover, simple::SimplePopover,
+            },
         },
         views::traits::CustomEventContext,
     },
@@ -20,11 +22,10 @@ use r_lanlib::scanners::Device;
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
-    style::Style,
     text::{Line, Span},
-    widgets::{Block, BorderType, Clear, Padding, Paragraph, Widget, Wrap},
+    widgets::{Paragraph, Widget, Wrap},
 };
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use super::traits::{
     CustomStatefulWidget, CustomWidget, CustomWidgetContext, CustomWidgetRef,
@@ -63,8 +64,9 @@ pub struct DeviceView {
     ssh_user_state: RefCell<InputState>,
     ssh_port_state: RefCell<InputState>,
     ssh_identity_state: RefCell<InputState>,
-    browser_port_state: RefCell<InputState>,
-    browser_select_state: RefCell<InputState>,
+    browser_port_state: Rc<RefCell<InputState>>,
+    browser_select_state: Rc<RefCell<InputState>>,
+    confirm_config_removal: RefCell<bool>,
 }
 
 impl DeviceView {
@@ -73,6 +75,7 @@ impl DeviceView {
         Self {
             device,
             device_config,
+            confirm_config_removal: RefCell::new(false),
             editing_ssh: RefCell::new(false),
             editing_browser: RefCell::new(false),
             ssh_focus: RefCell::new(0),
@@ -89,14 +92,14 @@ impl DeviceView {
                 editing: false,
                 value: String::from(""),
             }),
-            browser_port_state: RefCell::new(InputState {
+            browser_port_state: Rc::new(RefCell::new(InputState {
                 editing: false,
                 value: String::from("80"),
-            }),
-            browser_select_state: RefCell::new(InputState {
+            })),
+            browser_select_state: Rc::new(RefCell::new(InputState {
                 editing: false,
                 value: String::from("default"),
-            }),
+            })),
         }
     }
 
@@ -300,51 +303,45 @@ impl DeviceView {
 
     fn render_browser_config_popover(
         &self,
-        area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
-    ) {
+    ) -> Result<()> {
         if *self.editing_browser.borrow() {
-            let block = Block::bordered()
-                .border_type(BorderType::Double)
-                .border_style(Style::new().fg(ctx.state.colors.border_color))
-                .padding(Padding::uniform(2))
-                .style(Style::new().bg(ctx.state.colors.buffer_bg));
-            let inner_area = block.inner(area);
-            let [header_area, _, browser_area, port_area, message_area] =
-                Layout::vertical([
-                    Constraint::Length(1),       // header
-                    Constraint::Length(1),       // spacer
-                    Constraint::Percentage(50),  // browser choice
-                    Constraint::Percentage(100), // port select
-                    Constraint::Length(1),       // enter to submit message
-                ])
-                .areas(inner_area);
-
-            let header = Header::new("Enter port to browse".to_string());
-            let browser_input = Input::new("Browser Select <->");
-            let port_input = Input::new("Port");
-            let message =
-                Paragraph::new("Press enter to open browser or esc to cancel")
-                    .centered();
-
-            Clear.render(area, buf);
-            block.render(area, buf);
-            header.render(header_area, buf, ctx);
-            browser_input.render(
-                browser_area,
-                buf,
-                &mut self.browser_select_state.borrow_mut(),
-                ctx,
+            let browse = BrowsePopover::new(
+                self.browser_select_state.clone(),
+                self.browser_port_state.clone(),
             );
-            port_input.render(
-                port_area,
+            Popover::new(&browse).width(40).height(30).render_ref(
+                ctx.app_area,
                 buf,
-                &mut self.browser_port_state.borrow_mut(),
                 ctx,
-            );
-            message.render(message_area, buf);
+            )?;
         }
+
+        Ok(())
+    }
+
+    fn render_config_removal_popover(
+        &self,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) -> Result<()> {
+        if *self.confirm_config_removal.borrow() {
+            let simple = SimplePopover::new(
+              "Are you sure you want to delete the SSH config for this device?",
+            )
+            .footer("Press Enter to Confirm | Press Esc to Cancel")
+            .message_centered()
+            .footer_centered();
+
+            Popover::new(&simple).height(25).render_ref(
+                ctx.app_area,
+                buf,
+                ctx,
+            )?;
+        }
+
+        Ok(())
     }
 
     fn push_ssh_input_char(&self, char: char) {
@@ -523,13 +520,14 @@ impl DeviceView {
 }
 
 impl View for DeviceView {
-    fn legend(&self, state: &State) -> String {
-        if *self.editing_browser.borrow() || *self.editing_ssh.borrow() {
+    fn legend(&self, _state: &State) -> String {
+        if *self.editing_browser.borrow()
+            || *self.editing_ssh.borrow()
+            || *self.confirm_config_removal.borrow()
+        {
             "(esc) exit configuration | (enter) save configuration".into()
-        } else if self.is_tracing(state) {
-            "tracing...".into()
         } else {
-            "(esc) back to devices | (c) configure | (s) SSH | (t) traceroute | (b) browse".into()
+            "(esc) back to devices | (c) configure | (s) SSH | (t) traceroute | (b) browse | (bckspc) reset device config".into()
         }
     }
 
@@ -557,14 +555,13 @@ impl CustomWidgetRef for DeviceView {
         ])
         .areas(left_area);
 
-        let popover_area = get_popover_area(ctx.app_area, 40, 30);
-
         // self.render_label(label_area, buf, ctx);
         self.render_device_ssh_config(ssh_area, buf, ctx);
         self.render_device_info(info_area, buf, ctx);
         self.render_cmd_output(right_area, buf, ctx);
-        // important that this is last so it properly layers on top
-        self.render_browser_config_popover(popover_area, buf, ctx);
+        // important to render popovers last so they layer on top
+        self.render_browser_config_popover(buf, ctx)?;
+        self.render_config_removal_popover(buf, ctx)?;
 
         Ok(())
     }
@@ -592,6 +589,9 @@ impl EventHandler for DeviceView {
                             {
                                 self.reset_input_state();
                                 return Ok(true);
+                            } else if *self.confirm_config_removal.borrow() {
+                                self.confirm_config_removal.replace(false);
+                                return Ok(true);
                             } else {
                                 ctx.dispatcher
                                     .dispatch(Action::ClearCommandOutput);
@@ -601,7 +601,9 @@ impl EventHandler for DeviceView {
                         }
                         KeyCode::Right => {
                             if *self.editing_browser.borrow() {
-                                self.next_browser();
+                                if *self.browser_focus.borrow() == 0 {
+                                    self.next_browser();
+                                }
                                 return Ok(true);
                             }
                             // allow tab change to bubble up
@@ -609,7 +611,9 @@ impl EventHandler for DeviceView {
                         }
                         KeyCode::Left => {
                             if *self.editing_browser.borrow() {
-                                self.next_browser();
+                                if *self.browser_focus.borrow() == 0 {
+                                    self.next_browser();
+                                }
                                 return Ok(true);
                             }
                             // allow tab change to bubble up
@@ -682,6 +686,17 @@ impl EventHandler for DeviceView {
                                 self.reset_input_state();
                                 return Ok(true);
                             }
+
+                            if *self.confirm_config_removal.borrow() {
+                                ctx.dispatcher.dispatch(
+                                    Action::RemoveDeviceConfig(
+                                        self.device_config.id.clone(),
+                                    ),
+                                );
+
+                                self.confirm_config_removal.replace(false);
+                                return Ok(true);
+                            }
                         }
                         KeyCode::Backspace => {
                             if *self.editing_browser.borrow()
@@ -690,6 +705,8 @@ impl EventHandler for DeviceView {
                                 self.pop_input_char();
                                 return Ok(true);
                             }
+
+                            self.confirm_config_removal.replace(true);
                         }
                         KeyCode::Char(c) => {
                             if *self.editing_browser.borrow()

@@ -92,6 +92,34 @@ fn test_update_config() {
 }
 
 #[test]
+fn test_remove_device_config() {
+    let (mut state, reducer) = setup();
+
+    let device_config = crate::config::DeviceConfig {
+        id: "192.168.1.100".to_string(),
+        ssh_port: 2222,
+        ssh_identity_file: "/path/to/key".to_string(),
+        ssh_user: "admin".to_string(),
+    };
+
+    // Add a device config
+    reducer.reduce(
+        &mut state,
+        Action::UpdateDeviceConfig(device_config.clone()),
+    );
+    assert_eq!(state.config.device_configs.len(), 1);
+    assert!(state.config.device_configs.contains_key("192.168.1.100"));
+
+    // Remove the device config
+    reducer.reduce(
+        &mut state,
+        Action::RemoveDeviceConfig("192.168.1.100".to_string()),
+    );
+    assert_eq!(state.config.device_configs.len(), 0);
+    assert!(!state.config.device_configs.contains_key("192.168.1.100"));
+}
+
+#[test]
 fn test_add_device() {
     let (mut state, reducer) = setup();
 
