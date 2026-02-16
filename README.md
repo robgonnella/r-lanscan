@@ -14,7 +14,7 @@ improved performance, safety, and usability.
 
 # Demo
 
-![](https://vhs.charm.sh/vhs-6Ibax6wQjsUOZmR8pDOcGk.gif)
+![](https://i.imgur.com/GoB0imO.gif)
 
 ## Features
 

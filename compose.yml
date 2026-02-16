@@ -1,6 +1,18 @@
 name: test
 
 services:
+  postgres:
+    image: postgres:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.10
+
+  redis:
+    image: redis:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.20
+
   ssh-server:
     image: lscr.io/linuxserver/openssh-server:latest
     environment:
@@ -10,19 +22,81 @@ services:
       SUDO_ACCESS: false
       PASSWORD_ACCESS: false
       LOG_STDOUT: "1"
-    ports:
-      - 2222:2222
     networks:
       default:
-        ipv4_address: 172.22.0.10
+        ipv4_address: 172.22.0.30
 
-  web-server:
+  server1:
     image: nginx:latest
-    ports:
-      - 8080:80
     networks:
       default:
-        ipv4_address: 172.22.0.11
+        ipv4_address: 172.22.0.40
+
+  server2:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.41
+
+  server3:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.42
+
+  server4:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.43
+
+  server5:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.44
+
+  server6:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.45
+
+  server7:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.46
+
+  server8:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.47
+
+  server9:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.48
+
+  server10:
+    image: nginx:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.49
+
+  mongo:
+    image: mongo:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.50
+
+  localstack:
+    image: localstack/localstack:latest
+    networks:
+      default:
+        ipv4_address: 172.22.0.60
 
   workspace:
     build: .
@@ -35,7 +109,7 @@ services:
       LOG_LEVEL: debug
     networks:
       default:
-        ipv4_address: 172.22.0.12
+        ipv4_address: 172.22.0.70
 
 networks:
   default:
