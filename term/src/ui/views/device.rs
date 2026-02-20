@@ -328,9 +328,9 @@ impl DeviceView {
     ) -> Result<()> {
         if *self.confirm_config_removal.borrow() {
             let simple = SimplePopover::new(
-              "Are you sure you want to delete the SSH config for this device?",
+                "Are you sure you want to reset the config for this device?",
             )
-            .footer("Press Enter to Confirm | Press Esc to Cancel")
+            .footer("Enter to Confirm | Esc to Cancel")
             .message_centered()
             .footer_centered();
 
