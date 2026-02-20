@@ -7,6 +7,7 @@ use std::{
     cell::RefCell,
     io::{BufReader, Read},
     rc::Rc,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -29,7 +30,7 @@ use crate::{
 pub struct MainProcess {
     config_manager: RefCell<ConfigManager>,
     store: Rc<Store>,
-    executor: Box<dyn ShellExecutor>,
+    executor: Arc<dyn ShellExecutor>,
     ipc: MainIpc,
     #[builder(default)]
     ctrlc_handler: CtrlCHandler,
@@ -89,6 +90,20 @@ impl MainProcess {
                         self.store.dispatch(action.as_ref().to_owned());
                         self.handle_post_action_sync(action)?;
                     }
+                    MainMessage::CommandDone(cmd, result) => match result {
+                        Ok(output) => {
+                            self.store.dispatch(Action::UpdateCommandOutput((
+                                cmd, output,
+                            )));
+                            self.store
+                                .dispatch(Action::SetCommandInProgress(None));
+                        }
+                        Err(err) => {
+                            self.store.dispatch(Action::SetError(Some(err)));
+                            self.store
+                                .dispatch(Action::SetCommandInProgress(None));
+                        }
+                    },
                     _ => {}
                 }
             }
@@ -226,20 +241,15 @@ impl MainProcess {
         cmd: &AppCommand,
         device: &Device,
     ) -> Result<()> {
-        let exec = self.executor.traceroute(device);
-        match exec {
-            Ok(output) => {
-                self.store.dispatch(Action::UpdateCommandOutput((
-                    cmd.clone(),
-                    output,
-                )));
-                self.store.dispatch(Action::SetCommandInProgress(None));
-            }
-            Err(err) => {
-                self.store.dispatch(Action::SetError(Some(err.to_string())));
-            }
-        }
-
+        let executor = Arc::clone(&self.executor);
+        let device = device.clone();
+        let cmd = cmd.clone();
+        let tx = self.ipc.tx.clone();
+        std::thread::spawn(move || {
+            let result =
+                executor.traceroute(&device).map_err(|e| e.to_string());
+            let _ = tx.send(MainMessage::CommandDone(cmd, result));
+        });
         Ok(())
     }
 
@@ -283,15 +293,19 @@ impl MainProcess {
 
         match &cmd {
             AppCommand::Ssh(device, device_config) => {
-                self.handle_ssh(device, device_config)?
+                self.handle_ssh(device, device_config)?;
+                self.store.dispatch(Action::SetCommandInProgress(None));
             }
             AppCommand::TraceRoute(device) => {
-                self.handle_traceroute(&cmd, device)?
+                self.handle_traceroute(&cmd, device)?;
+                // SetCommandInProgress(None) dispatched when CommandDone
+                // arrives — do not clear it here.
             }
-            AppCommand::Browse(args) => self.handle_browse(args)?,
+            AppCommand::Browse(args) => {
+                self.handle_browse(args)?;
+                self.store.dispatch(Action::SetCommandInProgress(None));
+            }
         }
-
-        self.store.dispatch(Action::SetCommandInProgress(None));
 
         Ok(())
     }
