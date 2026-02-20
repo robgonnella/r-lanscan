@@ -5,4 +5,4 @@ generated/
 .env
 CLAUDE.md
 .claude
-assets/r-lanterm.gif
+*.gif
