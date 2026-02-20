@@ -12,6 +12,8 @@ in Rust. This is the modern Rust implementation of the
 [go-lanscan](https://github.com/robgonnella/go-lanscan) project, offering
 improved performance, safety, and usability.
 
+## Demo
+
 ![demo](https://vhs.charm.sh/vhs-2DZE38gFE4mcrDXsPWv5Cm.gif)
 
 ## Features
