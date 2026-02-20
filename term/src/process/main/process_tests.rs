@@ -77,6 +77,7 @@ fn make_device() -> Device {
         vendor: "vendor".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     }
 }
 

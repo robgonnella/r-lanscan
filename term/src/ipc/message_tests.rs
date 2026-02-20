@@ -13,6 +13,7 @@ fn displays_command() {
         is_current_host: false,
         vendor: "".to_string(),
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let device_config = DeviceConfig {

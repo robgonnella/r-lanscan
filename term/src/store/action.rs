@@ -22,6 +22,7 @@ pub enum Action {
     UpdateMessage(Option<String>),
     PreviewTheme(Theme),
     AddDevice(Device),
+    UpdateDevicePorts(Device),
     UpdateConfig(Config),
     RemoveDeviceConfig(String),
     UpdateDeviceConfig(DeviceConfig),

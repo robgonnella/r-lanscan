@@ -80,7 +80,7 @@ impl MainProcess {
                         )));
                     }
                     MainMessage::SynUpdate(device) => {
-                        self.store.dispatch(Action::AddDevice(device));
+                        self.store.dispatch(Action::UpdateDevicePorts(device));
                     }
                     MainMessage::SynDone => {
                         self.store.dispatch(Action::UpdateMessage(None));

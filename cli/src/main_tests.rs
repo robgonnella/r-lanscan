@@ -90,6 +90,7 @@ fn prints_arp_table_results() {
         mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     print_arp(&args, &vec![device]).unwrap();
@@ -118,6 +119,7 @@ fn prints_arp_json_results() {
         mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     print_arp(&args, &vec![device]).unwrap();
@@ -154,6 +156,7 @@ fn prints_syn_table_results() {
         mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports,
+        latency_ms: None,
     };
 
     let devices = HashMap::from([(device.ip, device)]);
@@ -191,6 +194,7 @@ fn prints_syn_json_results() {
         mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports,
+        latency_ms: None,
     };
 
     let devices = HashMap::from([(device.ip, device)]);
@@ -210,6 +214,7 @@ fn performs_arp_scan() {
         mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let device_clone = device.clone();
@@ -254,6 +259,7 @@ fn performs_syn_scan() {
         mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports: ports,
+        latency_ms: None,
     };
 
     let device_clone = device.clone();

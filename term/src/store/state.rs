@@ -1,7 +1,7 @@
 //! Application state definitions.
 
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
     net::Ipv4Addr,
     process::Output,
 };
@@ -15,6 +15,9 @@ use crate::ui::colors::Theme;
 /// Maximum log lines to store in state
 pub const MAX_LOGS: usize = 100;
 
+/// Maximum latency history entries to store per device
+pub const MAX_LATENCY_HISTORY: usize = 100;
+
 /// Complete application state for the terminal UI.
 #[derive(Debug, Clone)]
 pub struct State {
@@ -25,6 +28,7 @@ pub struct State {
     pub logs: VecDeque<String>,
     pub config: Config,
     pub device_map: BTreeMap<Ipv4Addr, Device>,
+    pub latency_history: HashMap<Ipv4Addr, Vec<u64>>,
     pub colors: Colors,
     pub message: Option<String>,
     pub cmd_in_progress: Option<Command>,
@@ -42,6 +46,7 @@ impl Default for State {
             logs: VecDeque::with_capacity(MAX_LOGS),
             config: Default::default(),
             device_map: Default::default(),
+            latency_history: Default::default(),
             colors: Default::default(),
             message: Default::default(),
             cmd_in_progress: Default::default(),
@@ -78,6 +83,7 @@ impl State {
             logs: VecDeque::with_capacity(MAX_LOGS),
             config,
             device_map: BTreeMap::new(),
+            latency_history: HashMap::new(),
             colors,
             message: None,
             cmd_in_progress: None,

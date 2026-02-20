@@ -130,6 +130,7 @@ fn test_add_device() {
         is_current_host: false,
         open_ports: PortSet::new(),
         vendor: "dev3_vendor".to_string(),
+        latency_ms: None,
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev3.clone()));
@@ -148,6 +149,7 @@ fn test_set_command_in_progress() {
         is_current_host: false,
         vendor: "dev_vendor".to_string(),
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
     let port: u16 = 80;
     reducer.reduce(
@@ -180,6 +182,7 @@ fn test_update_command_output() {
         is_current_host: false,
         vendor: "dev_vendor".to_string(),
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
     let port: u16 = 80;
     let cmd = Command::Browse(BrowseArgs {
@@ -208,6 +211,51 @@ fn test_update_command_output() {
 }
 
 #[test]
+fn test_add_device_records_latency_history() {
+    let (mut state, reducer) = setup();
+
+    let ip = Ipv4Addr::new(10, 10, 10, 1);
+    let mut dev = Device {
+        hostname: "dev".to_string(),
+        ip,
+        mac: MacAddr::default(),
+        is_current_host: false,
+        open_ports: PortSet::new(),
+        vendor: "vendor".to_string(),
+        latency_ms: Some(5),
+    };
+
+    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
+    assert_eq!(state.latency_history.get(&ip).unwrap(), &vec![5u64]);
+
+    dev.latency_ms = Some(10);
+    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
+    assert_eq!(state.latency_history.get(&ip).unwrap(), &vec![5u64, 10u64]);
+
+    // latency_ms on the stored device should reflect the latest value
+    assert_eq!(state.device_map.get(&ip).unwrap().latency_ms, Some(10));
+}
+
+#[test]
+fn test_add_device_no_latency_does_not_append_history() {
+    let (mut state, reducer) = setup();
+
+    let ip = Ipv4Addr::new(10, 10, 10, 2);
+    let dev = Device {
+        hostname: "dev".to_string(),
+        ip,
+        mac: MacAddr::default(),
+        is_current_host: false,
+        open_ports: PortSet::new(),
+        vendor: "vendor".to_string(),
+        latency_ms: None,
+    };
+
+    reducer.reduce(&mut state, Action::AddDevice(dev));
+    assert!(!state.latency_history.contains_key(&ip));
+}
+
+#[test]
 fn test_updates_device_with_new_info() {
     let (mut state, reducer) = setup();
 
@@ -218,6 +266,7 @@ fn test_updates_device_with_new_info() {
         is_current_host: false,
         vendor: "dev_vendor".to_string(),
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let port = Port {

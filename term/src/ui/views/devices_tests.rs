@@ -27,6 +27,7 @@ fn setup() -> (DevicesView, Store) {
         is_current_host: false,
         open_ports: open_ports.clone().into(),
         vendor: "mac".to_string(),
+        latency_ms: Some(12),
     };
 
     let device_2 = Device {
@@ -36,6 +37,7 @@ fn setup() -> (DevicesView, Store) {
         is_current_host: true,
         open_ports: open_ports.into(),
         vendor: "linux".to_string(),
+        latency_ms: Some(15),
     };
 
     store.dispatch(Action::AddDevice(device_1.clone()));
@@ -46,7 +48,7 @@ fn setup() -> (DevicesView, Store) {
 #[test]
 fn test_devices_view() {
     let (devs_view, store) = setup();
-    let mut terminal = Terminal::new(TestBackend::new(130, 15)).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(142, 15)).unwrap();
     let state = store.get_state();
 
     terminal

@@ -59,6 +59,10 @@ impl Reducer for StoreReducer {
                 self.log_action("AddDevice", &device, state);
                 reducers::device::add_device(state, device);
             }
+            Action::UpdateDevicePorts(device) => {
+                self.log_action("UpdateDevicePorts", &device, state);
+                reducers::device::update_device_ports(state, device);
+            }
 
             // Config actions
             Action::UpdateConfig(config) => {

@@ -3,10 +3,11 @@
 use derive_builder::Builder;
 use pnet::packet::{Packet, arp, ethernet};
 use std::{
+    collections::HashMap,
     net::Ipv4Addr,
-    sync::{self, Arc},
+    sync::{self, Arc, Mutex},
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use threadpool::ThreadPool;
 
@@ -40,6 +41,9 @@ pub struct ARPScanner {
     idle_timeout: Duration,
     /// Channel for sending scan results and status messages
     notifier: sync::mpsc::Sender<ScanMessage>,
+    /// Tracks the send time for each ARP request by target IP
+    #[builder(default = "Arc::new(Mutex::new(HashMap::new()))")]
+    send_times: Arc<Mutex<HashMap<Ipv4Addr, Instant>>>,
 }
 
 impl ARPScanner {
@@ -72,6 +76,11 @@ impl ARPScanner {
 
         let mut pkt_sender = self.wire.0.lock()?;
 
+        // Record send time immediately before putting the packet on the wire
+        if let Ok(mut times) = self.send_times.lock() {
+            times.insert(target, Instant::now());
+        }
+
         // Send to the broadcast address
         pkt_sender.send(&pkt_buf)?;
 
@@ -99,6 +108,10 @@ impl ARPScanner {
 
         let ip4 = header.get_sender_proto_addr();
         let mac = eth.get_source();
+
+        let latency_ms = self.send_times.lock().ok().and_then(|mut times| {
+            times.remove(&ip4).map(|t| t.elapsed().as_millis())
+        });
 
         let notification_sender = self.notifier.clone();
         let interface = Arc::clone(&self.interface);
@@ -131,6 +144,7 @@ impl ARPScanner {
                     vendor,
                     is_current_host: ip4 == interface.ipv4,
                     open_ports: PortSet::new(),
+                    latency_ms,
                 }));
         });
 

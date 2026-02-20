@@ -109,6 +109,7 @@ fn sends_and_reads_packets() {
         mac: MacAddr::default(),
         vendor: "".to_string(),
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     loop {

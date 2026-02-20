@@ -83,6 +83,7 @@ fn sends_and_reads_packets() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let mut receiver = MockPacketReader::new();
@@ -172,6 +173,7 @@ fn ignores_unrelated_packets() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -299,6 +301,7 @@ fn reports_error_on_packet_reader_lock() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -360,6 +363,7 @@ fn reports_error_on_rst_packet_sender_lock() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     create_syn_reply(
@@ -439,6 +443,7 @@ fn reports_error_on_rst_packet_send_errors() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     create_syn_reply(
@@ -518,6 +523,7 @@ fn reports_error_on_packet_read_error() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -572,6 +578,7 @@ fn reports_error_on_notifier_send_errors() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -624,6 +631,7 @@ fn reports_error_on_packet_sender_lock_errors() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -685,6 +693,7 @@ fn reports_error_on_packet_send_errors() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -742,6 +751,7 @@ fn reports_errors_from_read_handle() {
         vendor: "".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let devices: Vec<Device> = vec![device.clone()];
