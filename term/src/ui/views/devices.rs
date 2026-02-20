@@ -43,9 +43,10 @@ impl DevicesView {
                     "HOSTNAME".to_string(),
                     "VENDOR".to_string(),
                     "MAC".to_string(),
+                    "LATENCY".to_string(),
                     "OPEN PORTS".to_string(),
                 ]),
-                vec![25, 30, 30, 25, 20],
+                vec![25, 30, 30, 25, 12, 20],
                 DEFAULT_ITEM_HEIGHT,
             )),
             table_area: RefCell::new(None),
@@ -117,6 +118,9 @@ impl DevicesView {
                     d.hostname.clone(),
                     d.vendor.clone(),
                     d.mac.to_string(),
+                    d.latency_ms
+                        .map(|ms| format!("{}ms", ms))
+                        .unwrap_or_default(),
                     d.open_ports
                         .to_sorted_vec()
                         .iter()

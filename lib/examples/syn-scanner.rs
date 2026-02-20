@@ -37,6 +37,7 @@ fn main() {
             vendor: "".to_string(),
             is_current_host: false,
             open_ports: PortSet::new(),
+            latency_ms: None,
         },
         Device {
             hostname: "".to_string(),
@@ -45,6 +46,7 @@ fn main() {
             vendor: "".to_string(),
             is_current_host: false,
             open_ports: PortSet::new(),
+            latency_ms: None,
         },
         Device {
             hostname: "".to_string(),
@@ -53,6 +55,7 @@ fn main() {
             vendor: "".to_string(),
             is_current_host: false,
             open_ports: PortSet::new(),
+            latency_ms: None,
         },
     ];
     let port_targets = PortTargets::new(vec![

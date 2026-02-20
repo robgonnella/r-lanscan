@@ -25,6 +25,7 @@ fn setup() -> (App, Store) {
         is_current_host: false,
         open_ports: open_ports.clone().into(),
         vendor: "mac".to_string(),
+        latency_ms: Some(19),
     };
 
     let device_2 = Device {
@@ -34,6 +35,7 @@ fn setup() -> (App, Store) {
         is_current_host: true,
         open_ports: open_ports.into(),
         vendor: "linux".to_string(),
+        latency_ms: Some(6),
     };
 
     store.dispatch(Action::AddDevice(device_1.clone()));

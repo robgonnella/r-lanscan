@@ -7,7 +7,6 @@ use crate::{
     store::{action::Action, state::State},
     ui::{
         components::{
-            header::Header,
             input::{Input, InputState},
             label::Label,
             popover::{
@@ -22,8 +21,9 @@ use r_lanlib::scanners::Device;
 use ratatui::{
     crossterm::event::{Event as CrossTermEvent, KeyCode, KeyEventKind},
     layout::{Constraint, Layout, Rect},
+    style::Style,
     text::{Line, Span},
-    widgets::{Paragraph, Widget, Wrap},
+    widgets::{Paragraph, RenderDirection, Sparkline, Widget, Wrap},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -237,22 +237,76 @@ impl DeviceView {
         open_ports.render(ports_area, buf);
     }
 
+    fn render_latency_sparkline(
+        &self,
+        area: Rect,
+        buf: &mut ratatui::prelude::Buffer,
+        ctx: &CustomWidgetContext,
+    ) {
+        // Constrain to a fixed width so the sparkline doesn't stretch
+        // across the whole right column.
+        const SPARK_WIDTH: u16 = 30;
+
+        let [constrained, _] = Layout::horizontal([
+            Constraint::Length(SPARK_WIDTH),
+            Constraint::Min(0),
+        ])
+        .areas(area);
+
+        let [label_area, _, spark_area, _] = Layout::vertical([
+            Constraint::Length(1), // label
+            Constraint::Length(1), // spacer
+            Constraint::Length(4), // sparkline bars
+            Constraint::Min(0),    // remaining space (ignored)
+        ])
+        .areas(constrained);
+
+        // Reverse so newest sample is first — combined with RightToLeft
+        // rendering this puts the newest bar on the right and ensures the
+        // widget always shows the most recent data when history is longer
+        // than the widget width.
+        let history: Vec<u64> = ctx
+            .state
+            .latency_history
+            .get(&self.device.ip)
+            .map(|h| h.iter().copied().rev().collect())
+            .unwrap_or_default();
+
+        let latest_str = history
+            .first()
+            .map(|v| format!("Latency: {}ms", v))
+            .unwrap_or_else(|| "Latency (ms)".to_string());
+
+        Label::new(latest_str)
+            .width(SPARK_WIDTH)
+            .render(label_area, buf, ctx);
+
+        // Scale relative to the highest observed value. Floor at 1 only to
+        // avoid divide-by-zero; sparklines show relative change, not absolute.
+        let max = history.iter().copied().max().unwrap_or(1).max(1);
+
+        Sparkline::default()
+            .data(&history)
+            .max(max)
+            .direction(RenderDirection::RightToLeft)
+            .style(
+                Style::default()
+                    .fg(ctx.state.colors.border_color)
+                    .bg(ctx.state.colors.buffer_bg),
+            )
+            .render(spark_area, buf);
+    }
+
     fn render_cmd_output(
         &self,
         area: Rect,
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) {
-        if self.is_tracing(ctx.state) {
-            let [label_area] = Layout::vertical([
-                Constraint::Min(1), // label
-            ])
-            .areas(area);
-
-            let header = Header::new("tracing...".to_string());
-            header.render(label_area, buf, ctx);
-        } else if let Some((cmd, output)) = ctx.state.cmd_output.as_ref() {
-            let header = Header::new(cmd.to_string());
+        if !self.is_tracing(ctx.state)
+            && let Some((cmd, output)) = ctx.state.cmd_output.as_ref()
+        {
+            let label = Label::new(cmd.to_string());
 
             let status_value = Span::from(output.status.to_string());
             let status = Line::from(vec![status_value]);
@@ -286,7 +340,7 @@ impl DeviceView {
                 ])
                 .areas(area);
 
-            header.render(label_area, buf, ctx);
+            label.render(label_area, buf, ctx);
             status.render(status_area, buf);
             stderr.render(stderr_area, buf);
             stdout.render(stdout_area, buf);
@@ -543,22 +597,28 @@ impl CustomWidgetRef for DeviceView {
         buf: &mut ratatui::prelude::Buffer,
         ctx: &CustomWidgetContext,
     ) -> Result<()> {
-        let [left_area, right_area] = Layout::horizontal([
-            Constraint::Percentage(50), // info
-            Constraint::Percentage(50), // command output
+        let [top_row, bottom_row] = Layout::vertical([
+            Constraint::Length(12), // ssh config / sparkline
+            Constraint::Min(0),     // device info / command output
         ])
         .areas(area);
 
-        let [ssh_area, info_area] = Layout::vertical([
-            Constraint::Length(12), // ssh info
-            Constraint::Min(0),     // device info
+        let [ssh_area, sparkline_area] = Layout::horizontal([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
         ])
-        .areas(left_area);
+        .areas(top_row);
 
-        // self.render_label(label_area, buf, ctx);
+        let [info_area, cmd_area] = Layout::horizontal([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+        ])
+        .areas(bottom_row);
+
         self.render_device_ssh_config(ssh_area, buf, ctx);
+        self.render_latency_sparkline(sparkline_area, buf, ctx);
         self.render_device_info(info_area, buf, ctx);
-        self.render_cmd_output(right_area, buf, ctx);
+        self.render_cmd_output(cmd_area, buf, ctx);
         // important to render popovers last so they layer on top
         self.render_browser_config_popover(buf, ctx)?;
         self.render_config_removal_popover(buf, ctx)?;
@@ -584,6 +644,9 @@ impl EventHandler for DeviceView {
                 if key.kind == KeyEventKind::Press {
                     match key.code {
                         KeyCode::Esc => {
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
                             if *self.editing_browser.borrow()
                                 || *self.editing_ssh.borrow()
                             {
@@ -600,6 +663,9 @@ impl EventHandler for DeviceView {
                             }
                         }
                         KeyCode::Right => {
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
                             if *self.editing_browser.borrow() {
                                 if *self.browser_focus.borrow() == 0 {
                                     self.next_browser();
@@ -610,6 +676,9 @@ impl EventHandler for DeviceView {
                             return Ok(false);
                         }
                         KeyCode::Left => {
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
                             if *self.editing_browser.borrow() {
                                 if *self.browser_focus.borrow() == 0 {
                                     self.next_browser();
@@ -620,6 +689,9 @@ impl EventHandler for DeviceView {
                             return Ok(false);
                         }
                         KeyCode::Tab => {
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
                             if *self.editing_browser.borrow()
                                 || *self.editing_ssh.borrow()
                             {
@@ -630,6 +702,9 @@ impl EventHandler for DeviceView {
                             return Ok(false);
                         }
                         KeyCode::BackTab => {
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
                             if *self.editing_browser.borrow()
                                 || *self.editing_ssh.borrow()
                             {
@@ -640,6 +715,10 @@ impl EventHandler for DeviceView {
                             return Ok(false);
                         }
                         KeyCode::Enter => {
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
+
                             if *self.editing_browser.borrow() {
                                 let port_str = self
                                     .browser_port_state
@@ -699,6 +778,10 @@ impl EventHandler for DeviceView {
                             }
                         }
                         KeyCode::Backspace => {
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
+
                             if *self.editing_browser.borrow()
                                 || *self.editing_ssh.borrow()
                             {
@@ -709,6 +792,10 @@ impl EventHandler for DeviceView {
                             self.confirm_config_removal.replace(true);
                         }
                         KeyCode::Char(c) => {
+                            if self.is_tracing(ctx.state) {
+                                return Ok(true);
+                            }
+
                             if *self.editing_browser.borrow()
                                 || *self.editing_ssh.borrow()
                             {

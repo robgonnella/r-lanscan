@@ -102,6 +102,7 @@ fn sends_and_reads_packets() {
         vendor: "XEROX CORPORATION".to_string(),
         is_current_host: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     };
 
     let mut receiver = MockPacketReader::new();

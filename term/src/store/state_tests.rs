@@ -16,6 +16,7 @@ fn test_device_list_returns_sorted_by_ip() {
         is_current_host: false,
         open_ports: PortSet::new(),
         vendor: "vendor1".to_string(),
+        latency_ms: None,
     };
 
     let dev2 = Device {
@@ -25,6 +26,7 @@ fn test_device_list_returns_sorted_by_ip() {
         is_current_host: false,
         open_ports: PortSet::new(),
         vendor: "vendor2".to_string(),
+        latency_ms: None,
     };
 
     let dev3 = Device {
@@ -34,6 +36,7 @@ fn test_device_list_returns_sorted_by_ip() {
         is_current_host: false,
         open_ports: PortSet::new(),
         vendor: "vendor3".to_string(),
+        latency_ms: None,
     };
 
     // Insert in non-sorted order
@@ -69,6 +72,7 @@ fn test_device_list_single_device() {
         is_current_host: false,
         open_ports: PortSet::new(),
         vendor: "vendor".to_string(),
+        latency_ms: None,
     };
 
     state.device_map.insert(dev.ip, dev.clone());

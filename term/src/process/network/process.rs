@@ -147,6 +147,7 @@ impl NetworkProcess {
                     vendor: d.vendor.to_owned(),
                     is_current_host: d.is_current_host,
                     open_ports: PortSet::new(),
+                    latency_ms: d.latency_ms,
                 },
             );
         }

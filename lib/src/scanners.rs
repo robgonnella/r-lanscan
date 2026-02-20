@@ -135,6 +135,8 @@ pub struct Device {
     pub is_current_host: bool,
     /// A HashSet of open ports for this device
     pub open_ports: PortSet,
+    /// ARP round-trip latency in milliseconds, if measured
+    pub latency_ms: Option<u128>,
 }
 
 impl PartialEq for Device {
