@@ -1,3 +1,21 @@
+# [0.8.0](https://github.com/robgonnella/r-lanscan/compare/v0.7.1...v0.8.0) - 2026-02-15
+
+### 🚀 Features
+
+- adds latency sparkline [_(ede7d90)_](https://github.com/robgonnella/r-lanscan/commit/ede7d900f8f6ca6d6c623993e2c7cf9a1b57b9d1)
+
+- adds ability to remove individual device config [_(86bc179)_](https://github.com/robgonnella/r-lanscan/commit/86bc179b61766ec5413bdca67f51a12606bc39ce)
+
+- _(term)_ adds click handlers to tui [_(df97b05)_](https://github.com/robgonnella/r-lanscan/commit/df97b0552ec64113335149ab9d557873480bd137)
+
+### 🐛 Bug Fixes
+
+- fixes issue with rendering during traceroute cmd [_(c14070d)_](https://github.com/robgonnella/r-lanscan/commit/c14070d7c9c026a4b09fd641c38217227d03fd25)
+
+- minor tweak to confirm dialog text [_(d33bbe5)_](https://github.com/robgonnella/r-lanscan/commit/d33bbe58aaf07d0d7a33ca1e094be313c6a85c20)
+
+- _(term)_ improve thread monitoring watch-dogs [_(627dbb0)_](https://github.com/robgonnella/r-lanscan/commit/627dbb0a720a4f4ea2bb854b895333939e9a7a13)
+
 # [0.7.1](https://github.com/robgonnella/r-lanscan/compare/v0.7.0...v0.7.1) - 2026-02-14
 
 ### 🐛 Bug Fixes
