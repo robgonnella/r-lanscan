@@ -10,25 +10,18 @@ use crate::ipc::{
 
 /// Sends messages from the main thread to the renderer.
 #[derive(Clone)]
-pub struct MainSender {
+pub struct MainRendererSender {
     renderer_tx: Sender<RendererMessage>,
-    network_tx: Sender<NetworkMessage>,
 }
 
-impl MainSender {
+impl MainRendererSender {
     /// Creates a new sender wrapping the given channel.
-    pub fn new(
-        renderer_tx: Sender<RendererMessage>,
-        network_tx: Sender<NetworkMessage>,
-    ) -> Self {
-        Self {
-            renderer_tx,
-            network_tx,
-        }
+    pub fn new(renderer_tx: Sender<RendererMessage>) -> Self {
+        Self { renderer_tx }
     }
 }
 
-impl IpcSender<RendererMessage> for MainSender {
+impl IpcSender<RendererMessage> for MainRendererSender {
     fn send(&self, m: RendererMessage) -> Result<()> {
         self.renderer_tx.send(m)?;
         Ok(())
@@ -37,12 +30,24 @@ impl IpcSender<RendererMessage> for MainSender {
     fn box_clone(&self) -> Box<dyn IpcSender<RendererMessage>> {
         Box::new(Self {
             renderer_tx: self.renderer_tx.clone(),
-            network_tx: self.network_tx.clone(),
         })
     }
 }
 
-impl IpcSender<NetworkMessage> for MainSender {
+/// Sends messages from the main thread to the network thread.
+#[derive(Clone)]
+pub struct MainNetworkSender {
+    network_tx: Sender<NetworkMessage>,
+}
+
+impl MainNetworkSender {
+    /// Creates a new sender wrapping the given channel.
+    pub fn new(network_tx: Sender<NetworkMessage>) -> Self {
+        Self { network_tx }
+    }
+}
+
+impl IpcSender<NetworkMessage> for MainNetworkSender {
     fn send(&self, m: NetworkMessage) -> Result<()> {
         self.network_tx.send(m)?;
         Ok(())
@@ -50,7 +55,6 @@ impl IpcSender<NetworkMessage> for MainSender {
 
     fn box_clone(&self) -> Box<dyn IpcSender<NetworkMessage>> {
         Box::new(Self {
-            renderer_tx: self.renderer_tx.clone(),
             network_tx: self.network_tx.clone(),
         })
     }
@@ -87,6 +91,9 @@ pub struct MainIpc {
     pub renderer_tx: Box<dyn IpcSender<RendererMessage>>,
     pub network_tx: Box<dyn IpcSender<NetworkMessage>>,
     pub rx: Box<dyn IpcReceiver<MainMessage>>,
+    /// Sender side of the main channel, used to post messages back to
+    /// the main event loop from spawned threads (e.g. traceroute).
+    pub tx: Sender<MainMessage>,
 }
 
 impl MainIpc {
@@ -95,11 +102,13 @@ impl MainIpc {
         renderer_tx: Box<dyn IpcSender<RendererMessage>>,
         network_tx: Box<dyn IpcSender<NetworkMessage>>,
         rx: Box<dyn IpcReceiver<MainMessage>>,
+        tx: Sender<MainMessage>,
     ) -> Self {
         Self {
             renderer_tx,
             network_tx,
             rx,
+            tx,
         }
     }
 }

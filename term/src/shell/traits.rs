@@ -19,7 +19,7 @@ pub struct BrowseArgs {
 
 /// Trait for executing shell commands. Abstracted for testability.
 #[cfg_attr(test, automock)]
-pub trait ShellExecutor: Send {
+pub trait ShellExecutor: Send + Sync {
     /// Opens an SSH session to the given device using the provided config.
     fn ssh(
         &self,

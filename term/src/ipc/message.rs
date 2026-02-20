@@ -1,7 +1,7 @@
 //! Event and command type definitions.
 
 use r_lanlib::scanners::Device;
-use std::fmt::Display;
+use std::{fmt::Display, process::Output};
 
 use crate::{
     config::{Config, DeviceConfig},
@@ -58,6 +58,8 @@ pub enum MainMessage {
     SynDone,
     /// Request to execute an external command.
     ExecCommand(Command),
+    /// A background command completed with output or error string.
+    CommandDone(Command, Result<Output, String>),
     /// Request to quit the application.
     Quit(Option<String>),
 }

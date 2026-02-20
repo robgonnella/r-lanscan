@@ -44,7 +44,7 @@ use std::{
 use crate::{
     config::DEFAULT_CONFIG_ID,
     ipc::{
-        main::{MainIpc, MainReceiver, MainSender},
+        main::{MainIpc, MainNetworkSender, MainReceiver, MainRendererSender},
         message::{MainMessage, NetworkMessage, RendererMessage},
         network::{NetworkIpc, NetworkReceiver, NetworkSender},
         renderer::{RendererIpc, RendererReceiver, RendererSender},
@@ -263,14 +263,16 @@ fn start_main_process(
     config_manager: ConfigManager,
     renderer_tx: Sender<RendererMessage>,
     network_tx: Sender<NetworkMessage>,
+    main_tx: Sender<MainMessage>,
     main_rx: Receiver<MainMessage>,
     initial_state: State,
 ) -> Result<()> {
     let renderer_tx_clone = renderer_tx.clone();
     let main_ipc = MainIpc::new(
-        Box::new(MainSender::new(renderer_tx.clone(), network_tx.clone())),
-        Box::new(MainSender::new(renderer_tx, network_tx)),
+        Box::new(MainRendererSender::new(renderer_tx)),
+        Box::new(MainNetworkSender::new(network_tx)),
         Box::new(MainReceiver::new(main_rx)),
+        main_tx,
     );
 
     let mut store = Store::new(initial_state, StoreReducer::boxed());
@@ -283,7 +285,7 @@ fn start_main_process(
 
     let main_process = MainProcess::builder()
         .config_manager(RefCell::new(config_manager))
-        .executor(Box::new(Shell::new()))
+        .executor(Arc::new(Shell::new()))
         .store(Rc::new(store))
         .ipc(main_ipc)
         .build()?;
@@ -400,6 +402,7 @@ fn main() -> Result<()> {
         config_manager,
         renderer_tx,
         network_tx,
+        main_tx,
         main_rx,
         initial_state,
     )

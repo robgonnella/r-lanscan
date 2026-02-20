@@ -8,6 +8,7 @@ use std::{
     net::Ipv4Addr,
     os::{fd::OwnedFd, unix::process::ExitStatusExt},
     process::{ChildStderr, ExitStatus, Output},
+    sync::{Arc, mpsc::channel},
 };
 
 use crate::{
@@ -23,6 +24,7 @@ struct SetUpReturn {
     tmp_path: String,
     store: Rc<Store>,
     main_process: MainProcess,
+    main_rx: std::sync::mpsc::Receiver<MainMessage>,
 }
 
 fn setup(
@@ -44,14 +46,17 @@ fn setup(
 
     let store = Rc::new(Store::new(State::default(), StoreReducer::boxed()));
 
+    let (main_tx, main_rx) = channel::<MainMessage>();
+
     let main_ipc = MainIpc::new(
         Box::new(mock_render_sender),
         Box::new(mock_network_sender),
         Box::new(mock_receiver),
+        main_tx,
     );
 
     let main_process = MainProcess::builder()
-        .executor(Box::new(mock_executor))
+        .executor(Arc::new(mock_executor))
         .config_manager(RefCell::new(config_manager))
         .ipc(main_ipc)
         .store(store.clone())
@@ -62,6 +67,7 @@ fn setup(
         tmp_path,
         store,
         main_process,
+        main_rx,
     }
 }
 
@@ -149,6 +155,16 @@ fn handle_traceroute_dispatches_output_on_success() {
 
     test.main_process.handle_traceroute(&cmd, &device).unwrap();
 
+    // Result arrives asynchronously via the main channel
+    match test.main_rx.recv().unwrap() {
+        MainMessage::CommandDone(done_cmd, Ok(output)) => {
+            test.store
+                .dispatch(Action::UpdateCommandOutput((done_cmd, output)));
+            test.store.dispatch(Action::SetCommandInProgress(None));
+        }
+        other => panic!("unexpected message: {other:?}"),
+    }
+
     let state = test.store.get_state();
     assert!(state.cmd_output.is_some());
 
@@ -181,6 +197,15 @@ fn handle_traceroute_sets_error_on_failure() {
     let cmd = AppCommand::TraceRoute(device.clone());
 
     test.main_process.handle_traceroute(&cmd, &device).unwrap();
+
+    // Result arrives asynchronously via the main channel
+    match test.main_rx.recv().unwrap() {
+        MainMessage::CommandDone(_, Err(err)) => {
+            test.store.dispatch(Action::SetError(Some(err)));
+            test.store.dispatch(Action::SetCommandInProgress(None));
+        }
+        other => panic!("unexpected message: {other:?}"),
+    }
 
     let state = test.store.get_state();
     assert!(state.error.is_some());
