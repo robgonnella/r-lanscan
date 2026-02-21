@@ -1,20 +1,42 @@
 name: test
 
 services:
-  postgres:
-    image: postgres:latest
+  localstack:
+    build:
+      context: .
+      dockerfile: docker/localstack/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
-        ipv4_address: 172.22.0.10
+        ipv4_address: 172.22.0.60
+
+  mongo:
+    build:
+      context: .
+      dockerfile: docker/mongo/Dockerfile
+    cap_add:
+      - NET_ADMIN
+    networks:
+      default:
+        ipv4_address: 172.22.0.50
 
   redis:
-    image: redis:latest
+    build:
+      context: .
+      dockerfile: docker/redis/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.20
 
   ssh-server:
-    image: lscr.io/linuxserver/openssh-server:latest
+    build:
+      context: .
+      dockerfile: docker/ssh-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     environment:
       TZ: Etc/UTC
       USER_NAME: $USER
@@ -26,81 +48,112 @@ services:
       default:
         ipv4_address: 172.22.0.30
 
-  server1:
-    image: nginx:latest
+  web-server-1:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.40
 
-  server2:
-    image: nginx:latest
+  web-server-2:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.41
 
-  server3:
-    image: nginx:latest
+  web-server-3:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.42
 
-  server4:
-    image: nginx:latest
+  web-server-4:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.43
 
-  server5:
-    image: nginx:latest
+  web-server-5:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.44
 
-  server6:
-    image: nginx:latest
+  web-server-6:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.45
 
-  server7:
-    image: nginx:latest
+  web-server-7:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.46
 
-  server8:
-    image: nginx:latest
+  web-server-8:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.47
 
-  server9:
-    image: nginx:latest
+  web-server-9:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.48
 
-  server10:
-    image: nginx:latest
+  web-server-10:
+    build:
+      context: .
+      dockerfile: docker/web-server/Dockerfile
+    cap_add:
+      - NET_ADMIN
     networks:
       default:
         ipv4_address: 172.22.0.49
 
-  mongo:
-    image: mongo:latest
-    networks:
-      default:
-        ipv4_address: 172.22.0.50
-
-  localstack:
-    image: localstack/localstack:latest
-    networks:
-      default:
-        ipv4_address: 172.22.0.60
-
   workspace:
-    build: .
-    hostname: workspace
+    build:
+      context: .
+      dockerfile: docker/workspace/Dockerfile
+    cap_add:
+      - NET_ADMIN
     volumes:
       - $PRIVATE_KEY_FILE:/root/.ssh/id_rsa:ro
       - $PUBLIC_KEY_FILE:/root/.ssh/id_rsa.pub:ro

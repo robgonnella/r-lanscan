@@ -12,7 +12,7 @@ in Rust. This is the modern Rust implementation of the
 [go-lanscan](https://github.com/robgonnella/go-lanscan) project, offering
 improved performance, safety, and usability.
 
-![demo](https://vhs.charm.sh/vhs-2qHsvNsJFhiJyUgIWxbrvz.gif)
+![demo](https://vhs.charm.sh/vhs-6DlxD7zklw9SSP0Ai0qG5y.gif)
 
 ## Features
 

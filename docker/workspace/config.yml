@@ -1,0 +1,14 @@
+default:
+  id: default
+  cidr: 172.22.0.1/24
+  theme: Blue
+  ports:
+    - "80"
+    - "2222"
+    - "4566"
+    - "6379"
+    - "27017"
+  default_ssh_user: root
+  default_ssh_port: 22
+  default_ssh_identity: /root/.ssh/id_rsa
+  device_configs: {}
