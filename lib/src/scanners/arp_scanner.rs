@@ -58,6 +58,24 @@ impl ARPScanner {
 
         log::debug!("scanning ARP target: {}", target);
 
+        // The OS never sends an ARP reply to its own IP, so synthesize the
+        // device entry immediately rather than waiting for a reply that will
+        // never arrive.
+        if target == self.interface.ipv4 {
+            self.notifier
+                .send(ScanMessage::ARPScanDevice(Device {
+                    hostname: String::new(),
+                    ip: self.interface.ipv4,
+                    mac: self.interface.mac,
+                    vendor: String::new(),
+                    is_current_host: true,
+                    open_ports: PortSet::new(),
+                    latency_ms: Some(0),
+                }))
+                .map_err(RLanLibError::from_channel_send_error)?;
+            return Ok(());
+        }
+
         let arp_packet = ArpPacketBuilder::default()
             .source_ip(self.interface.ipv4)
             .source_mac(self.interface.mac)
