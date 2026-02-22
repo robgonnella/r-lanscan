@@ -440,6 +440,68 @@ fn reports_error_on_packet_send_errors() {
 }
 
 #[test]
+fn emits_current_host_immediately_without_arp() {
+    let interface = Arc::new(network::get_default_interface().unwrap());
+    let host_ip = interface.ipv4;
+    let host_mac = interface.mac;
+
+    let mut receiver = MockPacketReader::new();
+    let mut sender = MockPacketSender::new();
+
+    // The heartbeat uses the sender; allow it. The ARP send for the
+    // host's own IP should be skipped, so the only sends are heartbeats.
+    sender.expect_send().returning(|_| Ok(()));
+    // next_packet is called by the reader loop continuously; return a
+    // non-ARP byte slice so it loops without emitting any spurious devices.
+    receiver.expect_next_packet().returning(|| Ok(&[1]));
+
+    let idle_timeout = Duration::from_secs(2);
+    let targets = IPTargets::new(vec![host_ip.to_string()]).unwrap();
+    let (tx, rx) = channel();
+
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let wire = Wire(sender, receiver);
+
+    let scanner = ARPScanner::builder()
+        .interface(interface)
+        .wire(wire)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(false)
+        .include_host_names(false)
+        .idle_timeout(idle_timeout)
+        .notifier(tx)
+        .build()
+        .unwrap();
+
+    let handle = scanner.scan().unwrap();
+
+    let mut detected_device: Option<Device> = None;
+
+    loop {
+        if let Ok(msg) = rx.recv() {
+            match msg {
+                ScanMessage::Done => break,
+                ScanMessage::ARPScanDevice(device) => {
+                    detected_device = Some(device);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let result = handle.join().unwrap();
+    assert!(result.is_ok());
+
+    let device = detected_device.expect("host device should be emitted");
+    assert_eq!(device.ip, host_ip);
+    assert_eq!(device.mac.to_string(), host_mac.to_string());
+    assert!(device.is_current_host);
+    assert_eq!(device.latency_ms, Some(0));
+}
+
+#[test]
 fn reports_errors_from_read_handle() {
     let interface = Arc::new(network::get_default_interface().unwrap());
     let mut receiver = MockPacketReader::new();
