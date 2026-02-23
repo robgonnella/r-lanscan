@@ -49,6 +49,9 @@ pub struct NetworkProcess {
     interface: Arc<NetworkInterface>,
     ipc: NetworkIpc,
     config: RefCell<Config>,
+    /// Default gateway IP, resolved once at construction time
+    #[builder(default)]
+    gateway: Option<Ipv4Addr>,
     #[builder(default)]
     arp_history: RefCell<HashMap<Ipv4Addr, (Device, MissedCount)>>,
 }
@@ -146,6 +149,7 @@ impl NetworkProcess {
                     mac: d.mac.to_owned(),
                     vendor: d.vendor.to_owned(),
                     is_current_host: d.is_current_host,
+                    is_gateway: d.is_gateway,
                     open_ports: PortSet::new(),
                     latency_ms: d.latency_ms,
                 },
@@ -205,6 +209,7 @@ impl NetworkMonitor for NetworkProcess {
                 .idle_timeout(time::Duration::from_millis(IDLE_TIMEOUT.into()))
                 .source_port(source_port)
                 .notifier(tx.clone())
+                .gateway(self.gateway)
                 .build()?;
 
             let rx = self.process_arp(arp_scanner, rx)?;

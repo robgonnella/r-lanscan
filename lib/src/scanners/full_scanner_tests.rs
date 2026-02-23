@@ -9,6 +9,7 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 use std::{net, sync::Mutex};
 
+use crate::network;
 use crate::packet::syn_packet::create_syn_reply;
 use crate::packet::{Reader, arp_packet::create_arp_reply};
 use crate::packet::{
@@ -16,7 +17,6 @@ use crate::packet::{
     mocks::{MockPacketReader, MockPacketSender},
 };
 use crate::scanners::Port;
-use crate::{network, scanners::PortSet};
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
@@ -96,13 +96,10 @@ fn sends_and_reads_packets() {
     );
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
         vendor: "XEROX CORPORATION".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let mut receiver = MockPacketReader::new();

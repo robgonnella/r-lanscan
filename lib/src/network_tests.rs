@@ -1,29 +1,37 @@
 use super::*;
 
 #[test]
-fn returns_none_for_bogus_interface_name() {
+fn returns_a_default_gateway() {
+    // On any real machine running this test suite there must be a default
+    // route configured; if there isn't the test environment itself is broken.
+    let gw = get_default_gateway();
+    assert!(gw.is_some(), "expected a default gateway to be detected");
+}
+
+#[test]
+fn returns_error_for_bogus_interface_name() {
     let res = get_interface("noop");
-    assert!(res.is_none());
+    assert!(res.is_err());
 }
 
 #[cfg(target_os = "macos")]
 #[test]
 fn returns_interface_by_name() {
     let res = get_interface("en0");
-    assert!(res.is_some());
+    assert!(res.is_ok());
 }
 
 #[cfg(target_os = "linux")]
 #[test]
 fn returns_interface_by_name() {
     let res = get_interface("eth0");
-    assert!(res.is_some());
+    assert!(res.is_ok());
 }
 
 #[test]
 fn returns_default_interface() {
     let res = get_default_interface();
-    assert!(res.is_some());
+    assert!(res.is_ok());
 }
 
 #[test]

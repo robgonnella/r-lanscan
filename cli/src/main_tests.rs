@@ -1,6 +1,5 @@
 use mockall::mock;
 use mpsc::channel;
-use pnet::util::MacAddr;
 use r_lanlib::{
     error::Result,
     scanners::{Port, PortSet, Scanner},
@@ -86,11 +85,8 @@ fn prints_arp_table_results() {
     let device = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(192, 168, 1, 1),
-        is_current_host: false,
-        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     print_arp(&args, &vec![device]).unwrap();
@@ -115,11 +111,8 @@ fn prints_arp_json_results() {
     let device = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(192, 168, 1, 1),
-        is_current_host: false,
-        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     print_arp(&args, &vec![device]).unwrap();
@@ -152,11 +145,9 @@ fn prints_syn_table_results() {
     let device = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(192, 168, 1, 1),
-        is_current_host: false,
-        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports,
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices = HashMap::from([(device.ip, device)]);
@@ -190,11 +181,9 @@ fn prints_syn_json_results() {
     let device = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(192, 168, 1, 1),
-        is_current_host: false,
-        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports,
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices = HashMap::from([(device.ip, device)]);
@@ -210,11 +199,8 @@ fn performs_arp_scan() {
     let device = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(192, 168, 1, 1),
-        is_current_host: false,
-        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let device_clone = device.clone();
@@ -255,11 +241,9 @@ fn performs_syn_scan() {
     let device = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(192, 168, 1, 1),
-        is_current_host: false,
-        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
         open_ports: ports,
-        latency_ms: None,
+        ..Device::default()
     };
 
     let device_clone = device.clone();

@@ -4,7 +4,7 @@ use std::{
 };
 
 use pnet::util::MacAddr;
-use r_lanlib::scanners::{Device, Port, PortSet};
+use r_lanlib::scanners::{Device, Port};
 
 use crate::{
     config::Config,
@@ -126,11 +126,8 @@ fn test_add_device() {
     let dev3 = Device {
         hostname: "dev3".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 1),
-        mac: MacAddr::default(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
         vendor: "dev3_vendor".to_string(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev3.clone()));
@@ -146,10 +143,8 @@ fn test_set_command_in_progress() {
         hostname: "dev".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: false,
         vendor: "dev_vendor".to_string(),
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
     let port: u16 = 80;
     reducer.reduce(
@@ -179,10 +174,8 @@ fn test_update_command_output() {
         hostname: "dev".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: false,
         vendor: "dev_vendor".to_string(),
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
     let port: u16 = 80;
     let cmd = Command::Browse(BrowseArgs {
@@ -218,11 +211,9 @@ fn test_add_device_records_latency_history() {
     let mut dev = Device {
         hostname: "dev".to_string(),
         ip,
-        mac: MacAddr::default(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
         vendor: "vendor".to_string(),
         latency_ms: Some(5),
+        ..Device::default()
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
@@ -244,11 +235,8 @@ fn test_add_device_no_latency_does_not_append_history() {
     let dev = Device {
         hostname: "dev".to_string(),
         ip,
-        mac: MacAddr::default(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
         vendor: "vendor".to_string(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     reducer.reduce(&mut state, Action::AddDevice(dev));
@@ -263,10 +251,8 @@ fn test_updates_device_with_new_info() {
         hostname: "dev".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: false,
         vendor: "dev_vendor".to_string(),
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let port = Port {

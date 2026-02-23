@@ -106,7 +106,9 @@ let devices = vec![
         mac: MacAddr::new(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff),
         vendor: "".to_string(),
         is_current_host: false,
+        is_gateway: false,
         open_ports: PortSet::new(),
+        latency_ms: None,
     }
 ];
 
@@ -180,9 +182,18 @@ let handle = scanner.scan().expect("Failed to start scan");
 
 Provides helpers for selecting network interfaces:
 
-- `get_default_interface()` - Get the default network interface
-- `get_interface(name)` - Get a specific interface by name
-- `get_available_port()` - Find an available port for scanning
+- `get_default_interface()` - Get the default network interface, returns `Result<NetworkInterface>`
+- `get_interface(name)` - Get a specific interface by name, returns `Result<NetworkInterface>`
+- `get_available_port()` - Find an available port for scanning, returns `Result<u16>`
+
+#### `routing`
+
+Provides OS-level routing table inspection:
+
+- `get_default_gateway()` - Detect the default gateway IP address by parsing
+  the system routing table (`netstat -rn` on macOS, `ip route show` on Linux).
+  Returns `Option<Ipv4Addr>` — `None` if the gateway cannot be determined or
+  the platform is unsupported.
 
 #### `packet`
 
@@ -219,7 +230,9 @@ pub struct Device {
     pub mac: MacAddr,
     pub vendor: String,
     pub is_current_host: bool,
+    pub is_gateway: bool,
     pub open_ports: PortSet,
+    pub latency_ms: Option<u128>,
 }
 ```
 

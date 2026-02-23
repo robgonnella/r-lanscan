@@ -25,7 +25,7 @@ use color_eyre::eyre::{ContextCompat, Result, eyre};
 use config::{Config, ConfigManager};
 use directories::ProjectDirs;
 use r_lanlib::{
-    network::{NetworkInterface, get_default_interface},
+    network::{self, NetworkInterface, get_default_interface},
     packet,
 };
 use ratatui::{Terminal, prelude::CrosstermBackend};
@@ -223,6 +223,7 @@ fn start_network_monitoring_thread(
         .wire(wire)
         .ipc(ipc)
         .config(RefCell::new(config))
+        .gateway(network::get_default_gateway())
         .build()?;
 
     Ok(thread::spawn(move || -> Result<()> {
@@ -355,8 +356,7 @@ fn main() -> Result<()> {
         return Err(eyre!("permission denied: must run with root privileges"));
     }
 
-    let interface = get_default_interface()
-        .ok_or_else(|| eyre!("Could not detect default network interface"))?;
+    let interface = get_default_interface()?;
 
     let (config_manager, initial_state) = init(&args, &interface)?;
 

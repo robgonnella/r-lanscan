@@ -1,5 +1,6 @@
 //! Provides helpers for selecting a network interface on the current host
-//! through which to preform network scanning
+//! through which to preform network scanning, and for detecting the default
+//! gateway from the OS routing table.
 
 use itertools::Itertools;
 use pnet::{
@@ -7,11 +8,12 @@ use pnet::{
     util::MacAddr,
 };
 use std::{
-    error::Error,
-    io,
     net::{Ipv4Addr, TcpListener},
+    process::Command,
     str::FromStr,
 };
+
+use crate::error::{RLanLibError, Result};
 
 /// Represents a network interface on current host
 pub struct NetworkInterface {
@@ -34,13 +36,22 @@ pub struct NetworkInterface {
 }
 
 impl TryFrom<PNetNetworkInterface> for NetworkInterface {
-    type Error = Box<dyn Error>;
+    type Error = RLanLibError;
 
-    fn try_from(value: PNetNetworkInterface) -> Result<Self, Self::Error> {
-        let mac = value.mac.ok_or("failed to get mac address for interface")?;
-        let (ip, cidr) = get_interface_ipv4_and_cidr(&value)
-            .ok_or("failed to get ip and cidr for interface")?;
-        let ipv4 = Ipv4Addr::from_str(ip.as_str())?;
+    fn try_from(value: PNetNetworkInterface) -> Result<Self> {
+        let mac = value.mac.ok_or(RLanLibError::NetworkInterface(
+            "failed to get mac address for interface".into(),
+        ))?;
+        let (ip, cidr) = get_interface_ipv4_and_cidr(&value).ok_or(
+            RLanLibError::NetworkInterface(
+                "failed to get ip and cidr for interface".into(),
+            ),
+        )?;
+        let ipv4 = Ipv4Addr::from_str(&ip).map_err(|e| {
+            RLanLibError::NetworkInterface(format!(
+                "failed to parse interface ip address '{ip}': {e}"
+            ))
+        })?;
 
         Ok(Self {
             name: value.name,
@@ -69,26 +80,42 @@ impl From<&NetworkInterface> for PNetNetworkInterface {
 }
 
 /// Finds and returns a NetworkInterface by name for current host
-pub fn get_interface(name: &str) -> Option<NetworkInterface> {
+pub fn get_interface(name: &str) -> Result<NetworkInterface> {
     let iface = pnet::datalink::interfaces()
         .into_iter()
-        .find(|i| i.name == name)?;
-    NetworkInterface::try_from(iface).ok()
+        .find(|i| i.name == name)
+        .ok_or(RLanLibError::NetworkInterface(format!(
+            "failed to find network interface with name: {name}"
+        )))?;
+    NetworkInterface::try_from(iface)
 }
 
 /// Finds and returns the default NetworkInterface for current host
-pub fn get_default_interface() -> Option<NetworkInterface> {
-    let iface = pnet::datalink::interfaces().into_iter().find(|e| {
-        e.is_up() && !e.is_loopback() && e.ips.iter().any(|i| i.is_ipv4())
-    })?;
-    NetworkInterface::try_from(iface).ok()
+pub fn get_default_interface() -> Result<NetworkInterface> {
+    let iface = pnet::datalink::interfaces()
+        .into_iter()
+        .find(|e| {
+            e.is_up() && !e.is_loopback() && e.ips.iter().any(|i| i.is_ipv4())
+        })
+        .ok_or(RLanLibError::NetworkInterface(
+            "failed to get default network interface".into(),
+        ))?;
+    NetworkInterface::try_from(iface)
 }
 
 /// Finds an available port on the current host. This is useful when setting the
 /// listening port on a scanner where packets will be received.
-pub fn get_available_port() -> Result<u16, io::Error> {
-    let listener = TcpListener::bind(("127.0.0.1", 0))?;
-    let addr = listener.local_addr()?;
+pub fn get_available_port() -> Result<u16> {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).map_err(|e| {
+        RLanLibError::NetworkInterface(format!(
+            "failed to bind loopback to find open port: {e}"
+        ))
+    })?;
+    let addr = listener.local_addr().map_err(|e| {
+        RLanLibError::NetworkInterface(format!(
+            "failed to get local address for open port: {e}"
+        ))
+    })?;
     Ok(addr.port())
 }
 
@@ -106,6 +133,59 @@ fn get_interface_ipv4_and_cidr(
     let prefix = ipnet.prefix().to_string();
     let cidr = format!("{base}/{prefix}");
     Some((host_ip, cidr))
+}
+
+/// Returns the default gateway IPv4 address by parsing the system routing
+/// table. Works on macOS (`netstat -rn`).
+/// Returns `None` if the gateway cannot be determined.
+#[cfg(target_os = "macos")]
+pub fn get_default_gateway() -> Option<Ipv4Addr> {
+    // `netstat -rn` output contains a line like:
+    //   default    192.168.1.1    UGScg  en0
+    let output = Command::new("netstat").args(["-rn"]).output().ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    for line in stdout.lines() {
+        let mut parts = line.split_whitespace();
+        if parts.next() == Some("default")
+            && let Some(gw) = parts.next()
+            && let Ok(ip) = Ipv4Addr::from_str(gw)
+        {
+            return Some(ip);
+        }
+    }
+
+    None
+}
+
+/// Returns the default gateway IPv4 address by parsing the system routing
+/// table. Works on Linux (`ip route show`).
+/// Returns `None` if the gateway cannot be determined.
+#[cfg(target_os = "linux")]
+pub fn get_default_gateway() -> Option<Ipv4Addr> {
+    // `ip route show` output contains a line like:
+    //   default via 192.168.1.1 dev eth0
+    let output = Command::new("ip").args(["route", "show"]).output().ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    for line in stdout.lines() {
+        let mut parts = line.split_whitespace();
+        if parts.next() == Some("default")
+            && parts.next() == Some("via")
+            && let Some(gw) = parts.next()
+            && let Ok(ip) = Ipv4Addr::from_str(gw)
+        {
+            return Some(ip);
+        }
+    }
+
+    None
+}
+
+/// Returns `None` on platforms where gateway detection is not implemented.
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+pub fn get_default_gateway() -> Option<Ipv4Addr> {
+    None
 }
 
 #[cfg(test)]

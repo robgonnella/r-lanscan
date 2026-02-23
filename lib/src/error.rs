@@ -77,6 +77,10 @@ pub enum RLanLibError {
     #[error("failed to build heartbeat packet: {_0}")]
     HeartbeatPacketBuild(#[from] HeartbeatPacketBuilderError),
 
+    /// Errors generated accessing device interfaces
+    #[error("network interface error: {_0}")]
+    NetworkInterface(String),
+
     /// Wrapping errors related to scanning
     #[error("scanning error: {error} - ip: {:#?}, port: {:#?}", ip, port)]
     Scan {
