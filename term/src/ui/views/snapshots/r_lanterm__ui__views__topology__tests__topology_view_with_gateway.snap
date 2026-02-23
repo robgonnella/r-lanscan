@@ -1,0 +1,24 @@
+---
+source: term/src/ui/views/./topology_tests.rs
+expression: terminal.backend()
+---
+"                                                                                                                                  "
+"[Gateway]  192.168.1.1     Netgear, Inc.             4ms  (baseline)                                                              "
+"│                                                                                                                                 "
+"├── [Direct  +0–1ms (normalized)]                                                                                                 "
+"│     192.168.1.10    laptop.local              Apple, Inc.               Linux/macOS  1 hops   +0ms [YOU]                        "
+"├── [Near    +1–10ms (normalized)]                                                                                                "
+"│     192.168.1.50    pi-hole                   Raspberry Pi Foundation   Windows      1 hops   +4ms                              "
+"└── [Far     +10ms+ (normalized)]                                                                                                 "
+"      192.168.1.100   [unknown]                 Espressif Inc.            —            —        +16ms                             "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "

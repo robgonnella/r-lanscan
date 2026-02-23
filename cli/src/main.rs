@@ -181,8 +181,9 @@ fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
     } else {
         let mut arp_table = prettytable::Table::new();
 
-        arp_table
-            .add_row(prettytable::row!["IP", "HOSTNAME", "MAC", "VENDOR",]);
+        arp_table.add_row(prettytable::row![
+            "IP", "HOSTNAME", "MAC", "VENDOR", "LATENCY",
+        ]);
 
         for d in devices.iter() {
             let ip_field = if d.is_current_host {
@@ -192,8 +193,12 @@ fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
             } else {
                 d.ip.to_string()
             };
+            let latency = d
+                .latency_ms
+                .map(|ms| format!("{}ms", ms))
+                .unwrap_or_default();
             arp_table.add_row(prettytable::row![
-                ip_field, d.hostname, d.mac, d.vendor
+                ip_field, d.hostname, d.mac, d.vendor, latency
             ]);
         }
 
@@ -269,6 +274,7 @@ fn print_syn(
             "HOSTNAME",
             "MAC",
             "VENDOR",
+            "LATENCY",
             "OPEN_PORTS",
         ]);
 
@@ -281,6 +287,11 @@ fn print_syn(
                 d.ip.to_string()
             };
 
+            let latency = d
+                .latency_ms
+                .map(|ms| format!("{}ms", ms))
+                .unwrap_or_default();
+
             let ports: Vec<_> = d
                 .open_ports
                 .to_sorted_vec()
@@ -292,6 +303,7 @@ fn print_syn(
                 d.hostname,
                 d.mac,
                 d.vendor,
+                latency,
                 ports.join(", ")
             ]);
         }

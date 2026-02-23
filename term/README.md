@@ -18,6 +18,9 @@ way to discover, monitor, and connect to devices on your local network.
 - **Persistent Configuration**: Save global and device-specific SSH
   configurations
 - **Customizable Themes**: Multiple color themes (Blue, Emerald, Indigo, Red)
+- **Network Topology**: Visual topology view grouping devices by proximity to
+  the gateway, with OS class detection and hop count estimation derived from
+  SYN-ACK TTL values
 - **Activity Logs**: Built-in logs view for monitoring scan activity and
   debugging
 - **Port Scanning**: Configurable port ranges for comprehensive network
@@ -167,7 +170,7 @@ sudo r-lanterm --debug
 
 ### Tabs
 
-The application uses a tab-based interface with three tabs displayed at the top
+The application uses a tab-based interface with four tabs displayed at the top
 of the screen. Use `f` / `d` (or `Tab` / `Shift+Tab`) to switch between tabs.
 
 #### 1. Devices (Default)
@@ -178,12 +181,26 @@ of the screen. Use `f` / `d` (or `Tab` / `Shift+Tab`) to switch between tabs.
 - **Selection**: Press `Enter` to view device details inline
 - **Back**: Press `Esc` to return to the device list
 
-#### 2. Config
+#### 2. Topology
+
+- **Purpose**: Visual overview of network topology grouped by proximity to the
+  gateway
+- **Grouping**: Devices bucketed into Direct (+0–1ms), Near (+1–10ms), and Far
+  (+10ms+) based on normalized ARP latency relative to the gateway baseline
+- **OS Detection**: Infers OS class (Linux/macOS, Windows, Network device) from
+  the TTL value observed in SYN-ACK responses
+- **Hop Count**: Estimates network hops between the scanner and each device
+  using the observed TTL and standard initial TTL values (64, 128, 255)
+- **Navigation**: Use arrow keys or `j`/`k` to scroll, mouse wheel supported
+- **Note**: OS class and hop count require at least one open port to be
+  discovered via SYN scan
+
+#### 3. Config
 
 - **Purpose**: Manage global and device-specific settings
 - **Options**: SSH credentials, port ranges, themes
 
-#### 3. Logs
+#### 4. Logs
 
 - **Purpose**: View real-time application logs and scan activity
 - **Features**: Scrollable log history, displays scan events and status messages
@@ -213,6 +230,12 @@ of the screen. Use `f` / `d` (or `Tab` / `Shift+Tab`) to switch between tabs.
 - **`s`** - Connect to device via SSH
 - **`t`** - Run traceroute to device
 - **`b`** - Browse device via web browser (specify port)
+
+#### Topology Tab
+
+- **`j` / `↓`** - Scroll down
+- **`k` / `↑`** - Scroll up
+- **Mouse wheel** - Scroll through topology
 
 #### Config Tab
 

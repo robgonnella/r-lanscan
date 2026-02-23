@@ -27,6 +27,7 @@ use crate::{
             config::ConfigView,
             devices::DevicesView,
             logs::LogsView,
+            topology::TopologyView,
             traits::{
                 CustomEventContext, CustomWidget, CustomWidgetContext,
                 CustomWidgetRef, EventHandler, View,
@@ -46,6 +47,8 @@ enum SelectedTab {
     #[default]
     #[strum(to_string = "Devices")]
     Devices,
+    #[strum(to_string = "Topology")]
+    Topology,
     #[strum(to_string = "Config")]
     Config,
     #[strum(to_string = "Logs")]
@@ -75,6 +78,7 @@ pub struct App {
     selected_tab: RefCell<SelectedTab>,
     selected_view: RefCell<Rc<dyn View>>,
     devices_view: Rc<DevicesView>,
+    topology_view: Rc<TopologyView>,
     config_view: Rc<ConfigView>,
     logs_view: Rc<LogsView>,
     tabs_area: RefCell<Option<Rect>>,
@@ -84,12 +88,14 @@ impl App {
     /// Creates a new app with the given theme and dispatcher.
     pub fn new(theme: Theme) -> Self {
         let devices_view = Rc::new(DevicesView::new());
+        let topology_view = Rc::new(TopologyView::new());
         let config_view = Rc::new(ConfigView::new(theme));
         let logs_view = Rc::new(LogsView::new());
         Self {
             selected_tab: RefCell::new(SelectedTab::Devices),
             selected_view: RefCell::new(devices_view.clone()),
             devices_view,
+            topology_view,
             config_view,
             logs_view,
             tabs_area: RefCell::new(None),
@@ -313,6 +319,7 @@ impl App {
     pub fn set_next_view(&self) {
         let view: Rc<dyn View> = match *self.selected_tab.borrow() {
             SelectedTab::Devices => self.devices_view.clone(),
+            SelectedTab::Topology => self.topology_view.clone(),
             SelectedTab::Config => self.config_view.clone(),
             SelectedTab::Logs => self.logs_view.clone(),
         };

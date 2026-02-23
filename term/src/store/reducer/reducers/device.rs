@@ -5,8 +5,10 @@ use std::collections::HashSet;
 
 use crate::store::state::{MAX_LATENCY_HISTORY, State};
 
-/// Merges open ports from a SYN scan result into an existing device.
-/// Does not update latency_ms or latency_history — those are ARP-only.
+/// Merges open ports and response_ttl from a SYN scan result into an
+/// existing device. Does not update latency_ms or latency_history —
+/// those are ARP-only. TTL is the same across all port replies from a
+/// given device (IP-level field), so we take the first observed value.
 pub fn update_device_ports(state: &mut State, device: Device) {
     if let Some(found_device) = state.device_map.get_mut(&device.ip) {
         let ports: HashSet<Port> = device
@@ -16,6 +18,9 @@ pub fn update_device_ports(state: &mut State, device: Device) {
             .chain(found_device.open_ports.0.iter().cloned())
             .collect();
         found_device.open_ports = ports.into();
+        if found_device.response_ttl.is_none() {
+            found_device.response_ttl = device.response_ttl;
+        }
     }
 }
 

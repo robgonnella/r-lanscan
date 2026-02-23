@@ -137,6 +137,7 @@ impl SYNScanner {
         };
 
         let device_ip = header.get_source();
+        let response_ttl = header.get_ttl();
         let protocol = header.get_next_level_protocol();
         let payload = header.payload();
 
@@ -199,6 +200,7 @@ impl SYNScanner {
         self.notifier
             .send(ScanMessage::SYNScanDevice(Device {
                 open_ports: ports,
+                response_ttl: Some(response_ttl),
                 ..device.clone()
             }))
             .map_err(RLanLibError::from_channel_send_error)?;
