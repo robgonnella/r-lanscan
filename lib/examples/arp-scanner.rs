@@ -5,7 +5,8 @@ use std::{
 };
 
 use r_lanlib::{
-    network, packet,
+    network::{self, get_default_gateway},
+    packet,
     scanners::{Device, ScanMessage, Scanner, arp_scanner::ARPScanner},
     targets::ips::IPTargets,
 };
@@ -38,6 +39,7 @@ fn main() {
     let scanner = ARPScanner::builder()
         .interface(interface)
         .wire(wire)
+        .gateway(get_default_gateway())
         .targets(ip_targets)
         .source_port(source_port)
         .include_vendor(vendor)

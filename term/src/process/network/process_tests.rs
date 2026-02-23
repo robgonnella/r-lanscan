@@ -7,11 +7,10 @@ use std::{
 };
 
 use mockall::Sequence;
-use pnet::util::MacAddr;
 use r_lanlib::{
     packet::{Reader, Sender, wire::Wire},
     scanners::{
-        Device, Port, PortSet, ScanMessage, arp_scanner::ARPScanner,
+        Device, Port, ScanMessage, arp_scanner::ARPScanner,
         syn_scanner::SYNScanner,
     },
     targets::{ips::IPTargets, ports::PortTargets},
@@ -62,11 +61,8 @@ fn make_device(ip: Ipv4Addr) -> Device {
     Device {
         hostname: format!("host-{}", ip),
         ip,
-        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     }
 }
 
@@ -83,6 +79,7 @@ fn setup(
         ),
         ipc,
         config: RefCell::new(default_config()),
+        gateway: None,
         arp_history: RefCell::new(HashMap::new()),
     }
 }

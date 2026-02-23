@@ -133,10 +133,27 @@ pub struct Device {
     pub vendor: String,
     /// Whether or not the device is the current host running the scan
     pub is_current_host: bool,
+    /// Whether or not the device is the default gateway
+    pub is_gateway: bool,
     /// A HashSet of open ports for this device
     pub open_ports: PortSet,
     /// ARP round-trip latency in milliseconds, if measured
     pub latency_ms: Option<u128>,
+}
+
+impl Default for Device {
+    fn default() -> Self {
+        Self {
+            hostname: "".into(),
+            ip: Ipv4Addr::UNSPECIFIED,
+            is_current_host: false,
+            is_gateway: false,
+            latency_ms: None,
+            mac: MacAddr::default(),
+            open_ports: PortSet::new(),
+            vendor: "".into(),
+        }
+    }
 }
 
 impl PartialEq for Device {

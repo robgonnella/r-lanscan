@@ -52,7 +52,7 @@ fn new() {
 }
 
 #[test]
-#[allow(warnings)]
+#[allow(static_mut_refs)]
 fn sends_and_reads_packets() {
     static mut PACKET: [u8; PKT_TOTAL_ARP_SIZE] = [0u8; PKT_TOTAL_ARP_SIZE];
     let interface = Arc::new(network::get_default_interface().unwrap());
@@ -106,6 +106,7 @@ fn sends_and_reads_packets() {
         hostname: "".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 10),
         is_current_host: false,
+        is_gateway: false,
         mac: MacAddr::default(),
         vendor: "".to_string(),
         open_ports: PortSet::new(),
@@ -130,6 +131,80 @@ fn sends_and_reads_packets() {
     assert!(result.is_ok());
     assert_eq!(detected_device.mac.to_string(), device_mac.to_string());
     assert_eq!(detected_device.ip.to_string(), device_ip.to_string());
+}
+
+#[test]
+#[allow(static_mut_refs)]
+fn marks_gateway_device() {
+    static mut PACKET: [u8; PKT_TOTAL_ARP_SIZE] = [0u8; PKT_TOTAL_ARP_SIZE];
+    let interface = Arc::new(network::get_default_interface().unwrap());
+    let device_ip = Ipv4Addr::from_str("192.168.1.2").unwrap();
+    let device_mac = util::MacAddr::default();
+
+    create_arp_reply(
+        device_mac,
+        device_ip,
+        interface.mac,
+        interface.ipv4,
+        #[allow(static_mut_refs)]
+        unsafe {
+            &mut PACKET
+        },
+    );
+
+    let mut receiver = MockPacketReader::new();
+    let mut sender = MockPacketSender::new();
+
+    #[allow(static_mut_refs)]
+    receiver
+        .expect_next_packet()
+        .returning(|| Ok(unsafe { &PACKET }));
+
+    sender.expect_send().returning(|_| Ok(()));
+
+    let idle_timeout = Duration::from_secs(2);
+    let targets = IPTargets::new(vec![device_ip.to_string()]).unwrap();
+    let (tx, rx) = channel();
+
+    let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
+    let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
+    let wire = Wire(sender, receiver);
+
+    let scanner = ARPScanner::builder()
+        .interface(interface)
+        .wire(wire)
+        .targets(targets)
+        .source_port(54321_u16)
+        .include_vendor(false)
+        .include_host_names(false)
+        .idle_timeout(idle_timeout)
+        .gateway(Some(device_ip))
+        .notifier(tx)
+        .build()
+        .unwrap();
+
+    let handle = scanner.scan().unwrap();
+
+    let mut detected_device = Device::default();
+
+    loop {
+        if let Ok(msg) = rx.recv() {
+            match msg {
+                ScanMessage::Done => {
+                    break;
+                }
+                ScanMessage::ARPScanDevice(device) => {
+                    detected_device = device;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let result = handle.join().unwrap();
+    assert!(result.is_ok());
+    assert_eq!(detected_device.ip, device_ip);
+    assert!(detected_device.is_gateway);
 }
 
 #[test]

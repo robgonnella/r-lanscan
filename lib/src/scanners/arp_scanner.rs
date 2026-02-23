@@ -41,6 +41,9 @@ pub struct ARPScanner {
     idle_timeout: Duration,
     /// Channel for sending scan results and status messages
     notifier: sync::mpsc::Sender<ScanMessage>,
+    /// Default gateway IP, used to mark the gateway device in scan results
+    #[builder(default)]
+    gateway: Option<Ipv4Addr>,
     /// Tracks the send time for each ARP request by target IP
     #[builder(default = "Arc::new(Mutex::new(HashMap::new()))")]
     send_times: Arc<Mutex<HashMap<Ipv4Addr, Instant>>>,
@@ -69,6 +72,9 @@ impl ARPScanner {
                     mac: self.interface.mac,
                     vendor: String::new(),
                     is_current_host: true,
+                    is_gateway: self
+                        .gateway
+                        .is_some_and(|gw| gw == self.interface.ipv4),
                     open_ports: PortSet::new(),
                     latency_ms: Some(0),
                 }))
@@ -135,6 +141,7 @@ impl ARPScanner {
         let interface = Arc::clone(&self.interface);
         let include_host_names = self.include_host_names;
         let include_vendor = self.include_vendor;
+        let gateway = self.gateway;
 
         // use a thread pool here so we don't slow down packet
         // processing while limiting concurrent threads
@@ -161,6 +168,7 @@ impl ARPScanner {
                     mac,
                     vendor,
                     is_current_host: ip4 == interface.ipv4,
+                    is_gateway: gateway.is_some_and(|gw| gw == ip4),
                     open_ports: PortSet::new(),
                     latency_ms,
                 }));

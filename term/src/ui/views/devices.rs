@@ -112,6 +112,8 @@ impl DevicesView {
                 vec![
                     if d.is_current_host {
                         format!("{} [YOU]", d.ip)
+                    } else if d.is_gateway {
+                        format!("{} [GTWY]", d.ip)
                     } else {
                         d.ip.to_string()
                     },

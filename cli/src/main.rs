@@ -17,7 +17,7 @@ use core::time;
 use itertools::Itertools;
 use r_lanlib::{
     error::Result as LibResult,
-    network::{self, NetworkInterface},
+    network::{self, NetworkInterface, get_default_gateway},
     packet,
     scanners::{
         Device, IDLE_TIMEOUT, ScanMessage, Scanner, arp_scanner::ARPScanner,
@@ -179,6 +179,8 @@ fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
         for d in devices.iter() {
             let ip_field = if d.is_current_host {
                 format!("{} [YOU]", d.ip)
+            } else if d.is_gateway {
+                format!("{} [GTWY]", d.ip)
             } else {
                 d.ip.to_string()
             };
@@ -265,6 +267,8 @@ fn print_syn(
         for d in devices {
             let ip_field = if d.is_current_host {
                 format!("{} [YOU]", d.ip)
+            } else if d.is_gateway {
+                format!("{} [GTWY]", d.ip)
             } else {
                 d.ip.to_string()
             };
@@ -321,12 +325,8 @@ fn main() -> Result<()> {
     }
 
     let interface = match &args.interface {
-        Some(name) => network::get_interface(name).ok_or_else(|| {
-            eyre!("Could not find network interface: {}", name)
-        })?,
-        None => network::get_default_interface().ok_or_else(|| {
-            eyre!("Could not detect default network interface")
-        })?,
+        Some(name) => network::get_interface(name)?,
+        None => network::get_default_interface()?,
     };
 
     args.interface = Some(interface.name.clone());
@@ -346,6 +346,7 @@ fn main() -> Result<()> {
     let arp = ARPScanner::builder()
         .interface(Arc::clone(&interface))
         .wire(wire.clone())
+        .gateway(get_default_gateway())
         .targets(
             IPTargets::new(args.targets.clone())
                 .map_err(|e| eyre!("Invalid IP targets: {}", e))?,

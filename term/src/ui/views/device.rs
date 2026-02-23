@@ -183,6 +183,8 @@ impl DeviceView {
         let host_str = format!("Hostname: {0}", self.device.hostname);
         let ip_str = if self.device.is_current_host {
             format!("IP: {0} [YOU]", self.device.ip)
+        } else if self.device.is_gateway {
+            format!("IP: {0} [GTWY]", self.device.ip)
         } else {
             format!("IP: {0}", self.device.ip)
         };

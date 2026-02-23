@@ -9,7 +9,6 @@ use std::time::Duration;
 
 use crate::network;
 use crate::packet::{Reader, Sender};
-use crate::scanners::PortSet;
 use packet::arp_packet::create_arp_reply;
 use packet::mocks::{MockPacketReader, MockPacketSender};
 use packet::syn_packet::create_syn_reply;
@@ -77,13 +76,9 @@ fn sends_and_reads_packets() {
     );
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let mut receiver = MockPacketReader::new();
@@ -167,13 +162,9 @@ fn ignores_unrelated_packets() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -295,13 +286,9 @@ fn reports_error_on_packet_reader_lock() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -357,13 +344,9 @@ fn reports_error_on_rst_packet_sender_lock() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     create_syn_reply(
@@ -437,13 +420,9 @@ fn reports_error_on_rst_packet_send_errors() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     create_syn_reply(
@@ -517,13 +496,9 @@ fn reports_error_on_packet_read_error() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -572,13 +547,9 @@ fn reports_error_on_notifier_send_errors() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -625,13 +596,9 @@ fn reports_error_on_packet_sender_lock_errors() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -687,13 +654,9 @@ fn reports_error_on_packet_send_errors() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices: Vec<Device> = vec![device.clone()];
@@ -745,13 +708,9 @@ fn reports_errors_from_read_handle() {
     let device_mac = util::MacAddr::default();
 
     let device = Device {
-        hostname: "".to_string(),
         ip: device_ip,
         mac: device_mac,
-        vendor: "".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let devices: Vec<Device> = vec![device.clone()];

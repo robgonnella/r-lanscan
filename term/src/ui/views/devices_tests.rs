@@ -23,11 +23,11 @@ fn setup() -> (DevicesView, Store) {
     let device_1 = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 1),
-        mac: MacAddr::default(),
-        is_current_host: false,
+        is_gateway: true,
         open_ports: open_ports.clone().into(),
         vendor: "mac".to_string(),
         latency_ms: Some(12),
+        ..Device::default()
     };
 
     let device_2 = Device {
@@ -38,6 +38,7 @@ fn setup() -> (DevicesView, Store) {
         open_ports: open_ports.into(),
         vendor: "linux".to_string(),
         latency_ms: Some(15),
+        ..Device::default()
     };
 
     store.dispatch(Action::AddDevice(device_1.clone()));

@@ -1,7 +1,6 @@
 use color_eyre::eyre::eyre;
 use nanoid::nanoid;
-use pnet::util::MacAddr;
-use r_lanlib::scanners::{Device, PortSet};
+use r_lanlib::scanners::Device;
 use std::{
     fs::{self, File},
     io::{Seek, SeekFrom, Write},
@@ -79,11 +78,8 @@ fn make_device() -> Device {
     Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 1),
-        mac: MacAddr::default(),
         vendor: "vendor".to_string(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
+        ..Device::default()
     }
 }
 

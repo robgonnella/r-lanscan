@@ -1,5 +1,5 @@
 use pnet::util::MacAddr;
-use r_lanlib::scanners::{Device, PortSet};
+use r_lanlib::scanners::Device;
 use std::net::Ipv4Addr;
 
 use super::State;
@@ -12,31 +12,24 @@ fn test_device_list_returns_sorted_by_ip() {
     let dev1 = Device {
         hostname: "dev1".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 3),
-        mac: MacAddr::default(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
         vendor: "vendor1".to_string(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let dev2 = Device {
         hostname: "dev2".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 1),
         mac: MacAddr::new(0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-        is_current_host: false,
-        open_ports: PortSet::new(),
         vendor: "vendor2".to_string(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     let dev3 = Device {
         hostname: "dev3".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 2),
         mac: MacAddr::new(0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa),
-        is_current_host: false,
-        open_ports: PortSet::new(),
         vendor: "vendor3".to_string(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     // Insert in non-sorted order
@@ -68,11 +61,8 @@ fn test_device_list_single_device() {
     let dev = Device {
         hostname: "dev".to_string(),
         ip: Ipv4Addr::new(192, 168, 1, 1),
-        mac: MacAddr::default(),
-        is_current_host: false,
-        open_ports: PortSet::new(),
         vendor: "vendor".to_string(),
-        latency_ms: None,
+        ..Device::default()
     };
 
     state.device_map.insert(dev.ip, dev.clone());

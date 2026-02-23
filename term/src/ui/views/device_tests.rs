@@ -1,5 +1,4 @@
 use insta::assert_snapshot;
-use pnet::util::MacAddr;
 use r_lanlib::scanners::Port;
 use ratatui::{Terminal, backend::TestBackend};
 use std::{
@@ -28,11 +27,10 @@ fn setup() -> (DeviceView, Store) {
     let mut device = Device {
         hostname: "hostname".to_string(),
         ip: Ipv4Addr::new(10, 10, 10, 1),
-        mac: MacAddr::default(),
-        is_current_host: false,
         open_ports: open_ports.into(),
         vendor: "mac".to_string(),
         latency_ms: Some(10),
+        ..Device::default()
     };
 
     let device_config = DeviceConfig {
