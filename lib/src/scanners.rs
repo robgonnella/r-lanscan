@@ -139,6 +139,8 @@ pub struct Device {
     pub open_ports: PortSet,
     /// ARP round-trip latency in milliseconds, if measured
     pub latency_ms: Option<u128>,
+    /// TTL value from the SYN-ACK response, if observed
+    pub response_ttl: Option<u8>,
 }
 
 impl Default for Device {
@@ -149,6 +151,7 @@ impl Default for Device {
             is_current_host: false,
             is_gateway: false,
             latency_ms: None,
+            response_ttl: None,
             mac: MacAddr::default(),
             open_ports: PortSet::new(),
             vendor: "".into(),

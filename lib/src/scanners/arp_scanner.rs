@@ -83,6 +83,7 @@ impl ARPScanner {
                         .is_some_and(|gw| gw == self.interface.ipv4),
                     open_ports: PortSet::new(),
                     latency_ms: Some(0),
+                    response_ttl: None,
                 }))
                 .map_err(RLanLibError::from_channel_send_error)?;
             return Ok(());
@@ -177,6 +178,7 @@ impl ARPScanner {
                     is_gateway: gateway.is_some_and(|gw| gw == ip4),
                     open_ports: PortSet::new(),
                     latency_ms,
+                    response_ttl: None,
                 }));
         });
 

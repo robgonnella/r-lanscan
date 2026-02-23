@@ -244,6 +244,55 @@ fn test_add_device_no_latency_does_not_append_history() {
 }
 
 #[test]
+fn test_update_device_ports_sets_response_ttl() {
+    let (mut state, reducer) = setup();
+
+    let ip = Ipv4Addr::new(10, 10, 10, 3);
+    let dev = Device {
+        hostname: "dev".to_string(),
+        ip,
+        ..Device::default()
+    };
+
+    // Add device via ARP (no TTL yet)
+    reducer.reduce(&mut state, Action::AddDevice(dev.clone()));
+    assert_eq!(state.device_map.get(&ip).unwrap().response_ttl, None);
+
+    // First SYN reply — TTL should be stored
+    let syn_device = Device {
+        ip,
+        open_ports: vec![Port {
+            id: 22,
+            service: "ssh".to_string(),
+        }]
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>()
+        .into(),
+        response_ttl: Some(63),
+        ..Device::default()
+    };
+    reducer.reduce(&mut state, Action::UpdateDevicePorts(syn_device));
+    assert_eq!(state.device_map.get(&ip).unwrap().response_ttl, Some(63));
+
+    // Second SYN reply for a different port — TTL should not be overwritten
+    let syn_device2 = Device {
+        ip,
+        open_ports: vec![Port {
+            id: 80,
+            service: "http".to_string(),
+        }]
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>()
+        .into(),
+        response_ttl: Some(62),
+        ..Device::default()
+    };
+    reducer.reduce(&mut state, Action::UpdateDevicePorts(syn_device2));
+    assert_eq!(state.device_map.get(&ip).unwrap().response_ttl, Some(63));
+    assert_eq!(state.device_map.get(&ip).unwrap().open_ports.0.len(), 2);
+}
+
+#[test]
 fn test_updates_device_with_new_info() {
     let (mut state, reducer) = setup();
 

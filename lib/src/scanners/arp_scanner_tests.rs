@@ -111,6 +111,7 @@ fn sends_and_reads_packets() {
         vendor: "".to_string(),
         open_ports: PortSet::new(),
         latency_ms: None,
+        response_ttl: None,
     };
 
     loop {

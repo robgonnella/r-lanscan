@@ -39,6 +39,7 @@ fn main() {
             is_gateway: false,
             open_ports: PortSet::new(),
             latency_ms: None,
+            response_ttl: None,
         },
         Device {
             hostname: "".to_string(),
@@ -49,6 +50,7 @@ fn main() {
             is_gateway: false,
             open_ports: PortSet::new(),
             latency_ms: None,
+            response_ttl: None,
         },
         Device {
             hostname: "".to_string(),
@@ -59,6 +61,7 @@ fn main() {
             is_gateway: false,
             open_ports: PortSet::new(),
             latency_ms: None,
+            response_ttl: None,
         },
     ];
     let port_targets = PortTargets::new(vec![

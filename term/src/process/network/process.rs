@@ -154,6 +154,7 @@ impl NetworkProcess {
                     is_gateway: d.is_gateway,
                     open_ports: PortSet::new(),
                     latency_ms: d.latency_ms,
+                    response_ttl: None,
                 },
             );
         }

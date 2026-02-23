@@ -4,4 +4,5 @@ pub mod config;
 pub mod device;
 pub mod devices;
 pub mod logs;
+pub mod topology;
 pub mod traits;

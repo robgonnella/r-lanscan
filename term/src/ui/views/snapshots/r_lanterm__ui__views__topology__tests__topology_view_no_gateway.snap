@@ -1,0 +1,19 @@
+---
+source: term/src/ui/views/./topology_tests.rs
+expression: terminal.backend()
+---
+"                                                                                                                                  "
+"[Gateway]  (not detected)                                                                                                         "
+"│                                                                                                                                 "
+"├── [Direct  +0–1ms (normalized)]                                                                                                 "
+"│     10.0.0.1        server                    Dell Inc.                 —            —        +1ms                              "
+"└── [Far     +10ms+ (normalized)]                                                                                                 "
+"      10.0.0.2        workstation               HP Inc.                   —            —        +15ms                             "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "

@@ -1,0 +1,14 @@
+---
+source: term/src/ui/views/./topology_tests.rs
+expression: terminal.backend()
+---
+"                                                                                                                                  "
+"[Gateway]  (not detected)                                                                                                         "
+"│                                                                                                                                 "
+"    No devices discovered yet.                                                                                                    "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
+"                                                                                                                                  "
