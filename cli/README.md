@@ -19,19 +19,53 @@ A command-line interface for performing network scanning operations on local are
 ### Prerequisites
 
 - **Root privileges required**: Network scanning requires raw socket access
-- **Rust 1.89.0+** - Install via [rustup.rs](https://rustup.rs/)
+
+### Prebuilt Binaries
+
+Download the prebuilt binary for your platform from the
+[GitHub Releases](https://github.com/robgonnella/r-lanscan/releases) page.
+
+Available targets:
+
+| Platform            | Target                        |
+| ------------------- | ----------------------------- |
+| Linux x86_64        | `x86_64-unknown-linux-musl`   |
+| Linux ARM64         | `aarch64-unknown-linux-musl`  |
+| macOS Apple Silicon | `aarch64-apple-darwin`        |
+
+```bash
+# Example: Linux x86_64
+curl -L https://github.com/robgonnella/r-lanscan/releases/latest/download/r-lancli-<version>-x86_64-unknown-linux-musl.tgz \
+  | tar -xz
+sudo mv target/x86_64-unknown-linux-musl/release/r-lancli /usr/local/bin/
+```
+
+### cargo-binstall
+
+[cargo-binstall](https://github.com/cargo-bins/cargo-binstall) automatically
+downloads the correct prebuilt binary for your platform:
+
+```bash
+cargo binstall r-lancli
+```
+
+### cargo install
+
+Requires **Rust 1.89.0+** — install via [rustup.rs](https://rustup.rs/)
+
+```bash
+cargo install r-lancli
+```
 
 ### Building from Source
 
+Requires **Rust 1.89.0+** — install via [rustup.rs](https://rustup.rs/)
+
 ```bash
-# Clone the repository
 git clone https://github.com/robgonnella/r-lanscan
 cd r-lanscan
-
-# Build the CLI tool
 cargo build --release -p r-lancli
-
-# The binary will be available at ./target/release/r-lancli
+# Binary available at ./target/release/r-lancli
 ```
 
 ## Quick Start

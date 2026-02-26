@@ -36,17 +36,52 @@ way to discover, monitor, and connect to devices on your local network.
 
 ## Installation
 
-### Building from Source
+### Prebuilt Binaries
+
+Download the prebuilt binary for your platform from the
+[GitHub Releases](https://github.com/robgonnella/r-lanscan/releases) page.
+
+Available targets:
+
+| Platform            | Target                        |
+| ------------------- | ----------------------------- |
+| Linux x86_64        | `x86_64-unknown-linux-musl`   |
+| Linux ARM64         | `aarch64-unknown-linux-musl`  |
+| macOS Apple Silicon | `aarch64-apple-darwin`        |
 
 ```bash
-# Clone the repository
+# Example: Linux x86_64
+curl -L https://github.com/robgonnella/r-lanscan/releases/latest/download/r-lanterm-<version>-x86_64-unknown-linux-musl.tgz \
+  | tar -xz
+sudo mv target/x86_64-unknown-linux-musl/release/r-lanterm /usr/local/bin/
+```
+
+### cargo-binstall
+
+[cargo-binstall](https://github.com/cargo-bins/cargo-binstall) automatically
+downloads the correct prebuilt binary for your platform:
+
+```bash
+cargo binstall r-lanterm
+```
+
+### cargo install
+
+Requires **Rust 1.89.0+** — install via [rustup.rs](https://rustup.rs/)
+
+```bash
+cargo install r-lanterm
+```
+
+### Building from Source
+
+Requires **Rust 1.89.0+** — install via [rustup.rs](https://rustup.rs/)
+
+```bash
 git clone https://github.com/robgonnella/r-lanscan
 cd r-lanscan
-
-# Build the terminal application
 cargo build --release -p r-lanterm
-
-# The binary will be available at ./target/release/r-lanterm
+# Binary available at ./target/release/r-lanterm
 ```
 
 ## Quick Start
