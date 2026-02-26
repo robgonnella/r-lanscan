@@ -10,7 +10,7 @@ use std::{
 use crate::{
     error::Result,
     network::NetworkInterface,
-    packet::wire::Wire,
+    packet::{DEFAULT_PACKET_SEND_TIMING, wire::Wire},
     targets::{ips::IPTargets, ports::PortTargets},
 };
 
@@ -37,6 +37,10 @@ pub struct FullScanner {
     host: bool,
     /// Duration to wait for responses after scanning completes
     idle_timeout: Duration,
+    /// Throttles speed at which packets are sent. Higher throttles result
+    /// in more accurate scans
+    #[builder(default = DEFAULT_PACKET_SEND_TIMING)]
+    throttle: Duration,
     /// Channel for sending scan results and status messages
     notifier: mpsc::Sender<ScanMessage>,
     /// Source port for packet listener and incoming packet identification
@@ -62,6 +66,7 @@ impl FullScanner {
             .include_vendor(self.vendor)
             .include_host_names(self.host)
             .idle_timeout(self.idle_timeout)
+            .throttle(self.throttle)
             .notifier(tx.clone())
             .build()?;
 
@@ -98,6 +103,7 @@ impl Scanner for FullScanner {
             .ports(Arc::clone(&self.ports))
             .source_port(self.source_port)
             .idle_timeout(self.idle_timeout)
+            .throttle(self.throttle)
             .notifier(self.notifier.clone())
             .build()?;
 

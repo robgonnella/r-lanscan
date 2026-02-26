@@ -2,6 +2,7 @@ use mockall::mock;
 use mpsc::channel;
 use r_lanlib::{
     error::Result,
+    packet::DEFAULT_PACKET_SEND_TIMING,
     scanners::{Port, PortSet, Scanner},
 };
 use std::{
@@ -42,6 +43,7 @@ fn prints_args() {
         source_port: 54321,
         targets: vec!["192.168.1.1".to_string()],
         vendor: true,
+        throttle: DEFAULT_PACKET_SEND_TIMING,
     };
 
     print_args(&args, &interface);
@@ -61,6 +63,7 @@ fn initializes_logger() {
         source_port: 54321,
         targets: vec!["192.168.1.1".to_string()],
         vendor: true,
+        throttle: DEFAULT_PACKET_SEND_TIMING,
     };
 
     initialize_logger(&args).unwrap();
@@ -80,6 +83,7 @@ fn prints_arp_table_results() {
         source_port: 54321,
         targets: vec!["192.168.1.1".to_string()],
         vendor: true,
+        throttle: DEFAULT_PACKET_SEND_TIMING,
     };
 
     let device = Device {
@@ -106,6 +110,7 @@ fn prints_arp_json_results() {
         source_port: 54321,
         targets: vec!["192.168.1.1".to_string()],
         vendor: true,
+        throttle: DEFAULT_PACKET_SEND_TIMING,
     };
 
     let device = Device {
@@ -132,6 +137,7 @@ fn prints_syn_table_results() {
         source_port: 54321,
         targets: vec!["192.168.1.1".to_string()],
         vendor: true,
+        throttle: DEFAULT_PACKET_SEND_TIMING,
     };
 
     let port = Port {
@@ -168,6 +174,7 @@ fn prints_syn_json_results() {
         source_port: 54321,
         targets: vec!["192.168.1.1".to_string()],
         vendor: true,
+        throttle: DEFAULT_PACKET_SEND_TIMING,
     };
 
     let port = Port {

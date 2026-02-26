@@ -8,7 +8,7 @@ use std::{
 
 use mockall::Sequence;
 use r_lanlib::{
-    packet::{Reader, Sender, wire::Wire},
+    packet::{DEFAULT_PACKET_SEND_TIMING, Reader, Sender, wire::Wire},
     scanners::{
         Device, Port, ScanMessage, arp_scanner::ARPScanner,
         syn_scanner::SYNScanner,
@@ -80,6 +80,7 @@ fn setup(
         ipc,
         config: RefCell::new(default_config()),
         gateway: None,
+        throttle: DEFAULT_PACKET_SEND_TIMING,
         arp_history: RefCell::new(HashMap::new()),
     }
 }

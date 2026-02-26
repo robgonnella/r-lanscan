@@ -1,4 +1,5 @@
 use pnet::util::MacAddr;
+use r_lanlib::packet::DEFAULT_PACKET_SEND_TIMING;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 
@@ -8,6 +9,7 @@ fn default_args(debug: bool) -> Args {
     Args {
         debug,
         ports: vec!["80".to_string()],
+        throttle: DEFAULT_PACKET_SEND_TIMING,
     }
 }
 

@@ -32,6 +32,7 @@ use std::{
         Arc,
         mpsc::{self, Receiver},
     },
+    time::Duration,
 };
 
 #[derive(Parser, Debug)]
@@ -78,6 +79,12 @@ struct Args {
     #[arg(long, default_value_t = network::get_available_port().expect("cannot find open port"))]
     source_port: u16,
 
+    /// Packet send throttle. Increasing throttle duration will result
+    /// in more accurate scans and latency calculations at the expense
+    /// of slower scans
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "50µs")]
+    throttle: Duration,
+
     /// Prints debug logs including those from r-lanlib
     #[arg(long, default_value_t = false)]
     debug: bool,
@@ -121,6 +128,7 @@ fn print_args(args: &Args, interface: &NetworkInterface) {
     log::info!("cidr:            {}", interface.cidr);
     log::info!("user_ip:         {}", interface.ipv4);
     log::info!("source_port:     {}", args.source_port);
+    log::info!("throttle         {:?}", args.throttle);
 }
 
 #[doc(hidden)]
@@ -356,6 +364,7 @@ fn main() -> Result<()> {
         .include_host_names(args.host_names)
         .idle_timeout(time::Duration::from_millis(args.idle_timeout_ms.into()))
         .notifier(tx.clone())
+        .throttle(args.throttle)
         .build()?;
 
     let (arp_results, rx) = process_arp(&arp, rx)?;
@@ -377,6 +386,7 @@ fn main() -> Result<()> {
         .source_port(args.source_port)
         .idle_timeout(time::Duration::from_millis(args.idle_timeout_ms.into()))
         .notifier(tx)
+        .throttle(args.throttle)
         .build()?;
 
     let final_results = process_syn(&syn, arp_results, rx)?;

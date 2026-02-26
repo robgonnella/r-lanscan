@@ -856,6 +856,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "humantime"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "135b12329e5e3ce057a9f972339ea52bc954fe1e9358ef27f95e89716fbc5424"
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1682,6 +1688,7 @@ version = "0.8.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "humantime",
  "itertools",
  "log",
  "mockall",
@@ -1721,6 +1728,7 @@ dependencies = [
  "directories",
  "dirs",
  "fakeit",
+ "humantime",
  "indoc",
  "insta",
  "itertools",

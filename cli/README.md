@@ -12,6 +12,7 @@ A command-line interface for performing network scanning operations on local are
 - **Multiple Output Formats**: Human-readable tables or JSON for programmatic use
 - **Network Interface Selection**: Choose specific network interfaces for scanning
 - **Configurable Timeouts**: Adjust scan timing for different network conditions
+- **Packet Throttle**: Tune per-packet send delay for accuracy vs. speed trade-off
 
 ## Installation
 
@@ -224,6 +225,26 @@ sudo r-lancli --idle-timeout-ms 5000
 sudo r-lancli --idle-timeout-ms 30000
 ```
 
+#### `--throttle <DURATION>`
+
+Delay between sending each packet. Increasing the throttle results in more
+accurate scans and latency calculations at the expense of scan speed.
+
+**Default**: `50µs` (50 microseconds)
+
+**Examples**:
+
+```bash
+# Use default throttle
+sudo r-lancli
+
+# More accurate scan on a congested network
+sudo r-lancli --throttle 200us
+
+# High-latency environment
+sudo r-lancli --throttle 1ms
+```
+
 ### Debugging
 
 #### `--debug`
@@ -419,13 +440,19 @@ sudo r-lancli
    sudo r-lancli --idle-timeout-ms 30000
    ```
 
-2. Use debug mode:
+2. Increase packet throttle for more reliable results on congested networks:
+
+   ```bash
+   sudo r-lancli --throttle 200us
+   ```
+
+3. Use debug mode:
 
    ```bash
    sudo r-lancli --debug
    ```
 
-3. Verify network configuration:
+4. Verify network configuration:
    ```bash
    # Check your IP and network
    ip route show  # Linux

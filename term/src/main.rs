@@ -39,6 +39,7 @@ use std::{
         mpsc::{Receiver, Sender, channel},
     },
     thread::{self, JoinHandle},
+    time::Duration,
 };
 
 use crate::{
@@ -80,6 +81,12 @@ struct Args {
     /// Run in debug mode - Only prints logs foregoing UI
     #[arg(short, long, default_value_t = false)]
     debug: bool,
+
+    /// Packet send throttle. Increasing throttle duration will result
+    /// in more accurate scans and latency calculations at the expense
+    /// of slower scans
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "50µs")]
+    throttle: Duration,
 
     /// Comma separated list of ports and port ranges to scan
     #[arg(
@@ -207,6 +214,7 @@ fn monitor_thread(
 #[doc(hidden)]
 fn start_network_monitoring_thread(
     config: Config,
+    throttle: Duration,
     interface: Arc<NetworkInterface>,
     tx: Sender<MainMessage>,
     rx: Receiver<NetworkMessage>,
@@ -224,6 +232,7 @@ fn start_network_monitoring_thread(
         .ipc(ipc)
         .config(RefCell::new(config))
         .gateway(network::get_default_gateway())
+        .throttle(throttle)
         .build()?;
 
     Ok(thread::spawn(move || -> Result<()> {
@@ -367,6 +376,7 @@ fn main() -> Result<()> {
     // start network monitoring thread
     let network_handle = start_network_monitoring_thread(
         initial_state.config.clone(),
+        args.throttle,
         Arc::new(interface),
         main_tx.clone(),
         network_rx,
