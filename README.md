@@ -103,6 +103,45 @@ sudo r-lanterm --ports 22,80,443,3389,5900
 
 ### Installation
 
+#### Prebuilt Binaries
+
+Download prebuilt binaries for your platform from the
+[GitHub Releases](https://github.com/robgonnella/r-lanscan/releases) page.
+
+Available targets:
+
+| Platform            | Target                        |
+| ------------------- | ----------------------------- |
+| Linux x86_64        | `x86_64-unknown-linux-musl`   |
+| Linux ARM64         | `aarch64-unknown-linux-musl`  |
+| macOS Apple Silicon | `aarch64-apple-darwin`        |
+
+```bash
+# Example: Linux x86_64
+curl -L https://github.com/robgonnella/r-lanscan/releases/latest/download/r-lancli-<version>-x86_64-unknown-linux-musl.tgz \
+  | tar -xz
+sudo mv target/x86_64-unknown-linux-musl/release/r-lancli /usr/local/bin/
+```
+
+#### cargo-binstall (recommended)
+
+[cargo-binstall](https://github.com/cargo-bins/cargo-binstall) automatically
+downloads the correct prebuilt binary for your platform:
+
+```bash
+cargo binstall r-lancli
+cargo binstall r-lanterm
+```
+
+#### cargo install (builds from source)
+
+```bash
+cargo install r-lancli
+cargo install r-lanterm
+```
+
+#### Build from Source
+
 ```bash
 # Clone the repository
 git clone https://github.com/robgonnella/r-lanscan
@@ -112,7 +151,6 @@ cd r-lanscan
 cargo build --release
 
 # Or build individual components
-cargo build --release -p r-lanlib
 cargo build --release -p r-lancli
 cargo build --release -p r-lanterm
 ```
