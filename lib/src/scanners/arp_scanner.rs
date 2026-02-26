@@ -14,7 +14,9 @@ use threadpool::ThreadPool;
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{self, arp_packet::ArpPacketBuilder, wire::Wire},
+    packet::{
+        DEFAULT_PACKET_SEND_TIMING, arp_packet::ArpPacketBuilder, wire::Wire,
+    },
     scanners::{Device, PortSet, Scanning},
     targets::ips::IPTargets,
 };
@@ -41,6 +43,10 @@ pub struct ARPScanner {
     idle_timeout: Duration,
     /// Channel for sending scan results and status messages
     notifier: sync::mpsc::Sender<ScanMessage>,
+    /// Throttles speed at which packets are sent. Higher throttles result
+    /// in more accurate scans
+    #[builder(default = DEFAULT_PACKET_SEND_TIMING)]
+    throttle: Duration,
     /// Default gateway IP, used to mark the gateway device in scan results
     #[builder(default)]
     gateway: Option<Ipv4Addr>,
@@ -57,7 +63,7 @@ impl ARPScanner {
 
     fn process_target(&self, target: Ipv4Addr) -> Result<()> {
         // throttle packet sending to prevent packet loss
-        thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
+        thread::sleep(self.throttle);
 
         log::debug!("scanning ARP target: {}", target);
 

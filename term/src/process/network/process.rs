@@ -22,7 +22,8 @@ use std::{
         Arc,
         mpsc::{self, Receiver},
     },
-    thread, time,
+    thread,
+    time::{self, Duration},
 };
 
 use crate::{
@@ -49,6 +50,7 @@ pub struct NetworkProcess {
     interface: Arc<NetworkInterface>,
     ipc: NetworkIpc,
     config: RefCell<Config>,
+    throttle: Duration,
     /// Default gateway IP, resolved once at construction time
     #[builder(default)]
     gateway: Option<Ipv4Addr>,
@@ -210,6 +212,7 @@ impl NetworkMonitor for NetworkProcess {
                 .source_port(source_port)
                 .notifier(tx.clone())
                 .gateway(self.gateway)
+                .throttle(self.throttle)
                 .build()?;
 
             let rx = self.process_arp(arp_scanner, rx)?;
@@ -228,6 +231,7 @@ impl NetworkMonitor for NetworkProcess {
                 .source_port(source_port)
                 .idle_timeout(time::Duration::from_millis(IDLE_TIMEOUT.into()))
                 .notifier(tx.clone())
+                .throttle(self.throttle)
                 .build()?;
 
             self.process_syn(syn_scanner, rx)?;

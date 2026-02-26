@@ -63,6 +63,8 @@ let scanner = ARPScanner::builder()
     .include_vendor(true)
     .include_host_names(true)
     .idle_timeout(Duration::from_millis(10000))
+    // Optional: increase throttle for more accurate scans (default: 50µs)
+    .throttle(Duration::from_micros(100))
     .notifier(tx)
     .build()
     .expect("Failed to build scanner");
@@ -129,6 +131,8 @@ let scanner = SYNScanner::builder()
     .ports(port_targets)
     .source_port(54321u16)
     .idle_timeout(Duration::from_millis(10000))
+    // Optional: increase throttle for more accurate scans (default: 50µs)
+    .throttle(Duration::from_micros(100))
     .notifier(tx)
     .build()
     .expect("Failed to build scanner");
@@ -165,6 +169,8 @@ let scanner = FullScanner::builder()
     .vendor(true)
     .host(true)
     .idle_timeout(Duration::from_millis(10000))
+    // Optional: increase throttle for more accurate scans (default: 50µs)
+    .throttle(Duration::from_micros(100))
     .notifier(tx)
     .source_port(54321u16)
     .build()
@@ -329,17 +335,27 @@ sudo -E cargo run --example full-scanner -p r-lanlib
 - Default: 10 seconds (10,000ms)
 - Recommended: 5-30 seconds depending on network size and latency
 
+### Packet Send Throttle
+
+- `throttle` - Delay inserted between sending each packet
+- Default: 50 microseconds (`Duration::from_micros(50)`)
+- Higher values reduce packet loss on congested or high-latency networks at
+  the cost of increased total scan time
+
 ### Scanner Features
 
 - `include_vendor` - Perform MAC address vendor lookup using IEEE OUI database
 - `include_host_names` - Resolve hostnames via reverse DNS lookup
 - `source_port` - Source port for scan packets (auto-selected if not specified)
+- `throttle` - Delay between sending packets (default: 50µs); increase for more
+  accurate scans on lossy or congested networks
 
 ### Performance Tuning
 
 - **Concurrent scanning**: Multiple threads handle packet I/O for optimal throughput
 - **Memory efficiency**: Zero-copy packet processing where possible
-- **Network-aware**: Automatic rate limiting to prevent network congestion
+- **Throttle control**: Configurable per-packet send delay via `throttle` builder
+  field (default `50µs`); higher values reduce packet loss at the cost of scan speed
 - **Timeout optimization**: Adaptive timeouts based on network response times
 
 ## Security Considerations

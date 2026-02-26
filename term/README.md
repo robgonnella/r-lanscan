@@ -98,6 +98,26 @@ sudo r-lanterm --ports 1-1000,8000-9000
 sudo r-lanterm --ports 22,80,443,8080,8443,3000-4000
 ```
 
+### `--throttle <DURATION>`
+
+Delay between sending each packet. Increasing the throttle results in more
+accurate scans and latency calculations at the expense of scan speed.
+
+**Default**: `50µs` (`50` microseconds)
+
+**Examples**:
+
+```bash
+# Use default throttle (50µs)
+sudo r-lanterm
+
+# Slower, more accurate scan on a congested network
+sudo r-lanterm --throttle 200us
+
+# Maximum accuracy for high-latency environments
+sudo r-lanterm --throttle 1ms
+```
+
 ### `--debug, -d`
 
 Run in debug mode - prints logs instead of showing the UI.
@@ -415,6 +435,11 @@ sudo dnf install openssh-clients traceroute lynx
 - Network scans are performed every 15 seconds
 - UI rendering optimized for real-time updates
 
+**Missing or Inaccurate Devices**:
+
+- Increase the packet send throttle for more reliable results on congested
+  networks: `--throttle 200us`
+
 **Slow Terminal**:
 
 - Try different themes for better performance
@@ -476,7 +501,8 @@ scp config.yml user@remote:~/.config/r-lanterm/
 
 - **Scanning Traffic**: ARP and SYN scans generate network traffic
 - **Detection**: Network monitoring systems may detect scanning activity
-- **Rate Limiting**: Built-in delays prevent network congestion
+- **Rate Limiting**: Configurable packet throttle (`--throttle`) prevents
+  network congestion
 - **Responsible Use**: Only scan networks you own or have permission to test
 
 ### SSH Security

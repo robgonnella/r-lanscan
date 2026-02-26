@@ -14,8 +14,8 @@ use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
     packet::{
-        self, rst_packet::RstPacketBuilder, syn_packet::SynPacketBuilder,
-        wire::Wire,
+        DEFAULT_PACKET_SEND_TIMING, rst_packet::RstPacketBuilder,
+        syn_packet::SynPacketBuilder, wire::Wire,
     },
     scanners::{PortSet, Scanning, heartbeat::HeartBeat},
     targets::ports::PortTargets,
@@ -67,6 +67,10 @@ pub struct SYNScanner {
     source_port: u16,
     /// Duration to wait for responses after scanning completes
     idle_timeout: Duration,
+    /// Throttles speed at which packets are sent. Higher throttles result
+    /// in more accurate scans
+    #[builder(default = DEFAULT_PACKET_SEND_TIMING)]
+    throttle: Duration,
     /// Channel for sending scan results and status messages
     notifier: mpsc::Sender<ScanMessage>,
 }
@@ -80,7 +84,7 @@ impl SYNScanner {
     fn process_port(&self, port: u16) -> Result<()> {
         for device in self.targets.iter() {
             // throttle packet sending to prevent packet loss
-            thread::sleep(packet::DEFAULT_PACKET_SEND_TIMING);
+            thread::sleep(self.throttle);
 
             log::debug!("scanning SYN target: {}:{}", device.ip, port);
 
