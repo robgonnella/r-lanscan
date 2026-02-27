@@ -81,7 +81,7 @@ struct Args {
     /// Packet send throttle. Increasing throttle duration will result
     /// in more accurate scans and latency calculations at the expense
     /// of slower scans
-    #[arg(long, value_parser = humantime::parse_duration, default_value = "50µs")]
+    #[arg(long, value_parser = humantime::parse_duration, default_value = "200µs")]
     throttle: Duration,
 
     /// Prints debug logs including those from r-lanlib

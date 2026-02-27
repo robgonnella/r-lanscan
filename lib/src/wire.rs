@@ -56,7 +56,11 @@ impl Sender for PNetSender {
 /// let packet_wire = wire::default(&interface).unwrap();
 /// ```
 pub fn default(interface: &NetworkInterface) -> Result<Wire> {
-    let cfg = pnet::datalink::Config::default();
+    let cfg = pnet::datalink::Config {
+        read_buffer_size: 65536, // 64 KB — holds ~43 max-size frames
+        write_buffer_size: 65536, // 64 KB — consistent with raw socket convention
+        ..pnet::datalink::Config::default()
+    };
 
     let channel = match pnet::datalink::channel(&interface.into(), cfg) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => Ok((tx, rx)),
