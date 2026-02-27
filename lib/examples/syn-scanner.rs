@@ -1,6 +1,6 @@
 use pnet::util::MacAddr;
 use r_lanlib::{
-    network, packet,
+    network,
     scanners::{
         Device, PortSet, ScanMessage, Scanner, syn_scanner::SYNScanner,
     },
@@ -28,7 +28,7 @@ fn main() {
         network::get_default_interface().expect("cannot find interface"),
     );
     let wire =
-        packet::wire::default(&interface).expect("failed to create wire");
+        r_lanlib::wire::default(&interface).expect("failed to create wire");
     let devices = vec![
         Device {
             hostname: "".to_string(),

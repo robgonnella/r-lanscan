@@ -8,12 +8,13 @@ use std::{
 
 use mockall::Sequence;
 use r_lanlib::{
-    packet::{DEFAULT_PACKET_SEND_TIMING, Reader, Sender, wire::Wire},
+    packet::{DEFAULT_PACKET_SEND_TIMING, Reader, Sender},
     scanners::{
         Device, Port, ScanMessage, arp_scanner::ARPScanner,
         syn_scanner::SYNScanner,
     },
     targets::{ips::IPTargets, ports::PortTargets},
+    wire::Wire,
 };
 
 use crate::{

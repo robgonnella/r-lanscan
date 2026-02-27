@@ -6,7 +6,6 @@ pub mod arp_packet;
 pub mod heartbeat_packet;
 pub mod rst_packet;
 pub mod syn_packet;
-pub mod wire;
 
 use crate::error::Result;
 

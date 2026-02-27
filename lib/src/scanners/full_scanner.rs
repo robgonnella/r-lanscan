@@ -10,8 +10,9 @@ use std::{
 use crate::{
     error::Result,
     network::NetworkInterface,
-    packet::{DEFAULT_PACKET_SEND_TIMING, wire::Wire},
+    packet::DEFAULT_PACKET_SEND_TIMING,
     targets::{ips::IPTargets, ports::PortTargets},
+    wire::Wire,
 };
 
 use super::{

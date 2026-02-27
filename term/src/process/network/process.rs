@@ -7,12 +7,12 @@ use color_eyre::eyre::{Result, eyre};
 use derive_builder::Builder;
 use r_lanlib::{
     network::{self, NetworkInterface},
-    packet::wire::Wire,
     scanners::{
         Device, IDLE_TIMEOUT, PortSet, ScanMessage, Scanner,
         arp_scanner::ARPScanner, syn_scanner::SYNScanner,
     },
     targets::{ips::IPTargets, ports::PortTargets},
+    wire::Wire,
 };
 use std::{
     cell::RefCell,

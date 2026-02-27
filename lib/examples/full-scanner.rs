@@ -5,7 +5,7 @@ use std::{
 };
 
 use r_lanlib::{
-    network, packet,
+    network,
     scanners::{Device, ScanMessage, Scanner, full_scanner::FullScanner},
     targets::{ips::IPTargets, ports::PortTargets},
 };
@@ -26,7 +26,7 @@ fn main() {
     );
     let cidr = interface.cidr.clone();
     let wire =
-        packet::wire::default(&interface).expect("failed to create wire");
+        r_lanlib::wire::default(&interface).expect("failed to create wire");
     let ip_targets =
         IPTargets::new(vec![cidr]).expect("failed to parse IP targets");
     let port_targets = PortTargets::new(vec!["1-65535".to_string()])

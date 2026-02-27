@@ -14,11 +14,10 @@ use threadpool::ThreadPool;
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{
-        DEFAULT_PACKET_SEND_TIMING, arp_packet::ArpPacketBuilder, wire::Wire,
-    },
+    packet::{DEFAULT_PACKET_SEND_TIMING, arp_packet::ArpPacketBuilder},
     scanners::{Device, PortSet, Scanning},
     targets::ips::IPTargets,
+    wire::Wire,
 };
 
 use super::{ScanMessage, Scanner, heartbeat::HeartBeat};

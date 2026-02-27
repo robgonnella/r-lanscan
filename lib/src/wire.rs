@@ -51,7 +51,7 @@ impl Sender for PNetSender {
 /// ```no_run
 /// # use std::io;
 /// # use r_lanlib::network;
-/// # use r_lanlib::packet::wire;
+/// # use r_lanlib::wire;
 /// let interface = network::get_default_interface().unwrap();
 /// let packet_wire = wire::default(&interface).unwrap();
 /// ```

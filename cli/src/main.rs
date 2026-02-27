@@ -18,7 +18,6 @@ use itertools::Itertools;
 use r_lanlib::{
     error::Result as LibResult,
     network::{self, NetworkInterface, get_default_gateway},
-    packet,
     scanners::{
         Device, IDLE_TIMEOUT, ScanMessage, Scanner, arp_scanner::ARPScanner,
         syn_scanner::SYNScanner,
@@ -359,7 +358,7 @@ fn main() -> Result<()> {
 
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
-    let wire = packet::wire::default(&interface)?;
+    let wire = r_lanlib::wire::default(&interface)?;
 
     let interface = Arc::new(interface);
 

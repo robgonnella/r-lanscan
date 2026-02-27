@@ -24,10 +24,7 @@ use clap::Parser;
 use color_eyre::eyre::{ContextCompat, Result, eyre};
 use config::{Config, ConfigManager};
 use directories::ProjectDirs;
-use r_lanlib::{
-    network::{self, NetworkInterface, get_default_interface},
-    packet,
-};
+use r_lanlib::network::{self, NetworkInterface};
 use ratatui::{Terminal, prelude::CrosstermBackend};
 use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
@@ -219,7 +216,7 @@ fn start_network_monitoring_thread(
     tx: Sender<MainMessage>,
     rx: Receiver<NetworkMessage>,
 ) -> Result<JoinHandle<Result<()>>> {
-    let wire = packet::wire::default(&interface)?;
+    let wire = r_lanlib::wire::default(&interface)?;
 
     let ipc = NetworkIpc::new(
         Box::new(NetworkSender::new(tx)),
@@ -365,7 +362,7 @@ fn main() -> Result<()> {
         return Err(eyre!("permission denied: must run with root privileges"));
     }
 
-    let interface = get_default_interface()?;
+    let interface = network::get_default_interface()?;
 
     let (config_manager, initial_state) = init(&args, &interface)?;
 
