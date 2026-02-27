@@ -9,9 +9,12 @@ pub mod syn_packet;
 
 use crate::error::Result;
 
-/// Default timing for throttling packet sends to prevent packet loss
+/// Default timing for throttling packet sends to prevent packet loss.
+/// 200µs (5,000 pps) balances scan speed against reliability on WiFi,
+/// macOS BPF, and virtualised environments where tighter timings cause
+/// silent packet drops.
 pub const DEFAULT_PACKET_SEND_TIMING: time::Duration =
-    time::Duration::from_micros(50);
+    time::Duration::from_micros(200);
 
 /// Trait describing a packet reader
 pub trait Reader: Send {

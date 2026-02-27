@@ -264,16 +264,16 @@ sudo r-lancli --idle-timeout-ms 30000
 Delay between sending each packet. Increasing the throttle results in more
 accurate scans and latency calculations at the expense of scan speed.
 
-**Default**: `50µs` (50 microseconds)
+**Default**: `200µs` (200 microseconds)
 
 **Examples**:
 
 ```bash
-# Use default throttle
+# Use default throttle (200µs)
 sudo r-lancli
 
-# More accurate scan on a congested network
-sudo r-lancli --throttle 200us
+# Faster scan on a reliable wired network
+sudo r-lancli --throttle 50us
 
 # High-latency environment
 sudo r-lancli --throttle 1ms
@@ -477,7 +477,7 @@ sudo r-lancli
 2. Increase packet throttle for more reliable results on congested networks:
 
    ```bash
-   sudo r-lancli --throttle 200us
+   sudo r-lancli --throttle 1ms
    ```
 
 3. Use debug mode:

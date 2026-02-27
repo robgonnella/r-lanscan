@@ -141,16 +141,16 @@ sudo r-lanterm --ports 22,80,443,8080,8443,3000-4000
 Delay between sending each packet. Increasing the throttle results in more
 accurate scans and latency calculations at the expense of scan speed.
 
-**Default**: `50µs` (`50` microseconds)
+**Default**: `200µs` (`200` microseconds)
 
 **Examples**:
 
 ```bash
-# Use default throttle (50µs)
+# Use default throttle (200µs)
 sudo r-lanterm
 
-# Slower, more accurate scan on a congested network
-sudo r-lanterm --throttle 200us
+# Faster scan on a reliable wired network
+sudo r-lanterm --throttle 50us
 
 # Maximum accuracy for high-latency environments
 sudo r-lanterm --throttle 1ms
@@ -496,7 +496,7 @@ sudo dnf install openssh-clients traceroute lynx
 **Missing or Inaccurate Devices**:
 
 - Increase the packet send throttle for more reliable results on congested
-  networks: `--throttle 200us`
+  networks: `--throttle 1ms`
 
 **Slow Terminal**:
 
