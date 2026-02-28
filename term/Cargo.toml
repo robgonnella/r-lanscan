@@ -34,18 +34,18 @@ itertools = "0.14.0"
 unicode-width = "0.2.2"
 r-lanlib = { path = "../lib", version = "0.8.0" }
 fakeit = "1.4.1"
-ctrlc = "3.5.1"
+ctrlc = "3.5.2"
 supports-color = "3.0.2"
 signal-hook = "0.4.3"
-whoami = "2.1.0"
+whoami = "2.1.1"
 dirs = "6.0.0"
 derive_builder = "0.20.2"
-strum = { version = "0.27.2", features = ["derive"] }
+strum = { version = "0.28.0", features = ["derive"] }
 indoc = "2.0.7"
 humantime = "2.3.0"
 
 [dev-dependencies]
-insta = "1.46.1"
+insta = "1.46.3"
 mockall = "0.14.0"
 nanoid = "0.4.0"
-tempfile = "3.24.0"
+tempfile = "3.26.0"
