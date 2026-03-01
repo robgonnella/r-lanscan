@@ -1,10 +1,9 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use super::*;
+use crate::wire::mocks::MockPacketSender;
 
-use crate::packet::Sender;
-use crate::packet::mocks::MockPacketSender;
+use super::*;
 
 #[test]
 fn new() {

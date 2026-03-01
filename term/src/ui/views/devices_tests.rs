@@ -1,6 +1,8 @@
 use insta::assert_snapshot;
-use pnet::util::MacAddr;
-use r_lanlib::scanners::{Device, Port};
+use r_lanlib::{
+    MacAddr,
+    scanners::{Device, Port},
+};
 use ratatui::{Terminal, backend::TestBackend};
 use std::{collections::HashSet, net::Ipv4Addr};
 

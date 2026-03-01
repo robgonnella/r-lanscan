@@ -13,13 +13,10 @@ use std::{
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{
-        DEFAULT_PACKET_SEND_TIMING, rst_packet::RstPacketBuilder,
-        syn_packet::SynPacketBuilder,
-    },
+    packet::{rst_packet::RstPacketBuilder, syn_packet::SynPacketBuilder},
     scanners::{PortSet, Scanning, heartbeat::HeartBeat},
     targets::ports::PortTargets,
-    wire::Wire,
+    wire::{DEFAULT_PACKET_SEND_TIMING, Wire},
 };
 
 use super::{Device, Port, ScanMessage, Scanner};

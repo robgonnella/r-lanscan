@@ -13,8 +13,8 @@ use std::{
 };
 
 use crate::{
-    error::Result,
-    packet::{Sender, heartbeat_packet::HeartbeatPacketBuilder},
+    error::Result, packet::heartbeat_packet::HeartbeatPacketBuilder,
+    wire::Sender,
 };
 
 /// Sends heartbeat packets to ensure we continuously evaluate packet reader

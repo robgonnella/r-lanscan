@@ -1,5 +1,4 @@
-use pnet::util::MacAddr;
-use r_lanlib::scanners::Device;
+use r_lanlib::{MacAddr, scanners::Device};
 use std::net::Ipv4Addr;
 
 use super::State;

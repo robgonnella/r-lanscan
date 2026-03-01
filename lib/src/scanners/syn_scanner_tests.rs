@@ -7,11 +7,13 @@ use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::network;
-use crate::packet::arp_packet::create_arp_reply;
-use crate::packet::mocks::{MockPacketReader, MockPacketSender};
-use crate::packet::syn_packet::create_syn_reply;
-use crate::packet::{Reader, Sender};
+use crate::{
+    network,
+    packet::arp_packet::create_arp_reply,
+    packet::syn_packet::create_syn_reply,
+    wire::mocks::{MockPacketReader, MockPacketSender},
+    wire::{Reader, Sender},
+};
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();

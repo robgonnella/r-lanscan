@@ -8,13 +8,12 @@ use std::{
 
 use mockall::Sequence;
 use r_lanlib::{
-    packet::{DEFAULT_PACKET_SEND_TIMING, Reader, Sender},
     scanners::{
         Device, Port, ScanMessage, arp_scanner::ARPScanner,
         syn_scanner::SYNScanner,
     },
     targets::{ips::IPTargets, ports::PortTargets},
-    wire::Wire,
+    wire::{DEFAULT_PACKET_SEND_TIMING, PacketMetadata, Reader, Sender, Wire},
 };
 
 use crate::{
@@ -40,6 +39,12 @@ struct StubReader;
 impl Reader for StubReader {
     fn next_packet(&mut self) -> r_lanlib::error::Result<&[u8]> {
         Ok(&[])
+    }
+
+    fn next_packet_with_metadata(
+        &mut self,
+    ) -> r_lanlib::error::Result<(&[u8], PacketMetadata)> {
+        Ok((&[], PacketMetadata { timestamp: None }))
     }
 }
 
