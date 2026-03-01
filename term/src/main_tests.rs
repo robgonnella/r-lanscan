@@ -1,5 +1,5 @@
-use pnet::util::MacAddr;
-use r_lanlib::packet::DEFAULT_PACKET_SEND_TIMING;
+use r_lanlib::MacAddr;
+use r_lanlib::wire::DEFAULT_PACKET_SEND_TIMING;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 

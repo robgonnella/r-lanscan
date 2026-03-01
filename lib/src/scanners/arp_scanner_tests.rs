@@ -8,10 +8,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{net::Ipv4Addr, str::FromStr};
 
-use crate::packet::mocks::{MockPacketReader, MockPacketSender};
-use crate::packet::syn_packet::create_syn_reply;
-use crate::packet::{Reader, arp_packet::create_arp_reply};
-use crate::{network, packet::Sender};
+use crate::{
+    network,
+    packet::{arp_packet::create_arp_reply, syn_packet::create_syn_reply},
+    wire::{
+        PacketMetadata, Reader, Sender,
+        mocks::{MockPacketReader, MockPacketSender},
+    },
+};
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
@@ -74,9 +78,9 @@ fn sends_and_reads_packets() {
     let mut sender = MockPacketSender::new();
 
     #[allow(static_mut_refs)]
-    receiver
-        .expect_next_packet()
-        .returning(|| Ok(unsafe { &PACKET }));
+    receiver.expect_next_packet_with_metadata().returning(|| {
+        Ok((unsafe { &PACKET }, PacketMetadata { timestamp: None }))
+    });
 
     sender.expect_send().returning(|_| Ok(()));
 
@@ -157,9 +161,9 @@ fn marks_gateway_device() {
     let mut sender = MockPacketSender::new();
 
     #[allow(static_mut_refs)]
-    receiver
-        .expect_next_packet()
-        .returning(|| Ok(unsafe { &PACKET }));
+    receiver.expect_next_packet_with_metadata().returning(|| {
+        Ok((unsafe { &PACKET }, PacketMetadata { timestamp: None }))
+    });
 
     sender.expect_send().returning(|_| Ok(()));
 
@@ -235,9 +239,9 @@ fn ignores_unrelated_packets() {
         );
 
         #[allow(static_mut_refs)]
-        receiver
-            .expect_next_packet()
-            .returning(|| Ok(unsafe { &PACKET }));
+        receiver.expect_next_packet_with_metadata().returning(|| {
+            Ok((unsafe { &PACKET }, PacketMetadata { timestamp: None }))
+        });
     }
 
     sender.expect_send().returning(|_| Ok(()));
@@ -348,7 +352,7 @@ fn reports_error_on_packet_read_error() {
     let mut sender = MockPacketSender::new();
 
     receiver
-        .expect_next_packet()
+        .expect_next_packet_with_metadata()
         .returning(|| Err(RLanLibError::Wire("oh no an error".into())));
 
     sender.expect_send().returning(|_| Ok(()));
@@ -388,7 +392,9 @@ fn reports_error_on_notifier_send_errors() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
-    receiver.expect_next_packet().returning(|| Ok(&[1]));
+    receiver
+        .expect_next_packet_with_metadata()
+        .returning(|| Ok((&[1], PacketMetadata { timestamp: None })));
     sender.expect_send().returning(|_| Ok(()));
 
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
@@ -427,7 +433,9 @@ fn reports_error_on_packet_sender_lock_errors() {
     let mut receiver = MockPacketReader::new();
     let sender = MockPacketSender::new();
 
-    receiver.expect_next_packet().returning(|| Ok(&[1]));
+    receiver
+        .expect_next_packet_with_metadata()
+        .returning(|| Ok((&[1], PacketMetadata { timestamp: None })));
 
     let sender: Arc<Mutex<dyn Sender>> = Arc::new(Mutex::new(sender));
     let receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));
@@ -477,7 +485,9 @@ fn reports_error_on_packet_send_errors() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
-    receiver.expect_next_packet().returning(|| Ok(&[1]));
+    receiver
+        .expect_next_packet_with_metadata()
+        .returning(|| Ok((&[1], PacketMetadata { timestamp: None })));
     sender
         .expect_send()
         .returning(|_| Err(RLanLibError::Wire("oh no a send error".into())));
@@ -529,7 +539,9 @@ fn emits_current_host_immediately_without_arp() {
     sender.expect_send().returning(|_| Ok(()));
     // next_packet is called by the reader loop continuously; return a
     // non-ARP byte slice so it loops without emitting any spurious devices.
-    receiver.expect_next_packet().returning(|| Ok(&[1]));
+    receiver
+        .expect_next_packet_with_metadata()
+        .returning(|| Ok((&[1], PacketMetadata { timestamp: None })));
 
     let idle_timeout = Duration::from_secs(2);
     let targets = IPTargets::new(vec![host_ip.to_string()]).unwrap();
@@ -584,7 +596,7 @@ fn reports_errors_from_read_handle() {
     let mut sender = MockPacketSender::new();
 
     receiver
-        .expect_next_packet()
+        .expect_next_packet_with_metadata()
         .returning(|| Err(RLanLibError::Wire("oh no a read error".into())));
 
     sender.expect_send().returning(|_| Ok(()));

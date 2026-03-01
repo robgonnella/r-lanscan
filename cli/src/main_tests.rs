@@ -2,8 +2,8 @@ use mockall::mock;
 use mpsc::channel;
 use r_lanlib::{
     error::Result,
-    packet::DEFAULT_PACKET_SEND_TIMING,
     scanners::{Port, PortSet, Scanner},
+    wire::DEFAULT_PACKET_SEND_TIMING,
 };
 use std::{
     net::Ipv4Addr,

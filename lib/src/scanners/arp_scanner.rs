@@ -7,17 +7,17 @@ use std::{
     net::Ipv4Addr,
     sync::{self, Arc, Mutex},
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::{Duration, SystemTime},
 };
 use threadpool::ThreadPool;
 
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{DEFAULT_PACKET_SEND_TIMING, arp_packet::ArpPacketBuilder},
+    packet::arp_packet::ArpPacketBuilder,
     scanners::{Device, PortSet, Scanning},
     targets::ips::IPTargets,
-    wire::Wire,
+    wire::{DEFAULT_PACKET_SEND_TIMING, PacketMetadata, Wire},
 };
 
 use super::{ScanMessage, Scanner, heartbeat::HeartBeat};
@@ -49,9 +49,11 @@ pub struct ARPScanner {
     /// Default gateway IP, used to mark the gateway device in scan results
     #[builder(default)]
     gateway: Option<Ipv4Addr>,
-    /// Tracks the send time for each ARP request by target IP
+    /// Tracks the SystemTime at which each ARP request was sent, keyed by
+    /// target IP. Used to compute RTT from send time to kernel capture of
+    /// the reply (metadata.timestamp).
     #[builder(default = "Arc::new(Mutex::new(HashMap::new()))")]
-    send_times: Arc<Mutex<HashMap<Ipv4Addr, Instant>>>,
+    send_times: Arc<Mutex<HashMap<Ipv4Addr, SystemTime>>>,
 }
 
 impl ARPScanner {
@@ -104,15 +106,18 @@ impl ARPScanner {
             }))
             .map_err(RLanLibError::from_channel_send_error)?;
 
-        let mut pkt_sender = self.wire.0.lock()?;
+        let send_time = {
+            let mut pkt_sender = self.wire.0.lock()?;
+            // Capture timestamp inside the lock, immediately before the send,
+            // so it is as close to the actual wire event as possible.
+            let t = SystemTime::now();
+            pkt_sender.send(&pkt_buf)?;
+            t
+        };
 
-        // Record send time immediately before putting the packet on the wire
         if let Ok(mut times) = self.send_times.lock() {
-            times.insert(target, Instant::now());
+            times.insert(target, send_time);
         }
-
-        // Send to the broadcast address
-        pkt_sender.send(&pkt_buf)?;
 
         Ok(())
     }
@@ -120,6 +125,7 @@ impl ARPScanner {
     fn process_incoming_packet(
         &self,
         pkt: &[u8],
+        metadata: PacketMetadata,
         pool: &ThreadPool,
     ) -> Result<()> {
         let Some(eth) = ethernet::EthernetPacket::new(pkt) else {
@@ -139,9 +145,21 @@ impl ARPScanner {
         let ip4 = header.get_sender_proto_addr();
         let mac = eth.get_source();
 
-        let latency_ms = self.send_times.lock().ok().and_then(|mut times| {
-            times.remove(&ip4).map(|t| t.elapsed().as_millis())
-        });
+        // RTT = kernel capture time of reply − SystemTime recorded just
+        // before the send. Both are fixed points so mutex contention during
+        // this lookup cannot inflate the measurement.
+        let send_time = self
+            .send_times
+            .lock()
+            .ok()
+            .and_then(|mut times| times.remove(&ip4));
+
+        let latency_ms = match (send_time, metadata.timestamp) {
+            (Some(sent), Some(recv)) => {
+                recv.duration_since(sent).map(|d| d.as_millis()).ok()
+            }
+            _ => None,
+        };
 
         let notification_sender = self.notifier.clone();
         let interface = Arc::clone(&self.interface);
@@ -218,9 +236,13 @@ impl ARPScanner {
                     break;
                 }
 
-                let pkt = reader.next_packet()?;
+                let (pkt, metadata) = reader.next_packet_with_metadata()?;
 
-                self_clone.process_incoming_packet(pkt, &lookup_pool)?;
+                self_clone.process_incoming_packet(
+                    pkt,
+                    metadata,
+                    &lookup_pool,
+                )?;
             }
 
             Ok(())

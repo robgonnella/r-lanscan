@@ -12,7 +12,7 @@ use thiserror::Error;
 
 use crate::{
     packet::{
-        Reader, Sender, arp_packet::ArpPacketBuilderError,
+        arp_packet::ArpPacketBuilderError,
         heartbeat_packet::HeartbeatPacketBuilderError,
         rst_packet::RstPacketBuilderError, syn_packet::SynPacketBuilderError,
     },
@@ -20,6 +20,7 @@ use crate::{
         ScanMessage, arp_scanner::ARPScannerBuilderError,
         heartbeat::HeartBeatBuilderError, syn_scanner::SYNScannerBuilderError,
     },
+    wire::{Reader, Sender},
 };
 
 /// Custom Error type for this library

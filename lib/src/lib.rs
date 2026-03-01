@@ -29,9 +29,14 @@
 //! ```
 
 #![deny(missing_docs)]
+
+use pnet::util::MacAddr as PnetMacAddr;
 pub mod error;
 pub mod network;
 pub mod packet;
 pub mod scanners;
 pub mod targets;
 pub mod wire;
+
+/// Represents a MAC address for a device
+pub type MacAddr = PnetMacAddr;

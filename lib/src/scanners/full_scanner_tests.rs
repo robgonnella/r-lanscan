@@ -9,14 +9,15 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 use std::{net, sync::Mutex};
 
-use crate::network;
-use crate::packet::syn_packet::create_syn_reply;
-use crate::packet::{Reader, arp_packet::create_arp_reply};
-use crate::packet::{
-    Sender,
-    mocks::{MockPacketReader, MockPacketSender},
+use crate::{
+    network,
+    packet::{arp_packet::create_arp_reply, syn_packet::create_syn_reply},
+    scanners::Port,
+    wire::{
+        PacketMetadata, Reader, Sender,
+        mocks::{MockPacketReader, MockPacketSender},
+    },
 };
-use crate::scanners::Port;
 
 const PKT_ETH_SIZE: usize = ethernet::EthernetPacket::minimum_packet_size();
 const PKT_ARP_SIZE: usize = arp::ArpPacket::minimum_packet_size();
@@ -105,17 +106,14 @@ fn sends_and_reads_packets() {
     let mut receiver = MockPacketReader::new();
     let mut sender = MockPacketSender::new();
 
-    let mut next_type = "arp";
-
     #[allow(static_mut_refs)]
-    receiver.expect_next_packet().returning(move || {
-        if next_type == "arp" {
-            next_type = "syn";
-            Ok(unsafe { &ARP_PACKET })
-        } else {
-            Ok(unsafe { &SYN_PACKET })
-        }
+    receiver.expect_next_packet_with_metadata().returning(|| {
+        Ok((unsafe { &ARP_PACKET }, PacketMetadata { timestamp: None }))
     });
+    #[allow(static_mut_refs)]
+    receiver
+        .expect_next_packet()
+        .returning(|| Ok(unsafe { &SYN_PACKET }));
     sender.expect_send().returning(|_| Ok(()));
 
     let arc_receiver: Arc<Mutex<dyn Reader>> = Arc::new(Mutex::new(receiver));

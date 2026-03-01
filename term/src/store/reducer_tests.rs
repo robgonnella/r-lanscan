@@ -3,8 +3,10 @@ use std::{
     process::Output,
 };
 
-use pnet::util::MacAddr;
-use r_lanlib::scanners::{Device, Port};
+use r_lanlib::{
+    MacAddr,
+    scanners::{Device, Port},
+};
 
 use crate::{
     config::Config,

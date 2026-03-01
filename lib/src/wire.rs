@@ -1,13 +1,39 @@
 //! Implements a default Wire using pnet
 
-use pnet::datalink;
-use std::sync::{Arc, Mutex};
+use pnet::datalink::{self, PacketMetadata as PnetPacketMetadata};
+use std::{
+    sync::{Arc, Mutex},
+    time,
+};
 
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
-    packet::{Reader, Sender},
 };
+
+/// Default timing for throttling packet sends to prevent packet loss.
+/// 200µs (5,000 pps) balances scan speed against reliability on WiFi,
+/// macOS BPF, and virtualised environments where tighter timings cause
+/// silent packet drops.
+pub const DEFAULT_PACKET_SEND_TIMING: time::Duration =
+    time::Duration::from_micros(200);
+
+/// PacketMetadata from wire
+pub type PacketMetadata = PnetPacketMetadata;
+
+/// Trait describing a packet reader
+pub trait Reader: Send {
+    /// Returns the next packet off of the wire
+    fn next_packet(&mut self) -> Result<&[u8]>;
+    /// Returns the next packet off of the wire along with metadata
+    fn next_packet_with_metadata(&mut self) -> Result<(&[u8], PacketMetadata)>;
+}
+
+/// Trait describing a packet sender
+pub trait Sender: Send {
+    /// Should send a packet over the wire
+    fn send(&mut self, packet: &[u8]) -> Result<()>;
+}
 
 /// Represents a packet Reader and packet Sender tuple
 #[derive(Clone)]
@@ -23,6 +49,12 @@ impl Reader for PNetReader {
     fn next_packet(&mut self) -> Result<&[u8]> {
         self.receiver
             .next()
+            .map_err(|e| RLanLibError::Wire(e.to_string()))
+    }
+
+    fn next_packet_with_metadata(&mut self) -> Result<(&[u8], PacketMetadata)> {
+        self.receiver
+            .next_with_metadata()
             .map_err(|e| RLanLibError::Wire(e.to_string()))
     }
 }
@@ -57,6 +89,7 @@ impl Sender for PNetSender {
 /// ```
 pub fn default(interface: &NetworkInterface) -> Result<Wire> {
     let cfg = pnet::datalink::Config {
+        enable_timestamps: true,
         read_buffer_size: 65536, // 64 KB — holds ~43 max-size frames
         write_buffer_size: 65536, // 64 KB — consistent with raw socket convention
         ..pnet::datalink::Config::default()
@@ -81,3 +114,26 @@ pub fn default(interface: &NetworkInterface) -> Result<Wire> {
 #[cfg(test)]
 #[path = "./wire_tests.rs"]
 mod tests;
+
+/// Provides wire mocks for other modules in test
+#[cfg(test)]
+pub mod mocks {
+    use mockall::mock;
+
+    use super::*;
+
+    mock! {
+            pub PacketReader {}
+            impl Reader for PacketReader {
+                fn next_packet(&mut self) -> Result<&'static [u8]>;
+                fn next_packet_with_metadata(&mut self) -> Result<(&'static [u8], PacketMetadata)>;
+            }
+    }
+
+    mock! {
+        pub PacketSender {}
+        impl Sender for PacketSender {
+            fn send(&mut self, packet: &[u8]) -> Result<()>;
+        }
+    }
+}
