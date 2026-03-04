@@ -1,6 +1,6 @@
 [package]
 name = "r-lancli"
-version = "0.8.0"
+version = "0.9.0"
 categories = ["command-line-utilities", "network-programming"]
 description = "A command-line interface for performing network scanning operations on local area networks (LANs)"
 readme = "README.md"
@@ -28,7 +28,7 @@ log = "^0.4"
 nix = { version = "0.31", features = ["user"] }
 simplelog = { version = "^0.12", features = ["paris"] }
 serde_json = "^1.0"
-r-lanlib = { path = "../lib", version = "0.8.0" }
+r-lanlib = { path = "../lib", version = "0.9.0" }
 itertools = "0.14.0"
 humantime = "2.3.0"
 
