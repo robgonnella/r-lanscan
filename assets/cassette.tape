@@ -8,23 +8,26 @@ Set Shell zsh
 Sleep 1.5s
 Type "just exec-workspace-term"
 Enter
-Sleep 7s
+Sleep 7.5s
 
 Set TypingSpeed 200ms
 
-Type "jjj"
+Type "jjjjjjjjjjjjjjjjjkkkkkkkkkkkkkkkkk"
 Sleep 500ms
-Tab
-Sleep 500ms
+Type "f"
+Sleep 2s
+Type "f"
+Sleep 1.5s
 Type "c"
+Sleep 500ms
 Backspace 2
 Type "bert"
+Sleep 500ms
 Tab
 Type "22"
+Sleep 500ms
 Tab 2
-Sleep 500ms
-Right
-Sleep 500ms
+Sleep 1s
 Right
 Sleep 500ms
 Right
@@ -33,34 +36,44 @@ Right
 Sleep 500ms
 Right
 Sleep 1s
+Right
+Sleep 500ms
 Enter
 Sleep 500ms
-Escape
+Tab
+Sleep 2s
+Type "kkkkkkkkkkkkkkk"
+Sleep 500ms
+Type "jjjjjjjjjjjjjjjjjjj"
+Sleep 1s
 Type "d"
 Sleep 500ms
-Enter
+Type "d"
+Sleep 1.5s
+Type "d"
 Sleep 500ms
-Type "t"
+Type "j"
+Sleep 500ms
+Type "j"
+Sleep 500ms
+Enter
 Sleep 1.5s
 Type "s"
 Sleep 1s
 Type "yes"
 Enter
-Sleep 500ms
+Sleep 1s
 Type "pwd"
 Enter
 Sleep 500ms
 Type "exit"
 Enter
-Sleep 1s
+Sleep 500ms
+Type "t"
+Sleep 2s
 Escape
-Sleep 500ms
-Tab 2
-Type "jjjjjjjjjjjjjjjjj"
-Sleep 500ms
-Type "dd"
-Sleep 1.5s
+Sleep 1s
 Ctrl+C
-Sleep 1.5s
+Sleep 1s
 
 Output r-lanterm.gif

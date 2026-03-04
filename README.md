@@ -12,7 +12,7 @@ in Rust. This is the modern Rust implementation of the
 [go-lanscan](https://github.com/robgonnella/go-lanscan) project, offering
 improved performance, safety, and usability.
 
-![demo](https://vhs.charm.sh/vhs-6DlxD7zklw9SSP0Ai0qG5y.gif)
+![demo](https://vhs.charm.sh/vhs-2zrJE0Fb7DiTNuimsms93Q.gif)
 
 ## Features
 
@@ -110,11 +110,11 @@ Download prebuilt binaries for your platform from the
 
 Available targets:
 
-| Platform            | Target                        |
-| ------------------- | ----------------------------- |
-| Linux x86_64        | `x86_64-unknown-linux-musl`   |
-| Linux ARM64         | `aarch64-unknown-linux-musl`  |
-| macOS Apple Silicon | `aarch64-apple-darwin`        |
+| Platform            | Target                       |
+| ------------------- | ---------------------------- |
+| Linux x86_64        | `x86_64-unknown-linux-musl`  |
+| Linux ARM64         | `aarch64-unknown-linux-musl` |
+| macOS Apple Silicon | `aarch64-apple-darwin`       |
 
 ```bash
 # Example: Linux x86_64
