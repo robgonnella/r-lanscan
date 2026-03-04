@@ -1,3 +1,23 @@
+# [0.9.0](https://github.com/robgonnella/r-lanscan/compare/v0.8.0...v0.9.0) - 2026-02-22
+
+### 🚀 Features
+
+- uses pnet timestamps for more accurate latency calculations [_(67704c8)_](https://github.com/robgonnella/r-lanscan/commit/67704c8783234bbbfb345765e223483bd69753bb)
+
+- _(term)_ adds topology view in r-lanterm [_(b15279e)_](https://github.com/robgonnella/r-lanscan/commit/b15279ec1dfce6e4b93892acba474565853cb06f)
+
+- exposes packet sending throttle in scanner builders [_(629afef)_](https://github.com/robgonnella/r-lanscan/commit/629afef8412acdede3b602be9f6df8023fb85cca)
+
+- adds gateway detection [_(cb01001)_](https://github.com/robgonnella/r-lanscan/commit/cb01001857b89002aa43c665acef06a42112daf6)
+
+### 🐛 Bug Fixes
+
+- _(term)_ improves log scrolling [_(d4f2ce2)_](https://github.com/robgonnella/r-lanscan/commit/d4f2ce2dcf08b06d766ba10dd22d85ece959045a)
+
+- wire tuning [_(3f86a98)_](https://github.com/robgonnella/r-lanscan/commit/3f86a98b74b15547eb4541e1cfdde53d135352b5)
+
+- improves host runner detection [_(b4be4f2)_](https://github.com/robgonnella/r-lanscan/commit/b4be4f294dd084a617b6944376efd2699c5298d7)
+
 # [0.8.0](https://github.com/robgonnella/r-lanscan/compare/v0.7.1...v0.8.0) - 2026-02-15
 
 ### 🚀 Features
