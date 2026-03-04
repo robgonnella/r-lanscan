@@ -1,3 +1,9 @@
+# [0.9.1](https://github.com/robgonnella/r-lanscan/compare/v0.9.0...v0.9.1) - 2026-03-04
+
+### 🐛 Bug Fixes
+
+- use published version of fork of libpnet (rgon-pnet) [_(83af025)_](https://github.com/robgonnella/r-lanscan/commit/83af0253f77010b17d100f603ada047d1480e48a)
+
 # [0.9.0](https://github.com/robgonnella/r-lanscan/compare/v0.8.0...v0.9.0) - 2026-02-22
 
 ### 🚀 Features
