@@ -18,7 +18,7 @@ area network (LAN). This is the Rust version of the
 
 - **Root privileges required**: This library performs raw packet operations that
   require elevated permissions
-- **Rust 1.89.0+** with 2024 edition support
+- **Rust 1.89.0+** with Rust 2024 edition support
 
 ## Installation
 
@@ -28,161 +28,18 @@ cargo add r-lanlib
 
 ## Quick Start
 
-### Basic ARP Scanning
+See the working examples in [`examples/`](./examples/):
 
-```rust
-use std::{sync::mpsc, time::Duration};
-use r_lanlib::{
-    network, oui,
-    scanners::{arp_scanner::ARPScanner, Device, ScanMessage, Scanner},
-    targets::ips::IPTargets,
-    wire,
-};
+- [`arp-scanner.rs`](./examples/arp-scanner.rs) - ARP device discovery
+- [`syn-scanner.rs`](./examples/syn-scanner.rs) - Port scanning on known devices
+- [`full-scanner.rs`](./examples/full-scanner.rs) - Combined ARP + SYN scanning
 
-// Get default network interface
-let interface = network::get_default_interface()
-    .expect("Cannot find network interface");
+Run them from the workspace root:
 
-// Create packet wire (reader/sender)
-let wire = wire::default(&interface)
-    .expect("Failed to create packet wire");
-
-// Define IP targets (scan entire subnet)
-let ip_targets = IPTargets::new(vec![interface.cidr.clone()])
-    .expect("Failed to parse IP targets");
-
-// Create communication channel
-let (tx, rx) = mpsc::channel::<ScanMessage>();
-
-// Initialize OUI database for vendor lookup (auto-updates if older than 30 days)
-let oui_db = oui::default("my-app", Duration::from_secs(60 * 60 * 24 * 30))
-    .expect("Failed to initialize OUI database");
-
-// Configure scanner using builder pattern
-let scanner = ARPScanner::builder()
-    .interface(&interface)
-    .wire(wire)
-    .targets(ip_targets)
-    .source_port(54321u16)
-    .include_vendor(true)
-    .include_host_names(true)
-    .idle_timeout(Duration::from_millis(10000))
-    // Optional: override default throttle (default: 200µs)
-    .throttle(Duration::from_micros(500))
-    .notifier(tx)
-    .oui(oui_db)       // supply OUI database for vendor lookups
-    .build()
-    .expect("Failed to build scanner");
-
-// Start scanning (runs in background thread)
-let handle = scanner.scan().expect("Failed to start scan");
-
-// Process results in real-time
-let mut devices = Vec::new();
-loop {
-    match rx.recv().expect("Failed to receive message") {
-        ScanMessage::Done => break,
-        ScanMessage::ARPScanDevice(device) => {
-            println!("Found device: {} ({})", device.ip, device.hostname);
-            devices.push(device);
-        }
-        ScanMessage::Info(scanning) => {
-            println!("Scanning: {}", scanning.ip);
-        }
-        _ => {}
-    }
-}
-
-handle.join().expect("Scanner thread failed");
-println!("Discovered {} devices", devices.len());
-```
-
-### SYN Port Scanning
-
-```rust
-use r_lanlib::{
-    scanners::{syn_scanner::SYNScanner, Device, PortSet, Scanner},
-    targets::ports::PortTargets,
-};
-
-// Define target devices (from previous ARP scan or manual)
-let devices = vec![
-    Device {
-        hostname: "router".to_string(),
-        ip: Ipv4Addr::new(192, 168, 1, 1),
-        mac: MacAddr::new(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff),
-        vendor: "".to_string(),
-        is_current_host: false,
-        is_gateway: false,
-        open_ports: PortSet::new(),
-        latency_ms: None,
-    }
-];
-
-// Define port targets
-let port_targets = PortTargets::new(vec![
-    "22".to_string(),      // SSH
-    "80".to_string(),      // HTTP
-    "443".to_string(),     // HTTPS
-    "8000-9000".to_string(), // Port range
-])
-.expect("Failed to parse port targets");
-
-let scanner = SYNScanner::builder()
-    .interface(&interface)
-    .packet_reader(wire.0)
-    .packet_sender(wire.1)
-    .targets(devices)
-    .ports(port_targets)
-    .source_port(54321u16)
-    .idle_timeout(Duration::from_millis(10000))
-    // Optional: override default throttle (default: 200µs)
-    .throttle(Duration::from_micros(500))
-    .notifier(tx)
-    .build()
-    .expect("Failed to build scanner");
-
-// Process SYN scan results
-let mut results = Vec::new();
-let handle = scanner.scan().expect("Failed to start scan");
-
-loop {
-    match rx.recv().expect("Failed to receive message") {
-        ScanMessage::Done => break,
-        ScanMessage::SYNScanDevice(device) => {
-            for port in device.open_ports.to_sorted_vec() {
-                println!("Open port {} on {}", port.id, device.ip);
-            }
-            results.push(device);
-        }
-        _ => {}
-    }
-}
-```
-
-### Full Scanning (ARP + SYN)
-
-```rust
-use r_lanlib::scanners::{full_scanner::FullScanner, Scanner};
-
-let scanner = FullScanner::builder()
-    .interface(&interface)
-    .packet_reader(wire.0)
-    .packet_sender(wire.1)
-    .targets(ip_targets)
-    .ports(port_targets)
-    .vendor(true)
-    .host(true)
-    .idle_timeout(Duration::from_millis(10000))
-    // Optional: override default throttle (default: 200µs)
-    .throttle(Duration::from_micros(500))
-    .notifier(tx)
-    .source_port(54321u16)
-    .build()
-    .expect("Failed to build scanner");
-
-// This will perform ARP discovery first, then SYN scan on found devices
-let handle = scanner.scan().expect("Failed to start scan");
+```bash
+sudo -E cargo run --example arp-scanner -p r-lanlib
+sudo -E cargo run --example syn-scanner -p r-lanlib
+sudo -E cargo run --example full-scanner -p r-lanlib
 ```
 
 ## API Reference
@@ -223,12 +80,12 @@ prefixes to vendor/organization names:
   prefixes, resolving the most-specific match first.
 - `oui::types::OuiData` - Holds the `organization` string for a matched prefix.
 
-#### `packet`
+#### `wire`
 
-Low-level packet creation and transmission:
+Low-level packet I/O:
 
-- `wire::default(interface)` - Create default packet reader/sender pair
-- Various packet builders for ARP, SYN, RST packets
+- `wire::default(interface)` - Create a `Wire` for reading and sending packets
+- Various packet builders for ARP, SYN, RST packets (in the `packet` module)
 
 #### `scanners`
 
@@ -261,6 +118,7 @@ pub struct Device {
     pub is_gateway: bool,
     pub open_ports: PortSet,
     pub latency_ms: Option<u128>,
+    pub response_ttl: Option<u8>,
 }
 ```
 
@@ -331,22 +189,6 @@ PortTargets::new(vec![
     "80".to_string(),
     "8000-9000".to_string()
 ]);
-```
-
-## Examples
-
-The library includes several complete examples in the `examples/` directory:
-
-- **`arp-scanner.rs`** - Basic ARP device discovery
-- **`syn-scanner.rs`** - Port scanning on known devices
-- **`full-scanner.rs`** - Complete network reconnaissance
-
-Run examples from the workspace root with:
-
-```bash
-sudo -E cargo run --example arp-scanner -p r-lanlib
-sudo -E cargo run --example syn-scanner -p r-lanlib
-sudo -E cargo run --example full-scanner -p r-lanlib
 ```
 
 ## Configuration Options

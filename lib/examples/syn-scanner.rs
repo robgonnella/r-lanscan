@@ -1,3 +1,6 @@
+// SYNScanner scans open ports on a known list of devices.
+// In practice, the device list typically comes from a prior ARP scan.
+// Here we use hardcoded devices for demonstration.
 use pnet::util::MacAddr;
 use r_lanlib::{
     network,
@@ -24,11 +27,16 @@ fn main() {
     if !is_root() {
         panic!("permission denied: must run with root privileges");
     }
+
     let interface = Arc::new(
         network::get_default_interface().expect("cannot find interface"),
     );
+
+    // Wire abstracts the raw packet reader/sender for the interface
     let wire =
         r_lanlib::wire::default(&interface).expect("failed to create wire");
+
+    // Devices to scan — replace with output from ARPScanner in real usage
     let devices = vec![
         Device {
             hostname: "".to_string(),
@@ -64,6 +72,8 @@ fn main() {
             response_ttl: None,
         },
     ];
+
+    // Ports to check on each device — supports individual ports and ranges
     let port_targets = PortTargets::new(vec![
         "22".to_string(),
         "80".to_string(),
@@ -71,8 +81,11 @@ fn main() {
         "2000-9000".to_string(),
     ])
     .expect("failed to parse port targets");
+
     let idle_timeout = Duration::from_millis(10000);
     let source_port: u16 = 54321;
+
+    // ScanMessage is sent on this channel as open ports are discovered
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
     let scanner = SYNScanner::builder()
@@ -88,16 +101,20 @@ fn main() {
 
     let mut results: Vec<Device> = Vec::new();
 
+    // scan() spawns a background thread; join it after draining the channel
     let handle = scanner.scan().unwrap();
 
     loop {
         let msg = rx.recv().expect("failed to poll for messages");
 
         match msg {
+            // Done signals the scan is complete and the thread is finishing
             ScanMessage::Done => {
                 println!("scanning complete");
                 break;
             }
+            // SYNScanDevice is emitted for each device that has open ports;
+            // the Device's open_ports field is populated
             ScanMessage::SYNScanDevice(result) => results.push(result),
             _ => {
                 println!("{:?}", msg)
