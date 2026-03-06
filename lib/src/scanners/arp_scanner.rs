@@ -25,7 +25,7 @@ use super::{ScanMessage, Scanner, heartbeat::HeartBeat};
 
 /// Data structure representing an ARP scanner
 #[derive(Clone, Builder)]
-#[builder(setter(into))]
+#[builder(setter(into), pattern = "owned")]
 pub struct ARPScanner {
     /// Network interface to use for scanning
     interface: Arc<NetworkInterface>,

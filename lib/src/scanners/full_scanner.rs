@@ -62,8 +62,7 @@ impl FullScanner {
 
         let mut syn_targets: Vec<Device> = Vec::new();
 
-        let mut arp_builder = ARPScanner::builder();
-        arp_builder
+        let mut arp_builder = ARPScanner::builder()
             .interface(Arc::clone(&self.interface))
             .wire(self.wire.clone())
             .targets(Arc::clone(&self.targets))
@@ -75,7 +74,7 @@ impl FullScanner {
             .notifier(tx.clone());
 
         if let Some(oui) = self.oui.as_ref() {
-            arp_builder.oui(Arc::clone(oui));
+            arp_builder = arp_builder.oui(Arc::clone(oui));
         }
 
         let arp = arp_builder.build()?;

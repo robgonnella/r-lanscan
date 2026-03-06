@@ -184,6 +184,7 @@ impl OuiDb {
     /// Fetches raw CSV text from the given IEEE URL.
     fn request_oui_data(url: &str) -> Result<String> {
         let data = ureq::get(url)
+            .header("User-Agent", "Mozilla/5.0 (compatible; r-lanscan)")
             .call()
             .map_err(|e| {
                 RLanLibError::Oui(format!(
