@@ -28,6 +28,17 @@ use crate::{
 
 use super::*;
 
+struct OuiStub;
+
+impl Oui for OuiStub {
+    fn lookup(
+        &self,
+        _mac: r_lanlib::MacAddr,
+    ) -> Option<&r_lanlib::oui::types::OuiData> {
+        None
+    }
+}
+
 struct StubSender;
 impl Sender for StubSender {
     fn send(&mut self, _packet: &[u8]) -> r_lanlib::error::Result<()> {
@@ -194,7 +205,10 @@ fn monitor_exits_on_quit_message() {
 
     let process = setup(mock_sender, mock_receiver);
 
-    let result = process.monitor();
+    let oui: Arc<dyn Oui> = Arc::new(OuiStub);
+
+    let result = process.monitor(oui);
+
     assert!(result.is_ok());
 }
 

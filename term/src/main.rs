@@ -57,20 +57,16 @@ use crate::{
     ui::colors::{Colors, Theme},
 };
 
-#[doc(hidden)]
 mod config;
-#[doc(hidden)]
 mod error;
-#[doc(hidden)]
 mod ipc;
-#[doc(hidden)]
 mod process;
-#[doc(hidden)]
 mod shell;
-#[doc(hidden)]
 mod store;
-#[doc(hidden)]
 mod ui;
+
+// 30 days
+const OUI_MAX_AGE: Duration = Duration::from_secs(60 * 60 * 24 * 30);
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -95,7 +91,6 @@ struct Args {
     ports: Vec<String>,
 }
 
-#[doc(hidden)]
 fn initialize_logger(args: &Args) -> Result<()> {
     let filter = if args.debug {
         simplelog::LevelFilter::Debug
@@ -113,7 +108,6 @@ fn initialize_logger(args: &Args) -> Result<()> {
     Ok(())
 }
 
-#[doc(hidden)]
 fn get_project_config_path() -> Result<String> {
     let project_dir = ProjectDirs::from("", "", "r-lanterm")
         .ok_or(eyre!("failed to get project directory"))?;
@@ -127,7 +121,6 @@ fn get_project_config_path() -> Result<String> {
     Ok(config_file_path)
 }
 
-#[doc(hidden)]
 fn get_user_info() -> Result<(String, String)> {
     let user = whoami::username()?;
     let home = dirs::home_dir()
@@ -136,7 +129,6 @@ fn get_user_info() -> Result<(String, String)> {
     Ok((user, identity))
 }
 
-#[doc(hidden)]
 fn create_config_manager(
     user: String,
     identity: String,
@@ -154,7 +146,6 @@ fn create_config_manager(
     Ok(config_manager)
 }
 
-#[doc(hidden)]
 fn get_current_config(
     config_manager: &ConfigManager,
     interface: &NetworkInterface,
@@ -180,7 +171,6 @@ fn get_current_config(
 }
 
 /// Monitors a generic join handle and notifies main thread if the thread exits
-#[doc(hidden)]
 fn monitor_thread(
     name: String,
     main_tx: Sender<MainMessage>,
@@ -208,7 +198,6 @@ fn monitor_thread(
     });
 }
 
-#[doc(hidden)]
 fn start_network_monitoring_thread(
     config: Config,
     throttle: Duration,
@@ -233,11 +222,11 @@ fn start_network_monitoring_thread(
         .build()?;
 
     Ok(thread::spawn(move || -> Result<()> {
-        network_process.monitor()
+        let oui = r_lanlib::oui::default("r-lanscan", OUI_MAX_AGE)?;
+        network_process.monitor(oui)
     }))
 }
 
-#[doc(hidden)]
 fn start_renderer_thread(
     main_tx: Sender<MainMessage>,
     renderer_rx: Receiver<RendererMessage>,
@@ -265,7 +254,6 @@ fn start_renderer_thread(
     })
 }
 
-#[doc(hidden)]
 fn start_main_process(
     config_manager: ConfigManager,
     renderer_tx: Sender<RendererMessage>,
@@ -301,7 +289,6 @@ fn start_main_process(
     main_process.process_events()
 }
 
-#[doc(hidden)]
 fn init(
     args: &Args,
     interface: &NetworkInterface,
@@ -345,12 +332,10 @@ fn init(
     Ok((config_manager, initial_state))
 }
 
-#[doc(hidden)]
 fn is_root() -> bool {
     nix::unistd::geteuid().is_root()
 }
 
-#[doc(hidden)]
 fn main() -> Result<()> {
     color_eyre::install()?;
 

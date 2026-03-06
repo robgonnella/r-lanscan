@@ -11,6 +11,7 @@ use std::{net, sync::Mutex};
 
 use crate::{
     network,
+    oui::{traits::mocks::MockOuiDb, types::OuiData},
     packet::{arp_packet::create_arp_reply, syn_packet::create_syn_reply},
     scanners::Port,
     wire::{
@@ -98,7 +99,7 @@ fn sends_and_reads_packets() {
 
     let device = Device {
         ip: device_ip,
-        mac: device_mac,
+        mac: device_mac.clone(),
         vendor: "XEROX CORPORATION".to_string(),
         ..Device::default()
     };
@@ -125,6 +126,18 @@ fn sends_and_reads_packets() {
     let ports = PortTargets::new(vec!["2222".to_string()]).unwrap();
     let (tx, rx) = channel();
 
+    let mut oui = MockOuiDb::new();
+
+    oui.expect_lookup()
+        .withf(move |mac| mac.to_string() == device_mac.to_string())
+        .returning(|_| {
+            Some(Box::leak(Box::new(OuiData {
+                organization: "XEROX CORPORATION".to_string(),
+            })))
+        });
+
+    let arc_oui: Arc<dyn Oui> = Arc::new(oui);
+
     let scanner = FullScanner::builder()
         .interface(interface)
         .wire(wire)
@@ -135,6 +148,7 @@ fn sends_and_reads_packets() {
         .idle_timeout(idle_timeout)
         .notifier(tx)
         .source_port(54321_u16)
+        .oui(arc_oui)
         .build()
         .unwrap();
 

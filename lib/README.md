@@ -33,9 +33,10 @@ cargo add r-lanlib
 ```rust
 use std::{sync::mpsc, time::Duration};
 use r_lanlib::{
-    network, packet,
+    network, oui,
     scanners::{arp_scanner::ARPScanner, Device, ScanMessage, Scanner},
     targets::ips::IPTargets,
+    wire,
 };
 
 // Get default network interface
@@ -43,7 +44,7 @@ let interface = network::get_default_interface()
     .expect("Cannot find network interface");
 
 // Create packet wire (reader/sender)
-let wire = packet::wire::default(&interface)
+let wire = wire::default(&interface)
     .expect("Failed to create packet wire");
 
 // Define IP targets (scan entire subnet)
@@ -53,11 +54,14 @@ let ip_targets = IPTargets::new(vec![interface.cidr.clone()])
 // Create communication channel
 let (tx, rx) = mpsc::channel::<ScanMessage>();
 
+// Initialize OUI database for vendor lookup (auto-updates if older than 30 days)
+let oui_db = oui::default("my-app", Duration::from_secs(60 * 60 * 24 * 30))
+    .expect("Failed to initialize OUI database");
+
 // Configure scanner using builder pattern
 let scanner = ARPScanner::builder()
     .interface(&interface)
-    .packet_reader(wire.0)
-    .packet_sender(wire.1)
+    .wire(wire)
     .targets(ip_targets)
     .source_port(54321u16)
     .include_vendor(true)
@@ -66,6 +70,7 @@ let scanner = ARPScanner::builder()
     // Optional: override default throttle (default: 200µs)
     .throttle(Duration::from_micros(500))
     .notifier(tx)
+    .oui(oui_db)       // supply OUI database for vendor lookups
     .build()
     .expect("Failed to build scanner");
 
@@ -200,6 +205,23 @@ Provides OS-level routing table inspection:
   the system routing table (`netstat -rn` on macOS, `ip route show` on Linux).
   Returns `Option<Ipv4Addr>` — `None` if the gateway cannot be determined or
   the platform is unsupported.
+
+#### `oui`
+
+OUI (Organizationally Unique Identifier) lookup for resolving MAC address
+prefixes to vendor/organization names:
+
+- `oui::default(project_name, max_age)` - Initialize the built-in IEEE OUI
+  database. Downloads and caches five IEEE CSV data files locally under the
+  OS-appropriate data directory for `project_name`. Re-downloads automatically
+  when the cached files are older than `max_age`. Returns
+  `Result<Arc<dyn Oui>>`.
+- `oui::traits::Oui` - Trait for custom OUI implementations. Implement this to
+  supply your own vendor database to the scanners.
+- `oui::db::OuiDb` - The default implementation backed by locally cached IEEE
+  CSV files. Supports MA-L (24-bit), MA-M (28-bit), and MA-S/IAB (36-bit)
+  prefixes, resolving the most-specific match first.
+- `oui::types::OuiData` - Holds the `organization` string for a matched prefix.
 
 #### `packet`
 
@@ -344,7 +366,11 @@ sudo -E cargo run --example full-scanner -p r-lanlib
 
 ### Scanner Features
 
-- `include_vendor` - Perform MAC address vendor lookup using IEEE OUI database
+- `include_vendor` - Enable MAC address vendor lookup (requires `oui` to be set)
+- `oui` - Supply an `Arc<dyn Oui>` database for vendor lookups. Use
+  `oui::default(project_name, max_age)` for the built-in IEEE database, or
+  provide a custom implementation. When `None`, vendor lookup is skipped even
+  if `include_vendor` is `true`.
 - `include_host_names` - Resolve hostnames via reverse DNS lookup
 - `source_port` - Source port for scan packets (auto-selected if not specified)
 - `throttle` - Delay between sending packets (default: 200µs); increase for more

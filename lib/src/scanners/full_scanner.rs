@@ -10,6 +10,7 @@ use std::{
 use crate::{
     error::Result,
     network::NetworkInterface,
+    oui::traits::Oui,
     targets::{ips::IPTargets, ports::PortTargets},
     wire::{DEFAULT_PACKET_SEND_TIMING, Wire},
 };
@@ -45,6 +46,9 @@ pub struct FullScanner {
     notifier: mpsc::Sender<ScanMessage>,
     /// Source port for packet listener and incoming packet identification
     source_port: u16,
+    /// Used to lookup vendor info for mac addresses
+    #[builder(default)]
+    oui: Option<Arc<dyn Oui>>,
 }
 
 impl FullScanner {
@@ -58,7 +62,8 @@ impl FullScanner {
 
         let mut syn_targets: Vec<Device> = Vec::new();
 
-        let arp = ARPScanner::builder()
+        let mut arp_builder = ARPScanner::builder();
+        arp_builder
             .interface(Arc::clone(&self.interface))
             .wire(self.wire.clone())
             .targets(Arc::clone(&self.targets))
@@ -67,8 +72,13 @@ impl FullScanner {
             .include_host_names(self.host)
             .idle_timeout(self.idle_timeout)
             .throttle(self.throttle)
-            .notifier(tx.clone())
-            .build()?;
+            .notifier(tx.clone());
+
+        if let Some(oui) = self.oui.as_ref() {
+            arp_builder.oui(Arc::clone(oui));
+        }
+
+        let arp = arp_builder.build()?;
 
         arp.scan()?;
 
