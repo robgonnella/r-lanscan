@@ -18,6 +18,7 @@ use itertools::Itertools;
 use r_lanlib::{
     error::Result as LibResult,
     network::{self, NetworkInterface, get_default_gateway},
+    oui,
     scanners::{
         Device, IDLE_TIMEOUT, ScanMessage, Scanner, arp_scanner::ARPScanner,
         syn_scanner::SYNScanner,
@@ -33,6 +34,9 @@ use std::{
     },
     time::Duration,
 };
+
+// 30 days
+const OUI_MAX_AGE: Duration = Duration::from_secs(60 * 60 * 24 * 30);
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -89,7 +93,6 @@ struct Args {
     debug: bool,
 }
 
-#[doc(hidden)]
 fn initialize_logger(args: &Args) -> Result<()> {
     let filter = if args.quiet {
         simplelog::LevelFilter::Error
@@ -109,7 +112,6 @@ fn initialize_logger(args: &Args) -> Result<()> {
     Ok(())
 }
 
-#[doc(hidden)]
 fn print_args(args: &Args, interface: &NetworkInterface) {
     log::info!("configuration:");
     log::info!("targets:         {:?}", args.targets);
@@ -130,7 +132,6 @@ fn print_args(args: &Args, interface: &NetworkInterface) {
     log::info!("throttle         {:?}", args.throttle);
 }
 
-#[doc(hidden)]
 fn process_arp(
     scanner: &dyn Scanner,
     rx: Receiver<ScanMessage>,
@@ -165,7 +166,6 @@ fn process_arp(
     Ok((items, rx))
 }
 
-#[doc(hidden)]
 fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
     log::info!("arp results:");
 
@@ -207,7 +207,6 @@ fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
     Ok(())
 }
 
-#[doc(hidden)]
 fn process_syn(
     scanner: &dyn Scanner,
     devices: Vec<Device>,
@@ -253,7 +252,6 @@ fn process_syn(
     Ok(syn_results)
 }
 
-#[doc(hidden)]
 fn print_syn(
     args: &Args,
     device_map: &HashMap<Ipv4Addr, Device>,
@@ -312,13 +310,11 @@ fn print_syn(
     Ok(())
 }
 
-#[doc(hidden)]
 #[cfg(unix)]
 fn is_root() -> bool {
     nix::unistd::geteuid().is_root()
 }
 
-#[doc(hidden)]
 #[cfg(windows)]
 fn is_root() -> bool {
     // On Windows, check if running as Administrator
@@ -331,7 +327,6 @@ fn is_root() -> bool {
         .unwrap_or(false)
 }
 
-#[doc(hidden)]
 fn main() -> Result<()> {
     color_eyre::install()?;
 
@@ -362,6 +357,12 @@ fn main() -> Result<()> {
 
     let interface = Arc::new(interface);
 
+    let oui = if args.vendor {
+        Some(oui::default("r-lanscan", OUI_MAX_AGE)?)
+    } else {
+        None
+    };
+
     let arp = ARPScanner::builder()
         .interface(Arc::clone(&interface))
         .wire(wire.clone())
@@ -376,6 +377,7 @@ fn main() -> Result<()> {
         .idle_timeout(time::Duration::from_millis(args.idle_timeout_ms.into()))
         .notifier(tx.clone())
         .throttle(args.throttle)
+        .oui(oui)
         .build()?;
 
     let (arp_results, rx) = process_arp(&arp, rx)?;

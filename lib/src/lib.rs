@@ -33,6 +33,7 @@
 use pnet::util::MacAddr as PnetMacAddr;
 pub mod error;
 pub mod network;
+pub mod oui;
 pub mod packet;
 pub mod scanners;
 pub mod targets;

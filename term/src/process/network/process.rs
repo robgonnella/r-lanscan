@@ -7,6 +7,7 @@ use color_eyre::eyre::{Result, eyre};
 use derive_builder::Builder;
 use r_lanlib::{
     network::{self, NetworkInterface},
+    oui::traits::Oui,
     scanners::{
         Device, IDLE_TIMEOUT, PortSet, ScanMessage, Scanner,
         arp_scanner::ARPScanner, syn_scanner::SYNScanner,
@@ -184,7 +185,7 @@ impl NetworkProcess {
 impl NetworkMonitor for NetworkProcess {
     /// Main network monitoring loop. Continuously runs ARP and SYN scans,
     /// notifying main thread with discovered devices.
-    fn monitor(&self) -> Result<()> {
+    fn monitor(&self, oui: Arc<dyn Oui>) -> Result<()> {
         loop {
             if let Ok(msg) = self.ipc.rx.try_recv() {
                 match msg {
@@ -214,6 +215,7 @@ impl NetworkMonitor for NetworkProcess {
                 .notifier(tx.clone())
                 .gateway(self.gateway)
                 .throttle(self.throttle)
+                .oui(Arc::clone(&oui))
                 .build()?;
 
             let rx = self.process_arp(arp_scanner, rx)?;

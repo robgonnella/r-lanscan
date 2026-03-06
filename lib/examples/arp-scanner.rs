@@ -6,6 +6,7 @@ use std::{
 
 use r_lanlib::{
     network::{self, get_default_gateway},
+    oui,
     scanners::{Device, ScanMessage, Scanner, arp_scanner::ARPScanner},
     targets::ips::IPTargets,
 };
@@ -35,6 +36,14 @@ fn main() {
     let source_port: u16 = 54321;
     let (tx, rx) = mpsc::channel::<ScanMessage>();
 
+    // Initialize default Oui database
+    // Ensures IEEE data is no older than 30 days
+    let oui = oui::default(
+        "r-lanscan-example",
+        Duration::from_secs(60 * 60 * 24 * 30),
+    )
+    .unwrap();
+
     let scanner = ARPScanner::builder()
         .interface(interface)
         .wire(wire)
@@ -45,6 +54,7 @@ fn main() {
         .include_host_names(host_names)
         .idle_timeout(idle_timeout)
         .notifier(tx)
+        .oui(oui)
         .build()
         .unwrap();
 

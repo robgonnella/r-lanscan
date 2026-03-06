@@ -26,6 +26,10 @@ use crate::{
 /// Custom Error type for this library
 #[derive(Error, Debug)]
 pub enum RLanLibError {
+    /// Error resulting from failures in OuiDb
+    #[error("oui: {_0}")]
+    Oui(String),
+
     /// Error coming directly off the wire
     #[error("wire error: {_0}")]
     Wire(String),

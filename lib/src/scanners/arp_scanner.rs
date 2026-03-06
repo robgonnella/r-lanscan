@@ -14,6 +14,7 @@ use threadpool::ThreadPool;
 use crate::{
     error::{RLanLibError, Result},
     network::NetworkInterface,
+    oui::traits::Oui,
     packet::arp_packet::ArpPacketBuilder,
     scanners::{Device, PortSet, Scanning},
     targets::ips::IPTargets,
@@ -49,6 +50,9 @@ pub struct ARPScanner {
     /// Default gateway IP, used to mark the gateway device in scan results
     #[builder(default)]
     gateway: Option<Ipv4Addr>,
+    /// Used to lookup vendor info for mac addresses
+    #[builder(default)]
+    oui: Option<Arc<dyn Oui>>,
     /// Tracks the SystemTime at which each ARP request was sent, keyed by
     /// target IP. Used to compute RTT from send time to kernel capture of
     /// the reply (metadata.timestamp).
@@ -166,6 +170,7 @@ impl ARPScanner {
         let include_host_names = self.include_host_names;
         let include_vendor = self.include_vendor;
         let gateway = self.gateway;
+        let oui = self.oui.as_ref().map(Arc::clone);
 
         // use a thread pool here so we don't slow down packet
         // processing while limiting concurrent threads
@@ -177,9 +182,9 @@ impl ARPScanner {
                 String::new()
             };
 
-            let vendor = if include_vendor {
-                oui_data::lookup(&mac.to_string())
-                    .map(|v| v.organization().to_owned())
+            let vendor = if include_vendor && let Some(db) = oui {
+                db.lookup(mac)
+                    .map(|v| v.organization().to_string())
                     .unwrap_or_default()
             } else {
                 String::new()
