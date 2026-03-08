@@ -1,3 +1,13 @@
+# [0.10.0](https://github.com/robgonnella/r-lanscan/compare/v0.9.1...v0.10.0) - 2026-03-06
+
+### 🚀 Features
+
+- makes oui data updateable [_(5fa868b)_](https://github.com/robgonnella/r-lanscan/commit/5fa868b378625a58e6271db29fe51426454bb447)
+
+### 🐛 Bug Fixes
+
+- fixes issue with downloading IEEE data files [_(4de71bc)_](https://github.com/robgonnella/r-lanscan/commit/4de71bc4f69605126bdb1e6d20deb63ba869f3cd)
+
 # [0.9.1](https://github.com/robgonnella/r-lanscan/compare/v0.9.0...v0.9.1) - 2026-03-04
 
 ### 🐛 Bug Fixes
