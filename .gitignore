@@ -2,6 +2,7 @@
 .obsidian/
 /target
 generated/
+.data/
 .env
 CLAUDE.md
 .claude

@@ -157,6 +157,7 @@ services:
     volumes:
       - $PRIVATE_KEY_FILE:/root/.ssh/id_rsa:ro
       - $PUBLIC_KEY_FILE:/root/.ssh/id_rsa.pub:ro
+      - ./.data:/root/.local/share/r-lanscan
     environment:
       USER: root
       LOG_LEVEL: debug
