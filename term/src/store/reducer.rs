@@ -49,6 +49,10 @@ impl Reducer for StoreReducer {
                 self.log_action("UpdateMessage", &message, state);
                 reducers::ui::update_message(state, message);
             }
+            Action::UpdatePopoverMessage(message) => {
+                self.log_action("UpdatePopoverMessage", &message, state);
+                reducers::ui::update_popover_message(state, message);
+            }
             Action::PreviewTheme(theme) => {
                 self.log_action("PreviewTheme", &theme, state);
                 reducers::ui::preview_theme(state, theme);

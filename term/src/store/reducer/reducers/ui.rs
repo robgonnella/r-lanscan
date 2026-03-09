@@ -20,6 +20,11 @@ pub fn update_message(state: &mut State, message: Option<String>) {
     state.message = message;
 }
 
+/// Sets or clears popover messages (e.g., Downloading vendor data).
+pub fn update_popover_message(state: &mut State, message: Option<String>) {
+    state.popover_message = message;
+}
+
 /// Applies a theme preview without persisting to config.
 pub fn preview_theme(state: &mut State, theme: Theme) {
     state.colors = Colors::new(

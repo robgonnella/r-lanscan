@@ -20,6 +20,7 @@ pub enum Action {
     UpdateCommandOutput((Command, Output)),
     ClearCommandOutput,
     UpdateMessage(Option<String>),
+    UpdatePopoverMessage(Option<String>),
     PreviewTheme(Theme),
     AddDevice(Device),
     UpdateDevicePorts(Device),
