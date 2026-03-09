@@ -104,6 +104,14 @@ impl MainProcess {
                                 .dispatch(Action::SetCommandInProgress(None));
                         }
                     },
+                    MainMessage::IEEEDownloadStarted => {
+                        self.store.dispatch(Action::UpdatePopoverMessage(
+                            Some("Downloading vendor data".into()),
+                        ));
+                    }
+                    MainMessage::IEEEDownloadFinished => {
+                        self.store.dispatch(Action::UpdatePopoverMessage(None));
+                    }
                     _ => {}
                 }
             }

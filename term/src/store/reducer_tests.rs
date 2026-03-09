@@ -56,6 +56,19 @@ fn test_update_message() {
 }
 
 #[test]
+fn test_update_popover_message() {
+    let (mut state, reducer) = setup();
+    reducer.reduce(
+        &mut state,
+        Action::UpdatePopoverMessage(Some("popover message".to_string())),
+    );
+    assert_eq!(
+        state.popover_message.unwrap(),
+        "popover message".to_string()
+    );
+}
+
+#[test]
 fn test_preview_theme() {
     let (mut state, reducer) = setup();
     let expected_colors = Colors::new(Theme::Emerald.to_palette(true), true);

@@ -207,6 +207,8 @@ fn start_network_monitoring_thread(
 ) -> Result<JoinHandle<Result<()>>> {
     let wire = r_lanlib::wire::default(&interface)?;
 
+    let main_tx = tx.clone();
+
     let ipc = NetworkIpc::new(
         Box::new(NetworkSender::new(tx)),
         Box::new(NetworkReceiver::new(rx)),
@@ -222,7 +224,9 @@ fn start_network_monitoring_thread(
         .build()?;
 
     Ok(thread::spawn(move || -> Result<()> {
+        main_tx.send(MainMessage::IEEEDownloadStarted)?;
         let oui = r_lanlib::oui::default("r-lanscan", OUI_MAX_AGE)?;
+        main_tx.send(MainMessage::IEEEDownloadFinished)?;
         network_process.monitor(oui)
     }))
 }

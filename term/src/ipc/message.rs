@@ -38,6 +38,10 @@ pub enum NetworkMessage {
 /// Messages sent from the renderer to the main event handler.
 #[derive(Debug)]
 pub enum MainMessage {
+    /// Informs that network process is blocked downloading vendor data
+    IEEEDownloadStarted,
+    /// Informs that network process has finished downloading vendor data
+    IEEEDownloadFinished,
     /// State updates from the renderer thread
     ActionSync(Box<Action>),
     /// UI has been paused (ready for shell command).
