@@ -218,25 +218,25 @@ impl Oui for OuiDb {
     /// We try the most-specific prefix first so that a narrower assignment
     /// (e.g. MA-S) takes precedence over a broader one (e.g. MA-L) for the
     /// same MAC address.
-    fn lookup(&self, mac: MacAddr) -> Option<&OuiData> {
-        let mut result: Option<&OuiData> = None;
+    fn lookup(&self, mac: MacAddr) -> Option<OuiData> {
+        let mut result: Option<OuiData> = None;
 
         let mac_str =
             mac.to_string().to_ascii_uppercase().replace([':', '-'], "");
 
         // MA-S: 36-bit / 9 hex chars
         if mac_str.len() >= 9 {
-            result = self.data.get(&mac_str[..9]);
+            result = self.data.get(&mac_str[..9]).cloned();
         }
 
         // MA-M: 28-bit / 7 hex chars
         if mac_str.len() >= 7 {
-            result = result.or_else(|| self.data.get(&mac_str[..7]));
+            result = result.or_else(|| self.data.get(&mac_str[..7]).cloned());
         }
 
         // MA-L: 24-bit / 6 hex chars
         if mac_str.len() >= 6 {
-            result = result.or_else(|| self.data.get(&mac_str[..6]));
+            result = result.or_else(|| self.data.get(&mac_str[..6]).cloned());
         }
 
         result

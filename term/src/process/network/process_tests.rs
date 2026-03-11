@@ -34,7 +34,7 @@ impl Oui for OuiStub {
     fn lookup(
         &self,
         _mac: r_lanlib::MacAddr,
-    ) -> Option<&r_lanlib::oui::types::OuiData> {
+    ) -> Option<r_lanlib::oui::types::OuiData> {
         None
     }
 }
