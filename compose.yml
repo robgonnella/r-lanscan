@@ -167,6 +167,7 @@ services:
 
 networks:
   default:
+    internal: $AIR_GAPPED
     ipam:
       driver: default
       config:
