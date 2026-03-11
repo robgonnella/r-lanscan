@@ -4,7 +4,7 @@ use crate::{MacAddr, oui::types::OuiData};
 pub trait Oui: Send + Sync {
     /// Returns the [`OuiData`] for the given MAC address, or `None` if
     /// the prefix is not found in the database.
-    fn lookup(&self, mac: MacAddr) -> Option<&OuiData>;
+    fn lookup(&self, mac: MacAddr) -> Option<OuiData>;
 }
 
 /// Provides wire mocks for other modules in test
@@ -17,7 +17,7 @@ pub mod mocks {
     mock! {
             pub OuiDb {}
             impl Oui for OuiDb {
-              fn lookup(&self, mac: MacAddr) -> Option<&'static OuiData>;
+              fn lookup(&self, mac: MacAddr) -> Option<OuiData>;
             }
     }
 }

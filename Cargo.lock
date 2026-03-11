@@ -1445,6 +1445,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "oui-data"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a0bb7eec167c961d00c158d17cc45847e1bc21b22540ccd5e2aa059352575b7"
+dependencies = [
+ "csv",
+ "phf",
+]
+
+[[package]]
 name = "owo-colors"
 version = "4.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1782,6 +1792,7 @@ dependencies = [
  "log",
  "mockall",
  "openssl",
+ "oui-data",
  "rgon-pnet",
  "serde",
  "tempfile",

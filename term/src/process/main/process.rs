@@ -106,7 +106,7 @@ impl MainProcess {
                     },
                     MainMessage::IEEEDownloadStarted => {
                         self.store.dispatch(Action::UpdatePopoverMessage(
-                            Some("Downloading vendor data".into()),
+                            Some("Initializing vendor data".into()),
                         ));
                     }
                     MainMessage::IEEEDownloadFinished => {

@@ -131,9 +131,9 @@ fn sends_and_reads_packets() {
     oui.expect_lookup()
         .withf(move |mac| mac.to_string() == device_mac.to_string())
         .returning(|_| {
-            Some(Box::leak(Box::new(OuiData {
+            Some(OuiData {
                 organization: "XEROX CORPORATION".to_string(),
-            })))
+            })
         });
 
     let arc_oui: Arc<dyn Oui> = Arc::new(oui);
