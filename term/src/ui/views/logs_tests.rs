@@ -9,10 +9,12 @@ use crate::store::{
 use super::*;
 
 fn setup() -> (LogsView, Store) {
-    let store = Store::new(State::default(), StoreReducer::boxed());
+    let mut reducer = StoreReducer::boxed();
+    reducer.enable_logging();
+    let store = Store::new(State::default(), reducer);
 
-    store.dispatch(Action::Log("test log 1".into()));
-    store.dispatch(Action::Log("test log 2".into()));
+    store.dispatch(Action::UpdateMessage(Some("test message 1".into())));
+    store.dispatch(Action::UpdateMessage(Some("test message 2".into())));
 
     (LogsView::new(), store)
 }

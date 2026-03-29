@@ -15,7 +15,6 @@ use crate::{
 pub enum Action {
     SetUIPaused(bool),
     SetError(Option<String>),
-    Log(String),
     SetCommandInProgress(Option<Command>),
     UpdateCommandOutput((Command, Output)),
     ClearCommandOutput,

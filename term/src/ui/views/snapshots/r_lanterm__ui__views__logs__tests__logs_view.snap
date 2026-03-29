@@ -3,9 +3,9 @@ source: term/src/ui/views/./logs_tests.rs
 expression: terminal.backend()
 ---
 "                                                                                                                                  "
-"test log 1                                                                                                                        "
+"processing action: UpdateMessage(Some("test message 1"))                                                                          "
 "                                                                                                                                █ "
-"test log 2                                                                                                                      █ "
+"processing action: UpdateMessage(Some("test message 2"))                                                                        █ "
 "                                                                                                                                █ "
 "                                                                                                                                █ "
 "                                                                                                                                █ "

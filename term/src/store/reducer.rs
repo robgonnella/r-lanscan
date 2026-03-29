@@ -10,17 +10,25 @@ mod reducers;
 
 /// Applies actions to state, producing new state and optional side effects.
 #[derive(Default)]
-pub struct StoreReducer;
+pub struct StoreReducer {
+    logging_enabled: bool,
+}
 
 impl StoreReducer {
     pub fn boxed() -> Box<Self> {
         Box::default()
     }
 
+    pub fn enable_logging(&mut self) {
+        self.logging_enabled = true;
+    }
+
     fn log_action<D: Debug>(&self, name: &str, data: &D, state: &mut State) {
-        state
-            .logs
-            .push_back(format!("processing action: {name}({:?})", data));
+        if self.logging_enabled {
+            state
+                .logs
+                .push_back(format!("processing action: {name}({:?})", data));
+        }
     }
 }
 
@@ -37,13 +45,6 @@ impl Reducer for StoreReducer {
             Action::SetError(err) => {
                 self.log_action("SetError", &err, state);
                 reducers::ui::set_error(state, err);
-            }
-            Action::Log(log) => {
-                log::debug!("{log}");
-                if state.logs.len() == state.logs.capacity() {
-                    state.logs.pop_front();
-                }
-                state.logs.push_back(log);
             }
             Action::UpdateMessage(message) => {
                 self.log_action("UpdateMessage", &message, state);
