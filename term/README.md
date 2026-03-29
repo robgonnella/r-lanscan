@@ -251,6 +251,8 @@ of the screen. Use `f` / `d` (or `Tab` / `Shift+Tab`) to switch between tabs.
 
 - **`j` / `↓`** - Scroll down
 - **`k` / `↑`** - Scroll up
+- **`ctrl-a`** - Jump to top
+- **`ctrl-e`** - Jump to bottom
 - **Mouse wheel** - Scroll through logs
 
 ## Configuration

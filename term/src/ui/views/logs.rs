@@ -2,16 +2,21 @@
 use color_eyre::eyre::Result;
 use itertools::Itertools;
 use ratatui::{
-    crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind},
+    crossterm::event::{
+        Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind,
+    },
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style},
     widgets::ScrollbarState,
 };
 use std::cell::RefCell;
 
-use crate::ui::{
-    components::{scrollview::ScrollView, table::DEFAULT_ITEM_HEIGHT},
-    views::traits::{CustomEventContext, CustomStatefulWidget},
+use crate::{
+    store::state::State,
+    ui::{
+        components::{scrollview::ScrollView, table::DEFAULT_ITEM_HEIGHT},
+        views::traits::{CustomEventContext, CustomStatefulWidget},
+    },
 };
 
 use super::traits::{CustomWidgetContext, CustomWidgetRef, EventHandler, View};
@@ -48,6 +53,16 @@ impl LogsView {
         self.scroll_offset
             .replace_with(|&mut v| v.saturating_sub(1));
         self.at_bottom.replace(false);
+    }
+
+    fn scroll_to_top(&self) {
+        self.scroll_offset.replace(0);
+        self.at_bottom.replace(false);
+    }
+
+    fn scroll_to_bottom(&self) {
+        // Let the render pass set the exact max_pos.
+        self.at_bottom.replace(true);
     }
 
     pub fn render_logs(
@@ -110,7 +125,11 @@ impl Default for LogsView {
     }
 }
 
-impl View for LogsView {}
+impl View for LogsView {
+    fn legend(&self, _state: &State) -> String {
+        "(ctrl-a) top | (ctrl-e) bottom".into()
+    }
+}
 
 impl CustomWidgetRef for LogsView {
     fn render_ref(
@@ -170,6 +189,22 @@ impl EventHandler for LogsView {
                         KeyCode::Char('k') | KeyCode::Up => {
                             if !ctx.state.logs.is_empty() {
                                 self.scroll_up();
+                            }
+                            handled = true;
+                        }
+                        KeyCode::Char('a')
+                            if key.modifiers == KeyModifiers::CONTROL =>
+                        {
+                            if !ctx.state.logs.is_empty() {
+                                self.scroll_to_top();
+                            }
+                            handled = true;
+                        }
+                        KeyCode::Char('e')
+                            if key.modifiers == KeyModifiers::CONTROL =>
+                        {
+                            if !ctx.state.logs.is_empty() {
+                                self.scroll_to_bottom();
                             }
                             handled = true;
                         }
