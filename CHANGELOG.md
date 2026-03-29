@@ -1,3 +1,15 @@
+# [0.11.0](https://github.com/robgonnella/r-lanscan/compare/v0.10.0...v0.11.0) - 2026-03-29
+
+### 🚀 Features
+
+- _(term)_ adds ability to jump to top or bottom of logs view [_(551ef9d)_](https://github.com/robgonnella/r-lanscan/commit/551ef9db1bc31e76c714c4f3493f26b7caed9aa7)
+
+### 🐛 Bug Fixes
+
+- improves log scrolling performance [_(820716c)_](https://github.com/robgonnella/r-lanscan/commit/820716ce87634e60f5dd71a60eb18c875e674277)
+
+- reduce log spew [_(3c69784)_](https://github.com/robgonnella/r-lanscan/commit/3c69784359b5421a59a9fbdab44d2ae0be0bb673)
+
 # [0.10.0](https://github.com/robgonnella/r-lanscan/compare/v0.9.1...v0.10.0) - 2026-03-06
 
 ### 🚀 Features
