@@ -70,11 +70,6 @@ impl MainProcess {
                     MainMessage::ArpUpdate(device) => {
                         self.store.dispatch(Action::AddDevice(device));
                     }
-                    MainMessage::ArpDone => {
-                        self.store.dispatch(Action::Log(
-                            "ARP scanning complete".into(),
-                        ));
-                    }
                     MainMessage::SynStart => {
                         self.store.dispatch(Action::UpdateMessage(Some(
                             "SYN scanning in progress...".into(),

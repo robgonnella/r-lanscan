@@ -246,7 +246,9 @@ fn start_renderer_thread(
             Box::new(RendererSender::new(main_tx)),
             Box::new(RendererReceiver::new(renderer_rx)),
         );
-        let mut store = Store::new(initial_state, StoreReducer::boxed());
+        let mut reducer = StoreReducer::boxed();
+        reducer.enable_logging();
+        let mut store = Store::new(initial_state, reducer);
         store.set_sync_fn(move |a| {
             let _ = main_tx_clone.send(MainMessage::ActionSync(Box::new(
                 Action::Sync(Box::new(a)),

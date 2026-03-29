@@ -20,7 +20,7 @@ use super::Reducer;
 
 fn setup() -> (State, StoreReducer) {
     let state = State::default();
-    (state, StoreReducer)
+    (state, StoreReducer::default())
 }
 
 #[test]
