@@ -40,3 +40,27 @@ fn test_logs_view() {
 
     assert_snapshot!(terminal.backend());
 }
+
+#[test]
+fn scroll_to_top_resets_offset_and_unpins() {
+    let view = LogsView::new();
+    // Simulate being somewhere in the middle.
+    view.scroll_offset.replace(42);
+    view.at_bottom.replace(false);
+
+    view.scroll_to_top();
+
+    assert_eq!(*view.scroll_offset.borrow(), 0);
+    assert!(!*view.at_bottom.borrow());
+}
+
+#[test]
+fn scroll_to_bottom_pins_to_bottom() {
+    let view = LogsView::new();
+    view.scroll_offset.replace(0);
+    view.at_bottom.replace(false);
+
+    view.scroll_to_bottom();
+
+    assert!(*view.at_bottom.borrow());
+}
