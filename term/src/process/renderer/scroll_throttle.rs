@@ -3,9 +3,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind};
+use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind};
 
-/// Default duration to throttle scroll events (arrow keys and vi-style j/k).
+/// Default duration to throttle scroll events (arrow keys, vi-style j/k, and
+/// mouse wheel / trackpad).
 const DEFAULT_SCROLL_THROTTLE_DURATION: Duration = Duration::from_millis(20);
 
 pub struct ScrollThrottle {
@@ -66,6 +67,7 @@ impl ScrollThrottle {
                 },
                 _ => false,
             },
+            Event::Mouse(m) => m.kind == MouseEventKind::ScrollUp,
             _ => false,
         }
     }
@@ -80,6 +82,7 @@ impl ScrollThrottle {
                 },
                 _ => false,
             },
+            Event::Mouse(m) => m.kind == MouseEventKind::ScrollDown,
             _ => false,
         }
     }

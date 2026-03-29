@@ -125,36 +125,53 @@ impl<B: Backend + std::io::Write> RendererProcess<B> {
             if let Ok(has_event) = event::poll(time::Duration::from_millis(16))
                 && has_event
             {
-                let evt = event::read()?;
-
-                if self.scroll_throttle.throttled(&evt) {
-                    continue;
+                // Drain all currently queued events before rendering.
+                // Without this, a trackpad swipe that generates dozens of
+                // scroll events causes one render per event, creating a
+                // multi-second backlog. By collecting everything that is
+                // already buffered we process the whole burst and render
+                // exactly once.
+                let mut events = vec![event::read()?];
+                while let Ok(true) = event::poll(time::Duration::ZERO) {
+                    events.push(event::read()?);
                 }
 
-                let ctx = CustomEventContext {
-                    state: &state,
-                    dispatcher: self.store.clone(),
-                    ipc: self.ipc.tx.clone(),
-                };
+                let mut need_render = false;
+                for evt in events {
+                    if self.scroll_throttle.throttled(&evt) {
+                        continue;
+                    }
 
-                // Process event through the application. We don't check the
-                // return value (whether event was handled) since we removed
-                // the 'q' key quit override. All quit operations now happen
-                // explicitly via ctrl-c or from within specific views.
-                self.app.process_event(&evt, &ctx)?;
-                // re-fetch state after event processing so render
-                // reflects any changes from dispatched actions
-                state = self.store.get_state();
-                self.render_frame(&state)?;
+                    let ctx = CustomEventContext {
+                        state: &state,
+                        dispatcher: self.store.clone(),
+                        ipc: self.ipc.tx.clone(),
+                    };
 
-                // do not allow overriding ctrl-c
-                if let CrossTermEvent::Key(key) = evt
-                    && key.kind == KeyEventKind::Press
-                    && key.code == KeyCode::Char('c')
-                    && key.modifiers == KeyModifiers::CONTROL
-                {
-                    self.ipc.tx.send(MainMessage::Quit(None))?;
-                    return Ok(());
+                    // Process event through the application. We don't check
+                    // the return value (whether event was handled) since we
+                    // removed the 'q' key quit override. All quit operations
+                    // now happen explicitly via ctrl-c or from within specific
+                    // views.
+                    self.app.process_event(&evt, &ctx)?;
+                    // re-fetch state after event processing so render
+                    // reflects any changes from dispatched actions
+                    state = self.store.get_state();
+                    need_render = true;
+
+                    // do not allow overriding ctrl-c
+                    if let CrossTermEvent::Key(key) = evt
+                        && key.kind == KeyEventKind::Press
+                        && key.code == KeyCode::Char('c')
+                        && key.modifiers == KeyModifiers::CONTROL
+                    {
+                        self.ipc.tx.send(MainMessage::Quit(None))?;
+                        return Ok(());
+                    }
+                }
+
+                if need_render {
+                    self.render_frame(&state)?;
                 }
             }
         }
