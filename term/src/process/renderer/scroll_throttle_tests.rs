@@ -1,9 +1,19 @@
 use ratatui::crossterm::event::{
     Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers,
+    MouseEvent, MouseEventKind,
 };
 use std::{thread, time::Duration};
 
 use super::ScrollThrottle;
+
+fn mouse_scroll_event(kind: MouseEventKind) -> Event {
+    Event::Mouse(MouseEvent {
+        kind,
+        column: 0,
+        row: 0,
+        modifiers: KeyModifiers::NONE,
+    })
+}
 
 fn key_event(code: KeyCode) -> Event {
     Event::Key(KeyEvent {
@@ -122,6 +132,36 @@ fn custom_throttle_duration_is_respected() {
     // Go past throttle to deal with imprecise runners
     thread::sleep(Duration::from_millis(1000));
     assert!(!throttle.throttled(&key_event(KeyCode::Down)));
+}
+
+#[test]
+fn mouse_scroll_up_is_throttled() {
+    let throttle = ScrollThrottle::new(Duration::from_millis(50));
+
+    // First mouse scroll up is not throttled
+    assert!(!throttle.throttled(&mouse_scroll_event(MouseEventKind::ScrollUp)));
+
+    // Rapid subsequent events are throttled
+    assert!(throttle.throttled(&mouse_scroll_event(MouseEventKind::ScrollUp)));
+    assert!(throttle.throttled(&key_event(KeyCode::Up)));
+    assert!(throttle.throttled(&key_event(KeyCode::Char('k'))));
+}
+
+#[test]
+fn mouse_scroll_down_is_throttled() {
+    let throttle = ScrollThrottle::new(Duration::from_millis(50));
+
+    // First mouse scroll down is not throttled
+    assert!(
+        !throttle.throttled(&mouse_scroll_event(MouseEventKind::ScrollDown))
+    );
+
+    // Rapid subsequent events are throttled
+    assert!(
+        throttle.throttled(&mouse_scroll_event(MouseEventKind::ScrollDown))
+    );
+    assert!(throttle.throttled(&key_event(KeyCode::Down)));
+    assert!(throttle.throttled(&key_event(KeyCode::Char('j'))));
 }
 
 #[test]
