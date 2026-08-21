@@ -17,7 +17,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: analyze
-          cache_policy: pull
+          cache-policy: pull
       - name: Run cargo machete
         run: cargo machete
 
@@ -28,7 +28,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: analyze
-          cache_policy: pull-push
+          cache-policy: pull-push
       - name: lint
         run: cargo clippy --all-targets --all-features -- -D warnings
 
@@ -39,7 +39,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: analyze
-          cache_policy: pull
+          cache-policy: pull
       - name: doc
         env:
           RUSTDOCFLAGS: "-D warnings"
@@ -52,6 +52,6 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: analyze
-          cache_policy: pull
+          cache-policy: pull
       - name: fmt
         run: cargo fmt --all --check

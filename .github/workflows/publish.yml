@@ -18,7 +18,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: publish-crate
-          cache_policy: pull
+          cache-policy: pull
       - uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

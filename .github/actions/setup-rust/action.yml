@@ -6,7 +6,7 @@ inputs:
     required: false
     default: ""
     type: string
-  cache_policy:
+  cache-policy:
     description: How caching should behave
     required: true
     default: pull-push
@@ -21,8 +21,8 @@ runs:
   steps:
     - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
-        cache: ${{ inputs.cache_policy != 'disable' }}
-        cache-save-if: ${{ inputs.cache_policy == 'pull-push' }}
+        cache: ${{ inputs.cache-policy != 'disable' }}
+        cache-save-if: ${{ inputs.cache-policy == 'pull-push' }}
         cache-shared-key: ${{ inputs.cache-shared-key }}
         cache-all-crates: true
         cache-workspace-crates: true

@@ -28,6 +28,6 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: test-${{ matrix.os }}
-          cache_policy: pull-push
+          cache-policy: pull-push
       - name: Test
         run: ${{ matrix.cmd }}

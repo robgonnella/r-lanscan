@@ -31,7 +31,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           cache-shared-key: build-${{ matrix.platform.target }}
-          cache_policy: pull-push
+          cache-policy: pull-push
       - name: install musl-tools
         if: contains(matrix.platform.target, 'musl')
         run: sudo apt update && sudo apt install -y musl-tools
