@@ -10,62 +10,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/rust-setup
-      - name: Build
-        run: cargo build --release
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/rust-setup
-      - name: Lint
-        run: cargo clippy --all-targets --all-features
-
-  fmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/rust-setup
-      - name: Fmt
-        run: cargo fmt --all --check
-
-  machete:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/rust-setup
-      - name: Install cargo machete
-        run: |
-          if ! cargo machete --version; then
-            cargo install cargo-machete
-          fi
-      - name: Run cargo machete
-        run: cargo machete
-
   test:
     strategy:
+      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
           - macos-latest
         include:
-          - cmd: script -q /dev/null -c 'cargo llvm-cov --ignore-filename-regex "(_test.rs$)|(_tests.rs$)"'
+          - cmd: script -q /dev/null -c 'cargo test'
             os: ubuntu-latest
-          - cmd: script -q /dev/null cargo llvm-cov --ignore-filename-regex "(_test.rs$)|(_tests.rs$)"
+          - cmd: script -q /dev/null cargo test
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/rust-setup
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache_policy: pull
       - name: Test
         run: ${{ matrix.cmd }}

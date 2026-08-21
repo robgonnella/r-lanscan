@@ -1,0 +1,44 @@
+name: "Rust Setup"
+description: "Sets up rust for an environment"
+inputs:
+  cache_policy:
+    description: How caching should behave
+    required: true
+    default: pull-push
+    type: choice
+    options:
+      - pull-push
+      - pull
+      - disable
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        cache: ${{ inputs.cache_policy != 'disable' }}
+        cache-save-if: ${{ inputs.cache_policy == 'pull-push' }}
+    - name: install cargo-binstall
+      shell: bash
+      run: |
+        if ! cargo binstall --version >/dev/null 2>&1; then
+          cargo install cargo-binstall
+        fi
+    - name: install cargo-insta
+      shell: bash
+      run: |
+        if ! cargo insta --version >/dev/null 2>&1; then
+          cargo binstall --no-confirm cargo-insta
+        fi
+    - name: Install cargo machete
+      shell: bash
+      run: |
+        if ! cargo machete --version >/dev/null 2<&1; then
+          cargo binstall --no-confirm cargo-machete
+        fi
+    - name: Install cross
+      shell: bash
+      run: |
+        if ! cross --version >/dev/null 2>&1; then
+          cargo binstall --no-confirm cross
+        fi

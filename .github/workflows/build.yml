@@ -1,0 +1,38 @@
+name: build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os-name: Linux-x86_64
+            runs-on: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - os-name: Linux-aarch64
+            runs-on: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+          - os-name: MacOS-aarch64
+            runs-on: macOS-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.platform.runs-on }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache_policy: pull-push
+      - name: install musl-tools
+        if: contains(matrix.platform.target, 'musl')
+        run: sudo apt update && sudo apt install -y musl-tools
+      - name: build ${{ matrix.platform.os-name }}
+        run: cross build --workspace --locked --release --target ${{ matrix.platform.target }}

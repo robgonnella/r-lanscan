@@ -7,14 +7,17 @@ on:
       - "*v*"
 
 jobs:
-  publish:
+  publish-crate:
     if: ${{ github.repository == 'robgonnella/r-lanscan' }}
+    concurrency: publish-crate
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/rust-setup
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache_policy: pull
       - uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -28,11 +31,9 @@ jobs:
           - os-name: Linux-x86_64
             runs-on: ubuntu-latest
             target: x86_64-unknown-linux-musl
-
           - os-name: Linux-aarch64
             runs-on: ubuntu-latest
             target: aarch64-unknown-linux-musl
-
           - os-name: MacOS-aarch64
             runs-on: macOS-latest
             target: aarch64-apple-darwin
@@ -42,13 +43,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Build with cross
-        uses: houseabsolute/actions-rust-cross@v1
+      - uses: ./.github/actions/setup-rust
         with:
-          command: build
-          toolchain: 1.92.0
-          target: ${{ matrix.platform.target }}
-          args: "-p ${{ matrix.package }} --locked --release"
+          cache-policy: pull-push
+
+      - name: Build ${{ matrix.package }} for ${{ matrix.platform.os-name }}
+        run: cross build -p ${{ matrix.package }} --locked --release --target ${{ matrix.platform.target }}
 
       - name: Package
         uses: a7ul/tar-action@v1.2.0
