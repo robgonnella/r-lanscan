@@ -1,6 +1,7 @@
 [env]
 # auto-load .env file into environment (like direnv)
-_.file = '.env'
+_.file = ".env"
 
 [tools]
-rust = "1.92.0"
+rust = "1.98.0"
+rust-analyzer = "2026-07-13"

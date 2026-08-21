@@ -7,6 +7,9 @@ generate-dot-env:
     echo "PUBLIC_KEY_FILE=\"${HOME}/.ssh/id_rsa.pub\"" >> .env
     echo "PUBLIC_KEY=\"$(cat ${HOME}/.ssh/id_rsa.pub)\"" >> .env
 
+build:
+    cargo build --workspace
+
 term *args:
     sudo -E cargo run -p r-lanterm -- {{ args }}
 
@@ -34,5 +37,14 @@ test *args:
 test-report *args:
     cargo llvm-cov --ignore-filename-regex "(_test.rs$)|(_tests.rs$)" {{ args }}
 
-lint *args:
-    cargo clippy --all-targets --all-features {{ args }}
+# Formats all rust code
+fmt:
+    cargo fmt
+
+# Fails on broken intra-doc links
+doc:
+    RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --workspace
+
+# Lints all rust code
+lint: && doc
+    cargo clippy --all-targets --all-features -- -D warnings
