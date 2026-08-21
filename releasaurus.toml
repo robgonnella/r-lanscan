@@ -1,15 +1,13 @@
-#:schema https://raw.githubusercontent.com/robgonnella/releasaurus/refs/heads/main/schema/schema.json
-
-[changelog]
-skip_ci = true
-skip_chore = true
+[defaults.versioning.named_parsers]
+ci.skip = true
+chore.skip = true
 
 [[package]]
 name = "r-lanscan"
 path = "."
 release_type = "rust"
 sub_packages = [
-  { name = "r-lancli", path = "cli", release_type = "rust" },
-  { name = "r-lanlib", path = "lib", release_type = "rust" },
-  { name = "r-lanterm", path = "term", release_type = "rust" },
+  { name = "r-lancli", path = "crates/cli", release_type = "rust" },
+  { name = "r-lanlib", path = "crates/lib", release_type = "rust" },
+  { name = "r-lanterm", path = "crates/term", release_type = "rust" },
 ]
