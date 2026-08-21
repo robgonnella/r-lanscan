@@ -24,8 +24,6 @@ runs:
         cache: ${{ inputs.cache-policy != 'disable' }}
         cache-save-if: ${{ inputs.cache-policy == 'pull-push' }}
         cache-shared-key: ${{ inputs.cache-shared-key }}
-        cache-all-crates: true
-        cache-workspace-crates: true
     - name: install cargo-binstall
       shell: bash
       run: |
