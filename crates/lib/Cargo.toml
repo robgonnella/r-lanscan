@@ -1,15 +1,16 @@
 [package]
 name = "r-lanlib"
 version = "0.11.0"
+edition.workspace = true
+rust-version = "1.92.0"
 description = "A library crate for performing network scanning operations on any local area network (LAN)"
-categories = ["network-programming"]
-readme = "README.md"
 documentation = "https://docs.rs/r-lanlib"
-repository.workspace = true
+readme = "README.md"
 homepage.workspace = true
+repository.workspace = true
 license.workspace = true
 keywords.workspace = true
-edition.workspace = true
+categories = ["network-programming"]
 
 [package.metadata.cargo-machete]
 ignored = ["openssl"]
@@ -29,22 +30,27 @@ path = "examples/full-scanner.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ipnet = "^2.12"
-log = "^0.4"
-serde = { version = "^1.0", features = ["derive"] }
-pnet = { package = "rgon-pnet", version = "0.36.0" }
+csv = "1.4.0"
+derive_builder = "0.20.2"
+directories = "6.0.0"
 dns-lookup = "^3.0"
+ipnet = "^2.12"
+itertools = "0.15.0"
+log = "^0.4"
 openssl = { version = "0.10.81", features = ["vendored"] }
+oui-data = "0.2.3"
+pnet = { package = "rgon-pnet", version = "0.36.0" }
+serde = { version = "^1.0", features = ["derive"] }
 thiserror = "2.0.20"
 threadpool = "1.8.1"
-itertools = "0.15.0"
-derive_builder = "0.20.2"
 ureq = "3.4.0"
-csv = "1.4.0"
-directories = "6.0.0"
-oui-data = "0.2.3"
 
 [dev-dependencies]
 color-eyre = "0.6.5"
 mockall = "^0.15.0"
 tempfile = "3.27.0"
+
+# r-lanlib is the only crate published as a library, so it is the only one
+# where "downstream crates cannot name this type" is a meaningful finding.
+[lints.rust]
+unnameable_types = "deny"

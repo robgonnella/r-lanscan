@@ -259,11 +259,11 @@ impl EventHandler for DevicesView {
                                 return Ok(true);
                             }
                         }
-                        KeyCode::Esc => {
-                            if self.selected_device.take().is_some() {
-                                self.device_view.replace(None);
-                                return Ok(true);
-                            }
+                        KeyCode::Esc
+                            if self.selected_device.take().is_some() =>
+                        {
+                            self.device_view.replace(None);
+                            return Ok(true);
                         }
                         _ => {}
                     }

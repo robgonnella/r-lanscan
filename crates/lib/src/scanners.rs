@@ -71,7 +71,7 @@ impl PartialOrd for Port {
     }
 }
 
-/// Wrapper around HashSet<Port> providing a convenience method for
+/// Wrapper around [`HashSet<Port>`] providing a convenience method for
 /// converting to a Vec of sorted ports
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PortSet(pub HashSet<Port>);
