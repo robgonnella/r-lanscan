@@ -2,6 +2,8 @@
 
 # r-lanscan
 
+just a test
+
 [![test](https://github.com/robgonnella/r-lanscan/actions/workflows/test.yml/badge.svg)](https://github.com/robgonnella/r-lanscan/actions/workflows/test.yml)
 ![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Frobgonnella%2Fr-lanscan%2Frefs%2Fheads%2Fmain%2Fcli%2FCargo.toml&query=package.version&label=r-lancli)
 ![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Frobgonnella%2Fr-lanscan%2Frefs%2Fheads%2Fmain%2Flib%2FCargo.toml&query=package.version&label=r-lanlib)
