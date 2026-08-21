@@ -27,6 +27,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-rust
         with:
-          cache_policy: pull
+          cache-shared-key: test-${{ matrix.os }}
+          cache_policy: pull-push
       - name: Test
         run: ${{ matrix.cmd }}
