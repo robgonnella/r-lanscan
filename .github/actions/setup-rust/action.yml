@@ -24,27 +24,30 @@ runs:
         cache: ${{ inputs.cache_policy != 'disable' }}
         cache-save-if: ${{ inputs.cache_policy == 'pull-push' }}
         cache-shared-key: ${{ inputs.cache-shared-key }}
+        cache-all-crates: true
+        cache-workspace-crates: true
     - name: install cargo-binstall
       shell: bash
       run: |
         if ! cargo binstall --version >/dev/null 2>&1; then
-          cargo install cargo-binstall
+          curl -L --proto '=https' --tlsv1.2 -sSf \
+            https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
         fi
     - name: install cargo-insta
       shell: bash
       run: |
         if ! cargo insta --version >/dev/null 2>&1; then
-          cargo binstall --no-confirm cargo-insta
+          cargo binstall --no-confirm --force cargo-insta
         fi
     - name: Install cargo machete
       shell: bash
       run: |
         if ! cargo machete --version >/dev/null 2<&1; then
-          cargo binstall --no-confirm cargo-machete
+          cargo binstall --no-confirm --force cargo-machete
         fi
     - name: Install cross
       shell: bash
       run: |
         if ! cross --version >/dev/null 2>&1; then
-          cargo binstall --no-confirm cross
+          cargo binstall --no-confirm --force cross
         fi
