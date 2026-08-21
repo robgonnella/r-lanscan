@@ -1,6 +1,11 @@
 name: "Rust Setup"
 description: "Sets up rust for an environment"
 inputs:
+  cache-shared-key:
+    description: Key for cache sharing
+    required: false
+    default: ""
+    type: string
   cache_policy:
     description: How caching should behave
     required: true
@@ -18,6 +23,7 @@ runs:
       with:
         cache: ${{ inputs.cache_policy != 'disable' }}
         cache-save-if: ${{ inputs.cache_policy == 'pull-push' }}
+        cache-shared-key: ${{ inputs.cache-shared-key }}
     - name: install cargo-binstall
       shell: bash
       run: |

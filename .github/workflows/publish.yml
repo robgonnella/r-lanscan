@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-rust
         with:
+          cache-shared-key: publish-crate
           cache_policy: pull
       - uses: katyo/publish-crates@v2
         with:
@@ -42,14 +43,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-
       - uses: ./.github/actions/setup-rust
         with:
+          cache-shared-key: package-${{ matrix.platform.target }}
           cache-policy: pull-push
-
       - name: Build ${{ matrix.package }} for ${{ matrix.platform.os-name }}
         run: cross build -p ${{ matrix.package }} --locked --release --target ${{ matrix.platform.target }}
-
       - name: Package
         uses: a7ul/tar-action@v1.2.0
         with:
@@ -57,7 +56,6 @@ jobs:
           files: |
             ./target/${{ matrix.platform.target }}/release/${{ matrix.package }}
           outPath: ${{ matrix.package }}-${{ github.ref_name }}-${{ matrix.platform.target }}.tgz
-
       - name: Upload artifact
         uses: actions/upload-artifact@v5
         with:
