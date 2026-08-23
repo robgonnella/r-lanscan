@@ -1,3 +1,9 @@
+# [0.12.1](https://github.com/robgonnella/r-lanscan/compare/v0.12.0...v0.12.1) - 2026-08-23
+
+### 🐛 Bug Fixes
+
+- renames from_arp_json -> from_devices_json [_(349023a)_](https://github.com/robgonnella/r-lanscan/commit/349023a9bab8bea4bee3a4f018fdfe561a192d34)
+
 # [0.12.0](https://github.com/robgonnella/r-lanscan/compare/v0.11.0...v0.12.0) - 2026-08-23
 
 ### 🚀 Features
