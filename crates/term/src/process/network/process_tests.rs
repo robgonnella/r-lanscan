@@ -1,7 +1,9 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
+    io::Write,
     net::Ipv4Addr,
+    path::PathBuf,
     sync::{Arc, Mutex, mpsc},
     time::Duration,
 };
@@ -87,6 +89,14 @@ fn setup(
     mock_sender: MockIpcSender<MainMessage>,
     mock_receiver: MockIpcReceiver<NetworkMessage>,
 ) -> NetworkProcess {
+    setup_with_seed(mock_sender, mock_receiver, None)
+}
+
+fn setup_with_seed(
+    mock_sender: MockIpcSender<MainMessage>,
+    mock_receiver: MockIpcReceiver<NetworkMessage>,
+    from_arp_json: Option<PathBuf>,
+) -> NetworkProcess {
     let ipc = NetworkIpc::new(Box::new(mock_sender), Box::new(mock_receiver));
 
     NetworkProcess {
@@ -98,8 +108,37 @@ fn setup(
         config: RefCell::new(default_config()),
         gateway: None,
         throttle: DEFAULT_PACKET_SEND_TIMING,
+        scan_interval: DEFAULT_SCAN_INTERVAL,
         arp_history: RefCell::new(HashMap::new()),
+        from_arp_json,
     }
+}
+
+fn write_json(contents: &str) -> tempfile::NamedTempFile {
+    let mut file = tempfile::NamedTempFile::new().unwrap();
+    file.write_all(contents.as_bytes()).unwrap();
+    file.flush().unwrap();
+    file
+}
+
+fn seed_json(ips: &[&str]) -> String {
+    let devices: Vec<String> = ips
+        .iter()
+        .map(|ip| {
+            format!(
+                r#"{{
+                    "hostname": "host",
+                    "ip": "{ip}",
+                    "mac": "00:11:22:33:44:55",
+                    "vendor": "vendor",
+                    "is_current_host": false,
+                    "is_gateway": false
+                }}"#
+            )
+        })
+        .collect();
+
+    format!("[{}]", devices.join(","))
 }
 
 fn seed_arp_history(
@@ -420,4 +459,132 @@ fn process_syn_sends_messages() {
         .unwrap();
 
     process.process_syn(scanner, rx).unwrap();
+}
+
+#[test]
+fn load_seed_devices_returns_none_without_a_path() {
+    let mock_sender = MockIpcSender::<MainMessage>::new();
+    let mock_receiver = MockIpcReceiver::<NetworkMessage>::new();
+    let process = setup(mock_sender, mock_receiver);
+
+    assert!(process.load_seed_devices().unwrap().is_none());
+}
+
+#[test]
+fn load_seed_devices_reads_the_supplied_file() {
+    let file = write_json(&seed_json(&["10.0.0.1", "10.0.0.2"]));
+
+    let mock_sender = MockIpcSender::<MainMessage>::new();
+    let mock_receiver = MockIpcReceiver::<NetworkMessage>::new();
+    let process = setup_with_seed(
+        mock_sender,
+        mock_receiver,
+        Some(file.path().to_path_buf()),
+    );
+
+    let devices = process.load_seed_devices().unwrap().unwrap();
+
+    assert_eq!(devices.len(), 2);
+    assert_eq!(devices[0].ip, Ipv4Addr::new(10, 0, 0, 1));
+    assert_eq!(devices[1].ip, Ipv4Addr::new(10, 0, 0, 2));
+}
+
+#[test]
+fn load_seed_devices_names_a_missing_file() {
+    let mock_sender = MockIpcSender::<MainMessage>::new();
+    let mock_receiver = MockIpcReceiver::<NetworkMessage>::new();
+    let process = setup_with_seed(
+        mock_sender,
+        mock_receiver,
+        Some(PathBuf::from("/nope/missing.json")),
+    );
+
+    let err = process.load_seed_devices().unwrap_err().to_string();
+
+    assert!(err.contains("failed to read"), "unexpected error: {err}");
+    assert!(
+        err.contains("/nope/missing.json"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn load_seed_devices_names_a_malformed_file() {
+    let file = write_json("not json at all");
+
+    let mock_sender = MockIpcSender::<MainMessage>::new();
+    let mock_receiver = MockIpcReceiver::<NetworkMessage>::new();
+    let process = setup_with_seed(
+        mock_sender,
+        mock_receiver,
+        Some(file.path().to_path_buf()),
+    );
+
+    let err = process.load_seed_devices().unwrap_err().to_string();
+
+    assert!(err.contains("failed to parse"), "unexpected error: {err}");
+}
+
+#[test]
+fn load_seed_devices_rejects_an_empty_device_list() {
+    let file = write_json("[]");
+
+    let mock_sender = MockIpcSender::<MainMessage>::new();
+    let mock_receiver = MockIpcReceiver::<NetworkMessage>::new();
+    let process = setup_with_seed(
+        mock_sender,
+        mock_receiver,
+        Some(file.path().to_path_buf()),
+    );
+
+    let err = process.load_seed_devices().unwrap_err().to_string();
+
+    assert!(err.contains("no devices found"), "unexpected error: {err}");
+}
+
+#[test]
+fn monitor_sends_seed_devices_once_and_skips_arp() {
+    let file = write_json(&seed_json(&["10.0.0.1", "10.0.0.2"]));
+
+    let mut mock_sender = MockIpcSender::<MainMessage>::new();
+    let mut mock_receiver = MockIpcReceiver::<NetworkMessage>::new();
+
+    // exactly one ArpUpdate per seed device, and no ArpStart/ArpDone since
+    // no ARP scan runs -- any other message fails to match and panics
+    mock_sender
+        .expect_send()
+        .times(2)
+        .withf(|m| matches!(m, MainMessage::ArpUpdate(_)))
+        .returning(|_| Ok(()));
+
+    mock_receiver
+        .expect_try_recv()
+        .returning(|| Ok(NetworkMessage::Quit))
+        .times(1);
+
+    let process = setup_with_seed(
+        mock_sender,
+        mock_receiver,
+        Some(file.path().to_path_buf()),
+    );
+
+    let oui: Arc<dyn Oui> = Arc::new(OuiStub);
+
+    assert!(process.monitor(oui).is_ok());
+}
+
+#[test]
+fn monitor_fails_fast_when_the_seed_file_is_unreadable() {
+    let mock_sender = MockIpcSender::<MainMessage>::new();
+    let mock_receiver = MockIpcReceiver::<NetworkMessage>::new();
+
+    let process = setup_with_seed(
+        mock_sender,
+        mock_receiver,
+        Some(PathBuf::from("/nope/missing.json")),
+    );
+
+    let oui: Arc<dyn Oui> = Arc::new(OuiStub);
+
+    assert!(process.monitor(oui).is_err());
 }

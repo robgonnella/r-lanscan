@@ -1889,6 +1889,7 @@ dependencies = [
  "r-lanlib",
  "serde_json",
  "simplelog",
+ "tempfile",
 ]
 
 [[package]]
@@ -1908,6 +1909,7 @@ dependencies = [
  "oui-data",
  "rgon-pnet",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.20",
  "threadpool",
@@ -1936,6 +1938,7 @@ dependencies = [
  "r-lanlib",
  "ratatui",
  "serde",
+ "serde_json",
  "serde_yaml",
  "signal-hook 0.4.4",
  "simplelog",

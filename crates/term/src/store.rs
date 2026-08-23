@@ -64,6 +64,8 @@ impl Dispatcher for Store {
             let state = Rc::make_mut(&mut rc);
 
             // prevent recursively syncing actions back to sync-er
+            // since sync actions are Boxed, we need to "un-box" before
+            // reducing
             if let Action::Sync(a) = action {
                 self.reducer.reduce(state, a.as_ref().to_owned());
                 return;

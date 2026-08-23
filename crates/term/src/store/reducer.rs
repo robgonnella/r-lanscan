@@ -96,6 +96,9 @@ impl Reducer for StoreReducer {
                 self.log_action("ClearCommandOutput", &"", state);
                 reducers::command::clear_command_output(state);
             }
+
+            // Do nothing with sync actions as these are only intended to
+            // be replayed to other threads
             Action::Sync(_) => {}
         }
     }

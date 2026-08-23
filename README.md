@@ -67,7 +67,7 @@ sudo r-lancli
 sudo r-lancli --targets 192.168.1.0/24 --ports 22,80,443,8080
 
 # Export results as JSON
-sudo r-lancli --json --quiet > scan_results.json
+sudo r-lancli --json > scan_results.json
 ```
 
 **Key Features:**

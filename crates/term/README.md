@@ -156,6 +156,49 @@ sudo r-lanterm --throttle 50us
 sudo r-lanterm --throttle 1ms
 ```
 
+### `--scan-interval <DURATION>`
+
+How long to wait between network re-scans. Longer intervals reduce network
+traffic and CPU use; shorter intervals surface new devices and port changes
+sooner.
+
+**Default**: `15s`
+
+**Examples**:
+
+```bash
+# Use the default interval (15s)
+sudo r-lanterm
+
+# React quickly to devices joining and leaving
+sudo r-lanterm --scan-interval 5s
+
+# Keep a long-running session quiet on a busy network
+sudo r-lanterm --scan-interval 2m
+```
+
+### `--from-arp-json <FILE>`
+
+Skip ARP scanning and seed the device list from the json output of a previous
+ARP scan. The seeded devices are loaded once at startup and then port-scanned
+on every interval, so no ARP traffic is ever sent.
+
+The file must contain the json array produced by
+`r-lancli --arp-only --json`.
+
+**Use case**: Monitoring a known set of devices, or running on a network
+where ARP scanning is undesirable.
+
+**Examples**:
+
+```bash
+# Capture the device list once with the CLI
+sudo r-lancli --arp-only --json --vendor --host-names > devices.json
+
+# Then monitor just those devices
+sudo r-lanterm --from-arp-json devices.json
+```
+
 ### `--debug, -d`
 
 Run in debug mode - prints logs instead of showing the UI.
