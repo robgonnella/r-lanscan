@@ -34,7 +34,7 @@ fn prints_args() {
 
     let args = Args {
         json: false,
-        from_arp_json: None,
+        from_devices_json: None,
         arp_only: false,
         debug: false,
         host_names: true,
@@ -55,7 +55,7 @@ fn prints_args() {
 fn initializes_logger() {
     let args = Args {
         json: false,
-        from_arp_json: None,
+        from_devices_json: None,
         arp_only: false,
         debug: false,
         host_names: true,
@@ -76,7 +76,7 @@ fn initializes_logger() {
 fn prints_arp_table_results() {
     let args = Args {
         json: false,
-        from_arp_json: None,
+        from_devices_json: None,
         arp_only: false,
         debug: false,
         host_names: true,
@@ -104,7 +104,7 @@ fn prints_arp_table_results() {
 fn prints_arp_json_results() {
     let args = Args {
         json: true,
-        from_arp_json: None,
+        from_devices_json: None,
         arp_only: true,
         debug: false,
         host_names: true,
@@ -132,7 +132,7 @@ fn prints_arp_json_results() {
 fn prints_syn_table_results() {
     let args = Args {
         json: false,
-        from_arp_json: None,
+        from_devices_json: None,
         arp_only: false,
         debug: false,
         host_names: true,
@@ -170,7 +170,7 @@ fn prints_syn_table_results() {
 fn prints_syn_json_results() {
     let args = Args {
         json: true,
-        from_arp_json: None,
+        from_devices_json: None,
         arp_only: false,
         debug: false,
         host_names: true,
@@ -291,12 +291,12 @@ fn write_json(contents: &str) -> tempfile::NamedTempFile {
 }
 
 #[test]
-fn from_arp_json_conflicts_with_arp_only() {
+fn from_devices_json_conflicts_with_arp_only() {
     // seeding from a file skips the ARP scan, so --arp-only would leave
     // nothing to do and silently print nothing
     let result = Args::try_parse_from([
         "r-lancli",
-        "--from-arp-json",
+        "--from-devices-json",
         "devices.json",
         "--arp-only",
     ]);
@@ -305,11 +305,11 @@ fn from_arp_json_conflicts_with_arp_only() {
 }
 
 #[test]
-fn from_arp_json_conflicts_with_targets() {
+fn from_devices_json_conflicts_with_targets() {
     // the seeded device list replaces the target list entirely
     let result = Args::try_parse_from([
         "r-lancli",
-        "--from-arp-json",
+        "--from-devices-json",
         "devices.json",
         "--targets",
         "192.168.1.0/24",
@@ -319,12 +319,15 @@ fn from_arp_json_conflicts_with_targets() {
 }
 
 #[test]
-fn from_arp_json_parses_on_its_own() {
-    let args =
-        Args::try_parse_from(["r-lancli", "--from-arp-json", "devices.json"])
-            .unwrap();
+fn from_devices_json_parses_on_its_own() {
+    let args = Args::try_parse_from([
+        "r-lancli",
+        "--from-devices-json",
+        "devices.json",
+    ])
+    .unwrap();
 
-    assert_eq!(args.from_arp_json, Some(PathBuf::from("devices.json")));
+    assert_eq!(args.from_devices_json, Some(PathBuf::from("devices.json")));
 }
 
 #[test]

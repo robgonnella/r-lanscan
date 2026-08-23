@@ -10,7 +10,7 @@ fn default_args(debug: bool) -> Args {
         debug,
         ports: vec!["80".to_string()],
         throttle: DEFAULT_PACKET_SEND_TIMING,
-        from_arp_json: None,
+        from_devices_json: None,
         scan_interval: DEFAULT_SCAN_INTERVAL.into(),
     }
 }
@@ -79,10 +79,13 @@ fn scan_interval_rejects_a_non_duration() {
 }
 
 #[test]
-fn from_arp_json_parses_as_a_path() {
-    let args =
-        Args::try_parse_from(["r-lanterm", "--from-arp-json", "devices.json"])
-            .unwrap();
+fn from_devices_json_parses_as_a_path() {
+    let args = Args::try_parse_from([
+        "r-lanterm",
+        "--from-devices-json",
+        "devices.json",
+    ])
+    .unwrap();
 
-    assert_eq!(args.from_arp_json, Some(PathBuf::from("devices.json")));
+    assert_eq!(args.from_devices_json, Some(PathBuf::from("devices.json")));
 }

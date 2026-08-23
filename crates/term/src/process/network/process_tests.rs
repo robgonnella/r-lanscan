@@ -95,7 +95,7 @@ fn setup(
 fn setup_with_seed(
     mock_sender: MockIpcSender<MainMessage>,
     mock_receiver: MockIpcReceiver<NetworkMessage>,
-    from_arp_json: Option<PathBuf>,
+    from_devices_json: Option<PathBuf>,
 ) -> NetworkProcess {
     let ipc = NetworkIpc::new(Box::new(mock_sender), Box::new(mock_receiver));
 
@@ -110,7 +110,7 @@ fn setup_with_seed(
         throttle: DEFAULT_PACKET_SEND_TIMING,
         scan_interval: DEFAULT_SCAN_INTERVAL,
         arp_history: RefCell::new(HashMap::new()),
-        from_arp_json,
+        from_devices_json,
     }
 }
 

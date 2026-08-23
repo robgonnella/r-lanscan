@@ -96,7 +96,7 @@ struct Args {
     /// Skips ARP scanning and instead uses json output from previous arp scan
     /// to seed the list of devices for port scanning
     #[arg(long)]
-    from_arp_json: Option<PathBuf>,
+    from_devices_json: Option<PathBuf>,
 
     /// Comma separated list of ports and port ranges to scan
     #[arg(
@@ -232,7 +232,7 @@ fn start_network_monitoring_thread(
     config: Config,
     throttle: Duration,
     scan_interval: Duration,
-    from_arp_json: Option<PathBuf>,
+    from_devices_json: Option<PathBuf>,
     interface: Arc<NetworkInterface>,
     tx: Sender<MainMessage>,
     rx: Receiver<NetworkMessage>,
@@ -254,7 +254,7 @@ fn start_network_monitoring_thread(
         .gateway(network::get_default_gateway())
         .throttle(throttle)
         .scan_interval(scan_interval)
-        .from_arp_json(from_arp_json)
+        .from_devices_json(from_devices_json)
         .build()?;
 
     Ok(thread::spawn(move || -> Result<()> {
@@ -400,7 +400,7 @@ fn main() -> Result<()> {
         initial_state.config.clone(),
         args.throttle,
         args.scan_interval.into(),
-        args.from_arp_json,
+        args.from_devices_json,
         Arc::new(interface),
         main_tx.clone(),
         network_rx,

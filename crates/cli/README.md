@@ -27,11 +27,11 @@ Download the prebuilt binary for your platform from the
 
 Available targets:
 
-| Platform            | Target                        |
-| ------------------- | ----------------------------- |
-| Linux x86_64        | `x86_64-unknown-linux-musl`   |
-| Linux ARM64         | `aarch64-unknown-linux-musl`  |
-| macOS Apple Silicon | `aarch64-apple-darwin`        |
+| Platform            | Target                       |
+| ------------------- | ---------------------------- |
+| Linux x86_64        | `x86_64-unknown-linux-musl`  |
+| Linux ARM64         | `aarch64-unknown-linux-musl` |
+| macOS Apple Silicon | `aarch64-apple-darwin`       |
 
 ```bash
 # Example: Linux x86_64
@@ -174,7 +174,7 @@ Perform only ARP scanning, skipping SYN port scanning.
 sudo r-lancli --arp-only --vendor --host-names
 ```
 
-#### `--from-arp-json <FILE>`
+#### `--from-devices-json <FILE>`
 
 Skip ARP scanning and seed the port scan from the json output of a previous
 ARP scan. Useful for iterating on port scans without paying for device
@@ -192,8 +192,8 @@ Cannot be combined with `--arp-only` (there would be nothing left to do) or
 sudo r-lancli --arp-only --json --vendor --host-names > devices.json
 
 # Then scan ports as many times as needed, no ARP scan required
-sudo r-lancli --from-arp-json devices.json --ports 22,80,443
-sudo r-lancli --from-arp-json devices.json --ports 8000-9000
+sudo r-lancli --from-devices-json devices.json --ports 22,80,443
+sudo r-lancli --from-devices-json devices.json --ports 8000-9000
 ```
 
 #### `--vendor`

@@ -93,7 +93,7 @@ struct Args {
     /// Skips ARP scanning and instead uses json output from previous arp scan
     /// to seed the list of devices for port scanning
     #[arg(long, conflicts_with_all = ["arp_only", "targets"])]
-    from_arp_json: Option<PathBuf>,
+    from_devices_json: Option<PathBuf>,
 
     /// Prints debug logs including those from r-lanlib
     #[arg(long, default_value_t = false)]
@@ -126,29 +126,29 @@ fn initialize_logger(args: &Args) -> Result<()> {
 
 fn print_args(args: &Args, interface: &NetworkInterface) {
     log::info!("configuration:");
-    log::info!("targets:         {:?}", args.targets);
-    log::info!("ports:           {:?}", args.ports);
-    log::info!("json:            {}", args.json);
+    log::info!("targets:           {:?}", args.targets);
+    log::info!("ports:             {:?}", args.ports);
+    log::info!("json:              {}", args.json);
     log::info!(
-        "from_arp_json:   {}",
-        args.from_arp_json
+        "from_devices_json: {}",
+        args.from_devices_json
             .as_deref()
             .map(|p| p.display().to_string())
             .unwrap_or_default()
     );
-    log::info!("arpOnly:         {}", args.arp_only);
-    log::info!("vendor:          {}", args.vendor);
-    log::info!("host_names:      {}", args.host_names);
-    log::info!("quiet:           {}", args.quiet);
-    log::info!("idle_timeout_ms: {}", args.idle_timeout_ms);
+    log::info!("arpOnly:           {}", args.arp_only);
+    log::info!("vendor:            {}", args.vendor);
+    log::info!("host_names:        {}", args.host_names);
+    log::info!("quiet:             {}", args.quiet);
+    log::info!("idle_timeout_ms:   {}", args.idle_timeout_ms);
     log::info!(
-        "interface:       {}",
+        "interface:         {}",
         args.interface.as_deref().unwrap_or(&interface.name)
     );
-    log::info!("cidr:            {}", interface.cidr);
-    log::info!("user_ip:         {}", interface.ipv4);
-    log::info!("source_port:     {}", args.source_port);
-    log::info!("throttle         {:?}", args.throttle);
+    log::info!("cidr:              {}", interface.cidr);
+    log::info!("user_ip:           {}", interface.ipv4);
+    log::info!("source_port:       {}", args.source_port);
+    log::info!("throttle:          {:?}", args.throttle);
 }
 
 fn process_arp(
@@ -412,7 +412,7 @@ fn main() -> Result<()> {
         None
     };
 
-    let (arp_results, rx) = if let Some(filepath) = &args.from_arp_json {
+    let (arp_results, rx) = if let Some(filepath) = &args.from_devices_json {
         let devices = load_devices_from_json(filepath)?;
         (devices, rx)
     } else {

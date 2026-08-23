@@ -46,11 +46,11 @@ Download the prebuilt binary for your platform from the
 
 Available targets:
 
-| Platform            | Target                        |
-| ------------------- | ----------------------------- |
-| Linux x86_64        | `x86_64-unknown-linux-musl`   |
-| Linux ARM64         | `aarch64-unknown-linux-musl`  |
-| macOS Apple Silicon | `aarch64-apple-darwin`        |
+| Platform            | Target                       |
+| ------------------- | ---------------------------- |
+| Linux x86_64        | `x86_64-unknown-linux-musl`  |
+| Linux ARM64         | `aarch64-unknown-linux-musl` |
+| macOS Apple Silicon | `aarch64-apple-darwin`       |
 
 ```bash
 # Example: Linux x86_64
@@ -177,7 +177,7 @@ sudo r-lanterm --scan-interval 5s
 sudo r-lanterm --scan-interval 2m
 ```
 
-### `--from-arp-json <FILE>`
+### `--from-devices-json <FILE>`
 
 Skip ARP scanning and seed the device list from the json output of a previous
 ARP scan. The seeded devices are loaded once at startup and then port-scanned
@@ -196,7 +196,7 @@ where ARP scanning is undesirable.
 sudo r-lancli --arp-only --json --vendor --host-names > devices.json
 
 # Then monitor just those devices
-sudo r-lanterm --from-arp-json devices.json
+sudo r-lanterm --from-devices-json devices.json
 ```
 
 ### `--debug, -d`

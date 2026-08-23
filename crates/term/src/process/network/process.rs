@@ -58,7 +58,7 @@ pub struct NetworkProcess {
     config: RefCell<Config>,
     throttle: Duration,
     scan_interval: Duration,
-    from_arp_json: Option<PathBuf>,
+    from_devices_json: Option<PathBuf>,
     /// Default gateway IP, resolved once at construction time
     #[builder(default)]
     gateway: Option<Ipv4Addr>,
@@ -96,7 +96,7 @@ impl NetworkProcess {
     /// one was supplied. Returns `None` when live ARP scanning should be
     /// used instead.
     fn load_seed_devices(&self) -> Result<Option<Vec<Device>>> {
-        let Some(filepath) = &self.from_arp_json else {
+        let Some(filepath) = &self.from_devices_json else {
             return Ok(None);
         };
 
