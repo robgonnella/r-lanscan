@@ -1,6 +1,6 @@
 [package]
 name = "r-lanterm"
-version = "0.11.0"
+version = "0.12.0"
 edition.workspace = true
 description = "A full-featured terminal user interface (TUI) application for managing and interacting with networked LAN devices"
 documentation = "https://docs.rs/r-lanterm"
@@ -32,7 +32,7 @@ indoc = "2.0.7"
 itertools = "0.15.0"
 log = "^0.4"
 nix = { version = "0.31", features = ["user"] }
-r-lanlib = { path = "../lib", version = "0.11.0" }
+r-lanlib = { path = "../lib", version = "0.12.0" }
 ratatui = { version = "0.30.2", features = ["unstable-widget-ref"] }
 serde = { version = "^1.0", features = ["derive"] }
 serde_json.workspace = true
