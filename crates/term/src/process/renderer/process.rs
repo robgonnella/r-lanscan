@@ -148,11 +148,7 @@ impl<B: Backend + std::io::Write> RendererProcess<B> {
                         ipc: self.ipc.tx.clone(),
                     };
 
-                    // Process event through the application. We don't check
-                    // the return value (whether event was handled) since we
-                    // removed the 'q' key quit override. All quit operations
-                    // now happen explicitly via ctrl-c or from within specific
-                    // views.
+                    // Process event through the application.
                     self.app.process_event(&evt, &ctx)?;
                     // re-fetch state after event processing so render
                     // reflects any changes from dispatched actions
@@ -189,7 +185,6 @@ impl<B: Backend + std::io::Write> RendererProcess<B> {
             .draw(|f| {
                 let ctx = CustomWidgetContext {
                     state,
-                    // dispatcher: self.store.clone(),
                     app_area: f.area(),
                 };
 

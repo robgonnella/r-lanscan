@@ -136,10 +136,13 @@ pub struct Device {
     /// Whether or not the device is the default gateway
     pub is_gateway: bool,
     /// A HashSet of open ports for this device
+    #[serde(default)]
     pub open_ports: PortSet,
     /// ARP round-trip latency in milliseconds, if measured
+    #[serde(default)]
     pub latency_ms: Option<u128>,
     /// TTL value from the SYN-ACK response, if observed
+    #[serde(default)]
     pub response_ttl: Option<u8>,
 }
 
@@ -213,3 +216,7 @@ pub trait Scanner: Sync + Send {
     /// Performs network scanning
     fn scan(&self) -> Result<JoinHandle<Result<()>>>;
 }
+
+#[cfg(test)]
+#[path = "./scanners_tests.rs"]
+mod tests;

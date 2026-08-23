@@ -30,6 +30,7 @@ use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::{
     cell::RefCell,
     fs, io,
+    path::PathBuf,
     rc::Rc,
     sync::{
         Arc,
@@ -49,7 +50,10 @@ use crate::{
     },
     process::{
         main::process::MainProcess,
-        network::{process::NetworkProcess, traits::NetworkMonitor},
+        network::{
+            process::{DEFAULT_SCAN_INTERVAL, NetworkProcess},
+            traits::NetworkMonitor,
+        },
         renderer::process::RendererProcess,
     },
     shell::Shell,
@@ -81,6 +85,19 @@ struct Args {
     #[arg(long, value_parser = humantime::parse_duration, default_value = "200µs")]
     throttle: Duration,
 
+    /// Interval between network re-scans
+    #[arg(
+        long,
+        value_parser = parse_scan_interval,
+        default_value_t = DEFAULT_SCAN_INTERVAL.into()
+    )]
+    scan_interval: humantime::Duration,
+
+    /// Skips ARP scanning and instead uses json output from previous arp scan
+    /// to seed the list of devices for port scanning
+    #[arg(long)]
+    from_arp_json: Option<PathBuf>,
+
     /// Comma separated list of ports and port ranges to scan
     #[arg(
         short,
@@ -89,6 +106,19 @@ struct Args {
         use_value_delimiter = true
     )]
     ports: Vec<String>,
+}
+
+/// Parses a re-scan interval, rejecting zero which would leave the network
+/// monitor re-scanning with no pause between passes.
+fn parse_scan_interval(value: &str) -> Result<humantime::Duration, String> {
+    let duration =
+        humantime::parse_duration(value).map_err(|e| e.to_string())?;
+
+    if duration.is_zero() {
+        return Err("scan interval must be greater than zero".to_string());
+    }
+
+    Ok(duration.into())
 }
 
 fn initialize_logger(args: &Args) -> Result<()> {
@@ -201,6 +231,8 @@ fn monitor_thread(
 fn start_network_monitoring_thread(
     config: Config,
     throttle: Duration,
+    scan_interval: Duration,
+    from_arp_json: Option<PathBuf>,
     interface: Arc<NetworkInterface>,
     tx: Sender<MainMessage>,
     rx: Receiver<NetworkMessage>,
@@ -221,6 +253,8 @@ fn start_network_monitoring_thread(
         .config(RefCell::new(config))
         .gateway(network::get_default_gateway())
         .throttle(throttle)
+        .scan_interval(scan_interval)
+        .from_arp_json(from_arp_json)
         .build()?;
 
     Ok(thread::spawn(move || -> Result<()> {
@@ -365,6 +399,8 @@ fn main() -> Result<()> {
     let network_handle = start_network_monitoring_thread(
         initial_state.config.clone(),
         args.throttle,
+        args.scan_interval.into(),
+        args.from_arp_json,
         Arc::new(interface),
         main_tx.clone(),
         network_rx,

@@ -12,7 +12,7 @@
 //! sudo r-lancli
 //! ```
 use clap::Parser;
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::{Result, WrapErr, eyre};
 use core::time;
 use itertools::Itertools;
 use r_lanlib::{
@@ -27,7 +27,9 @@ use r_lanlib::{
 };
 use std::{
     collections::{HashMap, HashSet},
+    fs,
     net::Ipv4Addr,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         mpsc::{self, Receiver},
@@ -88,22 +90,32 @@ struct Args {
     #[arg(long, value_parser = humantime::parse_duration, default_value = "200µs")]
     throttle: Duration,
 
+    /// Skips ARP scanning and instead uses json output from previous arp scan
+    /// to seed the list of devices for port scanning
+    #[arg(long, conflicts_with_all = ["arp_only", "targets"])]
+    from_arp_json: Option<PathBuf>,
+
     /// Prints debug logs including those from r-lanlib
     #[arg(long, default_value_t = false)]
     debug: bool,
 }
 
-fn initialize_logger(args: &Args) -> Result<()> {
-    let filter = if args.quiet {
+/// Chooses the log level for a run. `--json` implies quiet unless `--debug`
+/// was also passed, since info logs go to stdout and would otherwise corrupt
+/// a redirected json report.
+fn log_filter(args: &Args) -> simplelog::LevelFilter {
+    if args.quiet || (args.json && !args.debug) {
         simplelog::LevelFilter::Error
     } else if args.debug {
         simplelog::LevelFilter::Debug
     } else {
         simplelog::LevelFilter::Info
-    };
+    }
+}
 
+fn initialize_logger(args: &Args) -> Result<()> {
     simplelog::TermLogger::init(
-        filter,
+        log_filter(args),
         simplelog::Config::default(),
         simplelog::TerminalMode::Mixed,
         simplelog::ColorChoice::Auto,
@@ -115,8 +127,15 @@ fn initialize_logger(args: &Args) -> Result<()> {
 fn print_args(args: &Args, interface: &NetworkInterface) {
     log::info!("configuration:");
     log::info!("targets:         {:?}", args.targets);
-    log::info!("ports            {:?}", args.ports);
+    log::info!("ports:           {:?}", args.ports);
     log::info!("json:            {}", args.json);
+    log::info!(
+        "from_arp_json:   {}",
+        args.from_arp_json
+            .as_deref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default()
+    );
     log::info!("arpOnly:         {}", args.arp_only);
     log::info!("vendor:          {}", args.vendor);
     log::info!("host_names:      {}", args.host_names);
@@ -166,10 +185,18 @@ fn process_arp(
     Ok((items, rx))
 }
 
+/// Whether the arp report should be printed. When a SYN scan is going to
+/// follow, the syn report is a strict superset of the arp one (`process_syn`
+/// seeds itself from every arp device), so printing both would emit two json
+/// arrays to stdout and leave a redirected report unparseable.
+fn should_print_arp_report(args: &Args) -> bool {
+    args.arp_only || !(args.quiet || args.json)
+}
+
 fn print_arp(args: &Args, devices: &Vec<Device>) -> Result<()> {
     log::info!("arp results:");
 
-    if args.quiet && !args.arp_only {
+    if !should_print_arp_report(args) {
         // only print results of SYN scanner
         return Ok(());
     }
@@ -327,6 +354,28 @@ fn is_root() -> bool {
         .unwrap_or(false)
 }
 
+/// Loads a device list from the json output of a previous ARP scan, to be
+/// used as the seed for port scanning in place of a fresh ARP scan.
+fn load_devices_from_json(filepath: &Path) -> Result<Vec<Device>> {
+    let file_content = fs::read_to_string(filepath).wrap_err_with(|| {
+        format!("failed to read arp json file: {}", filepath.display())
+    })?;
+
+    let devices: Vec<Device> = serde_json::from_str(&file_content)
+        .wrap_err_with(|| {
+            format!("failed to parse arp json file: {}", filepath.display())
+        })?;
+
+    if devices.is_empty() {
+        return Err(eyre!(
+            "no devices found in arp json file: {}",
+            filepath.display()
+        ));
+    }
+
+    Ok(devices)
+}
+
 fn main() -> Result<()> {
     color_eyre::install()?;
 
@@ -363,26 +412,35 @@ fn main() -> Result<()> {
         None
     };
 
-    let arp = ARPScanner::builder()
-        .interface(Arc::clone(&interface))
-        .wire(wire.clone())
-        .gateway(get_default_gateway())
-        .targets(
-            IPTargets::new(args.targets.clone())
-                .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
-        )
-        .source_port(args.source_port)
-        .include_vendor(args.vendor)
-        .include_host_names(args.host_names)
-        .idle_timeout(time::Duration::from_millis(args.idle_timeout_ms.into()))
-        .notifier(tx.clone())
-        .throttle(args.throttle)
-        .oui(oui)
-        .build()?;
+    let (arp_results, rx) = if let Some(filepath) = &args.from_arp_json {
+        let devices = load_devices_from_json(filepath)?;
+        (devices, rx)
+    } else {
+        let arp = ARPScanner::builder()
+            .interface(Arc::clone(&interface))
+            .wire(wire.clone())
+            .gateway(get_default_gateway())
+            .targets(
+                IPTargets::new(args.targets.clone())
+                    .map_err(|e| eyre!("Invalid IP targets: {}", e))?,
+            )
+            .source_port(args.source_port)
+            .include_vendor(args.vendor)
+            .include_host_names(args.host_names)
+            .idle_timeout(time::Duration::from_millis(
+                args.idle_timeout_ms.into(),
+            ))
+            .notifier(tx.clone())
+            .throttle(args.throttle)
+            .oui(oui)
+            .build()?;
 
-    let (arp_results, rx) = process_arp(&arp, rx)?;
+        let (arp_results, rx) = process_arp(&arp, rx)?;
 
-    print_arp(&args, &arp_results)?;
+        print_arp(&args, &arp_results)?;
+
+        (arp_results, rx)
+    };
 
     if args.arp_only {
         return Ok(());

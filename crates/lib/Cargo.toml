@@ -48,6 +48,7 @@ ureq = "3.4.0"
 [dev-dependencies]
 color-eyre = "0.6.5"
 mockall = "^0.15.0"
+serde_json.workspace = true
 tempfile = "3.27.0"
 
 # r-lanlib is the only crate published as a library, so it is the only one

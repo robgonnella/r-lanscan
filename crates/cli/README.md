@@ -107,7 +107,7 @@ sudo r-lancli --ports 22,80,443,8080,8443
 Get results in JSON format for scripting:
 
 ```bash
-sudo r-lancli --json --quiet > scan_results.json
+sudo r-lancli --json > scan_results.json
 ```
 
 ## Command Line Options
@@ -174,6 +174,28 @@ Perform only ARP scanning, skipping SYN port scanning.
 sudo r-lancli --arp-only --vendor --host-names
 ```
 
+#### `--from-arp-json <FILE>`
+
+Skip ARP scanning and seed the port scan from the json output of a previous
+ARP scan. Useful for iterating on port scans without paying for device
+discovery each time.
+
+The file must contain the json array produced by `--arp-only --json`.
+
+Cannot be combined with `--arp-only` (there would be nothing left to do) or
+`--targets` (the seeded device list replaces the target list).
+
+**Examples**:
+
+```bash
+# Discover devices once
+sudo r-lancli --arp-only --json --vendor --host-names > devices.json
+
+# Then scan ports as many times as needed, no ARP scan required
+sudo r-lancli --from-arp-json devices.json --ports 22,80,443
+sudo r-lancli --from-arp-json devices.json --ports 8000-9000
+```
+
 #### `--vendor`
 
 Enable MAC address vendor lookup to identify device manufacturers.
@@ -225,6 +247,14 @@ sudo r-lancli --source-port 12345
 
 Output results in JSON format instead of human-readable tables.
 
+Progress logging is suppressed automatically, since it is written to stdout
+and would otherwise corrupt a redirected report. Pass `--debug` to get the
+logs back (on a full scan they will be mixed in with the report).
+
+A single json array is always emitted. On a full scan that array is the SYN
+report, which already contains every device found by the ARP scan; the
+separate ARP report is printed only with `--arp-only`.
+
 **Use case**: Programmatic processing, integration with other tools.
 
 ```bash
@@ -235,10 +265,12 @@ sudo r-lancli --json > results.json
 
 Suppress progress messages, only show final results.
 
+`--json` already does this, so `--quiet` is only needed for table output.
+
 **Use case**: Cleaner output for scripting and automation.
 
 ```bash
-sudo r-lancli --quiet --json
+sudo r-lancli --quiet --arp-only
 ```
 
 ### Timing and Performance
@@ -386,7 +418,7 @@ sudo r-lancli --targets 192.168.1.0/24,192.168.2.0/24 --arp-only
 #!/bin/bash
 
 # Perform scan and save results
-sudo r-lancli --json --quiet > network_scan.json
+sudo r-lancli --json > network_scan.json
 
 # Process results with jq
 jq '.[] | select(.open_ports | length > 0)' network_scan.json > devices_with_ports.json
@@ -422,7 +454,7 @@ for device in devices:
 ```bash
 # Add to crontab for periodic scanning
 # Run every hour and log changes
-0 * * * * /usr/local/bin/r-lancli --json --quiet > /var/log/network-scan-$(date +\%Y\%m\%d-\%H).json 2>&1
+0 * * * * /usr/local/bin/r-lancli --json > /var/log/network-scan-$(date +\%Y\%m\%d-\%H).json 2>>/var/log/network-scan.err
 ```
 
 ## Troubleshooting
