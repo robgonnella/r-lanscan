@@ -1,3 +1,9 @@
+# [0.12.0](https://github.com/robgonnella/r-lanscan/compare/v0.11.0...v0.12.0) - 2026-08-23
+
+### 🚀 Features
+
+- adds ability to scan devices from previous arp scan json output [_(2e144bd)_](https://github.com/robgonnella/r-lanscan/commit/2e144bded1bdaedaa13b19800a06e5eac0946b07)
+
 # [0.11.0](https://github.com/robgonnella/r-lanscan/compare/v0.10.0...v0.11.0) - 2026-03-29
 
 ### 🚀 Features
